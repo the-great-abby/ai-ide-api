@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pytest
+httpx
+pytest-cov
+pytest-json-report
+sqlalchemy
+python-multipart 

@@ -1,0 +1,66 @@
+PORT ?= 8000
+ADMIN_FRONTEND_PORT ?= 3000
+
+ai-up:
+	docker-compose up -d api frontend
+
+ai-down:
+	docker-compose down
+
+ai-test:
+	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
+
+ai-test-json:
+	docker-compose run --rm test pytest --json-report --json-report-file=pytest-report.json tests/
+
+ai-test-one:
+	docker-compose run --rm test pytest $(TEST) --disable-warnings --tb=short
+
+ai-export-rules:
+	python scripts/export_approved_rules.py
+
+ai-lint-rules:
+	python scripts/lint_rules.py
+
+ai-env:
+	curl -s http://localhost:$(PORT)/env || echo '{"error": "API not running"}'
+
+ai-status:
+	docker-compose ps
+
+ai-propose-rule:
+	curl -s -X POST http://localhost:$(PORT)/propose-rule-change \
+	  -H "Content-Type: application/json" \
+	  -d @$(RULE_FILE)
+
+ai-list-pending:
+	curl -s http://localhost:$(PORT)/pending-rule-changes
+
+ai-approve-rule:
+	curl -s -X POST http://localhost:$(PORT)/approve-rule-change/$(PROPOSAL_ID)
+
+ai-reject-rule:
+	curl -s -X POST http://localhost:$(PORT)/reject-rule-change/$(PROPOSAL_ID)
+
+ai-list-rules:
+	curl -s http://localhost:$(PORT)/rules
+
+ai-list-rules-mdc:
+	curl -s http://localhost:$(PORT)/rules-mdc
+
+ai-review-code-files:
+	curl -s -X POST http://localhost:$(PORT)/review-code-files \
+	  -F "files=@$(FILE)"
+
+ai-review-code-snippet:
+	curl -s -X POST http://localhost:$(PORT)/review-code-snippet \
+	  -H "Content-Type: application/json" \
+	  -d '{"filename": "$(FILENAME)", "code": "$(CODE)"}'
+
+ai-scan-db:
+	echo '--- Proposals ---'; sqlite3 rules.db 'SELECT * FROM proposals;'; \
+	echo '\n--- Rules ---'; sqlite3 rules.db 'SELECT * FROM rules;'; \
+	echo '\n--- Feedback ---'; sqlite3 rules.db 'SELECT * FROM feedback;' 
+
+ai-approve-all-pending:
+	python scripts/approve_all_pending.py 

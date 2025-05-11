@@ -1,0 +1,40 @@
+version: "3.8"
+services:
+  api:
+    build: .
+    # Use the PORT env var if set, otherwise default to 8000
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    command: ["uvicorn", "rule_api_server:app", "--host", "0.0.0.0", "--reload"]
+
+  test:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - ENVIRONMENT=test
+    command: ["pytest", "test_rule_api_server.py"]
+
+  coverage:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    command: ["pytest", "--cov=rule_api_server", "--cov-report=term-missing", "test_rule_api_server.py"]
+
+  frontend:
+    build:
+      context: ./admin-frontend
+    ports:
+      - "${ADMIN_FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - api 

@@ -1,0 +1,8 @@
+[
+  {
+    "rule_type": "ai_makefile_convention",
+    "description": "All AI-IDEs and automation tools should provide a Makefile.ai in the project root with explicit, machine-friendly targets for common operations.",
+    "diff": "# Rule: AI-IDE Makefile.ai Convention\n\n- All AI-IDE and automation tools are encouraged to provide a `Makefile.ai` in the project root.\n- This file should contain explicit, machine-friendly targets for common operations (e.g., up, down, test, export, lint, env, status).\n- Targets should be non-interactive, idempotent, and output in a format easy for AI or scripts to parse.\n- Use clear, single-purpose targets (e.g., `ai-up`, `ai-down`, `ai-test`, `ai-test-json`, `ai-env`).\n- Avoid prompts, ambiguous output, or side effects.\n- Use variables (e.g., `PORT`) for flexibility.\n- Document all targets in onboarding or project docs.\n- Prefer `Makefile.ai` for all AI/automation workflows.\n\n## Example\n```makefile\nai-up:\n\tdocker-compose up -d api\n\nai-test:\n\tdocker-compose run --rm test pytest tests/ --disable-warnings --tb=short\n```\n\n## Rationale\n- Ensures consistent, reliable automation across projects and tools.\n- Makes it easy for AI agents to discover and execute project operations.\n- Reduces friction for onboarding new AI-IDEs or automation systems.",
+    "submitted_by": "ai-agent"
+  }
+]
