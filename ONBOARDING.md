@@ -1,5 +1,27 @@
 # Onboarding Guide
 
+## 🚨 What's New (June 2024)
+
+- **Expanded Test Coverage:**
+  - Full test suite now covers bug reporting, enhancement workflows, proposal/enhancement transfers, and all major endpoints.
+  - See the new tests in `tests/test_rule_api_server.py` for examples.
+- **New API Endpoints:**
+  - `/bug-report`, `/suggest-enhancement`, `/enhancements`, `/enhancement-to-proposal/{id}`
+  - `/reject-enhancement/{id}`, `/proposal-to-enhancement/{id}`, `/accept-enhancement/{id}`, `/complete-enhancement/{id}`
+- **Enhancement & Bug Workflow:**
+  - Submit, accept, complete, transfer, and reject enhancements via API or UI.
+  - Bug reports and enhancements are now first-class citizens in the workflow.
+- **Rule Versioning:**
+  - Proposals can now reference `rule_id` for updates; rule version history is accessible via `/rules/{rule_id}/history`.
+- **Makefile.ai Targets:**
+  - New targets for enhancements, bug reports, migrations, and DB management.
+- **Onboarding & Integration:**
+  - Improved onboarding for AI IDEs and automation. See `ONBOARDING_OTHER_AI_IDE.md` and `INTEGRATING_AI_IDE.md`.
+- **Best Practices:**
+  - Always use Makefile.ai, Docker service names, and internal ports. Keep docs up to date as workflows evolve.
+
+---
+
 ## 👋 Welcome!
 
 Welcome to the Rule Proposal API project! We're excited to have you here. This project is about making AI a first-class citizen in the development process—enabling both humans and AI to propose, review, and improve rules together. We value collaboration, learning, and continuous improvement. If you're new, don't hesitate to ask questions or suggest changes—your fresh perspective is valuable!
@@ -24,6 +46,8 @@ Welcome to the Rule Proposal API project! We're excited to have you here. This p
 - [ ] Propose a test rule via the API docs (see below!)
 - [ ] **Stop containers:** `make down`
 
+> **Note:** The default API server port for this project is **9103** (not 8000). Update your client, integration, and rule config URLs accordingly.
+
 > **Note:** The API will be available at [http://localhost:<PORT>](http://localhost:<PORT>) when using `make up` or `make up PORT=9001`.
 
 ---
@@ -40,12 +64,17 @@ This project uses a split architecture with Docker Compose:
   - Built with Vite/React, served by nginx
   - Runs on port 3000 by default (configurable via `ADMIN_FRONTEND_PORT`)
 - **Docker Compose** orchestrates both services for local dev and deployment
+- **Postgres Database** (`rules-postgres`):
+  - Stores all rules, proposals, enhancements, and feedback
+  - Runs in a Docker container for portability and consistency
+
+> **Note:** As of June 2024, the project has migrated from SQLite to Postgres for improved scalability and reliability. See CHANGELOG.md for details.
 
 ### MermaidJS Architecture Diagram
 ```mermaid
 graph TD
   User[User or Admin]
-  DB[rules.db - SQLite]
+  DB[rules-postgres (Postgres)]
 
   subgraph Frontend
     FE[Admin Frontend - React]
@@ -194,7 +223,7 @@ External AI-IDEs or clients can interact with the Rule API to propose new rules 
 graph TD
   AIIDE[Other AI-IDE or Client]
   API[API Backend - FastAPI]
-  DB[rules.db - SQLite]
+  DB[rules-postgres (Postgres)]
 
   AIIDE -- "POST /propose-rule-change" --> API
   AIIDE -- "GET /rules or /rules-mdc" --> API
@@ -266,5 +295,75 @@ make -f Makefile.ai ai-down                          # Stop all services
 **Troubleshooting:**
 - If a port is in use, change the port variable (e.g., `ADMIN_FRONTEND_PORT=4001`).
 - Use `make -f Makefile.ai ai-status` to check running containers.
+
+---
+
+## API Endpoints (Expanded)
+
+| Endpoint                                 | Method | Description                                 |
+|------------------------------------------|--------|---------------------------------------------|
+| `/rules`                                 | GET    | List all approved rules (filterable)        |
+| `/rules/{rule_id}`                       | GET    | Get a specific rule by ID                   |
+| `/rules/{rule_id}/history`               | GET    | Get version history for a rule              |
+| `/propose-rule-change`                   | POST   | Submit a new rule proposal                  |
+| `/approve-rule-change/{proposal_id}`     | POST   | Approve a proposal                          |
+| `/reject-rule-change/{proposal_id}`      | POST   | Reject a proposal                           |
+| `/bug-report`                            | POST   | Submit a bug report                         |
+| `/suggest-enhancement`                   | POST   | Suggest an enhancement                      |
+| `/enhancements`                          | GET    | List all enhancements                       |
+| `/enhancement-to-proposal/{id}`          | POST   | Transfer enhancement to proposal            |
+| `/reject-enhancement/{id}`               | POST   | Reject an enhancement                       |
+| `/proposal-to-enhancement/{id}`          | POST   | Revert proposal to enhancement              |
+| `/accept-enhancement/{id}`               | POST   | Accept an enhancement                       |
+| `/complete-enhancement/{id}`             | POST   | Complete an enhancement                     |
+| `/env`                                   | GET    | Get current environment                     |
+
+See `/docs` for full OpenAPI schema and request/response details.
+
+---
+
+## 🧪 Enhancement & Bug Workflow
+
+- **Submit an enhancement:** `/suggest-enhancement` (API or UI)
+- **List enhancements:** `/enhancements`
+- **Accept/complete enhancement:** `/accept-enhancement/{id}` → `/complete-enhancement/{id}`
+- **Transfer enhancement to proposal:** `/enhancement-to-proposal/{id}`
+- **Reject enhancement:** `/reject-enhancement/{id}`
+- **Revert proposal to enhancement:** `/proposal-to-enhancement/{id}`
+- **Submit a bug report:** `/bug-report`
+- **Status transitions:**
+  - Enhancement: `open` → `accepted` → `completed` (or `rejected`/`transferred`)
+  - Proposal: `pending` → `approved`/`rejected`/`reverted_to_enhancement`
+
+---
+
+## 🧪 Rule Versioning & History
+
+- **Proposals for rule updates** should include a `rule_id` field referencing the rule to update.
+- **On approval:** The rule's version is incremented, and the previous version is saved to history.
+- **Access history:** `/rules/{rule_id}/history` returns all previous versions and metadata.
+
+---
+
+## 🛠️ Makefile.ai Targets (Expanded)
+
+- `ai-test`, `ai-test-one`, `ai-test-json`: Run tests
+- `ai-accept-enhancement`, `ai-complete-enhancement`: Accept/complete enhancements
+- `ai-list-enhancements`: List enhancements (optionally by status)
+- `ai-proposal-to-enhancement`: Revert proposal to enhancement
+- `ai-db-autorevision`, `ai-db-migrate`: DB migrations
+- `ai-bug-report`, `ai-suggest-enhancement`: Submit bug/enhancement via CLI
+- See `Makefile.ai` for the full list and usage examples
+
+---
+
+## 📚 Best Practices (Updated)
+- Always use Makefile.ai for all automation (tests, builds, migrations, DB, etc.)
+- Use Docker service names and internal ports for all connections
+- Keep rule frontmatter minimal (`description`, `globs`)
+- Document new rules, endpoints, and workflows as they evolve
+- Keep onboarding and integration docs up to date
+- Never mix test and dev environments
+- Add/expand tests for new features and workflows
 
 --- 

@@ -5,4 +5,6 @@ httpx
 pytest-cov
 pytest-json-report
 sqlalchemy
-python-multipart 
+python-multipart
+alembic
+python-dateutil 

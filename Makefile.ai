@@ -1,4 +1,4 @@
-PORT ?= 8000
+PORT ?= 9103
 ADMIN_FRONTEND_PORT ?= 3000
 
 ai-up:
@@ -64,3 +64,117 @@ ai-scan-db:
 
 ai-approve-all-pending:
 	python scripts/approve_all_pending.py 
+
+ai-db-migrate:
+	docker compose exec api alembic upgrade head
+
+ai-db-revision:
+	docker compose exec api alembic revision --autogenerate -m "$(MSG)" 
+
+ai-db-autorevision:
+	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
+
+# Propose the Makefile.ai-required rule to the API (uses /propose-rule-change and $(PORT))
+ai-propose-makefile-rule:
+	curl -s -X POST http://localhost:$(PORT)/propose-rule-change \
+	  -H "Content-Type: application/json" \
+	  -d '{"content": "---\\ndescription: All automation (tests, migrations, builds, etc.) must be run via Makefile.ai targets, not by running commands directly.\\nglobs: \\\"**/*\\\"\\n---\\n# Makefile.ai Required for Automation\\n\\n**Rule:**  \\nAll test, migration, build, and environment setup commands must be executed using \\`Makefile.ai\\` targets. Do **not** run scripts or commands directly (e.g., \\`pytest\\`, \\`alembic\\`, \\`docker compose\\`, etc.).\\n\\n**Rationale:**  \\n- Ensures consistent, reproducible automation for both humans and AI agents.\\n- Centralizes workflow changes in one place (\\`Makefile.ai\\`).\\n- Prevents environment drift and hard-to-debug issues.\\n- Aligns with project onboarding and integration best practices.\\n\\n**How to comply:**  \\n- Use \\`make -f Makefile.ai <target>\\` for all automation tasks.\\n- See [ONBOARDING.md](../ONBOARDING.md) for a full list of targets and usage examples.\\n\\n**Examples:**\\n\\`\\`\\`sh\\nmake -f Makefile.ai ai-test\\nmake -f Makefile.ai ai-db-migrate\\nmake -f Makefile.ai ai-up\\n\\`\\`\\`\\n\\n**Do NOT:**\\n- Run \\`pytest\\` or \\`alembic\\` directly\\n- Use \\`docker compose\\` commands directly\\n- Bypass Makefile.ai for any automation\\n"}'
+
+# Open or fetch the FastAPI docs endpoint
+ai-docs:
+	curl -s http://localhost:$(PORT)/docs || echo 'Could not fetch docs. Is the API running?' 
+
+# Show logs for the API container
+ai-api-logs:
+	docker compose logs api --tail=100 
+
+# Open the FastAPI docs in the default browser (macOS)
+open-docs:
+	open http://localhost:$(PORT)/docs 
+
+open-admin:
+	open http://localhost:$(ADMIN_FRONTEND_PORT)
+
+ai-build:
+	docker-compose build 
+
+ai-rebuild-all:
+	docker-compose down
+	docker system prune -af
+	docker-compose build 
+
+ai-import-backup:
+	docker compose exec api python import_from_backup.py
+
+ai-bug-report:
+	curl -s -X POST http://localhost:$(PORT)/bug-report \
+	  -H 'Content-Type: application/json' \
+	  -d '{"description": "$(DESCRIPTION)", "reporter": "$(REPORTER)", "page": "$(PAGE)"}'
+
+ai-bug-report-test:
+	$(MAKE) -f Makefile.ai ai-bug-report \
+	  DESCRIPTION='Test bug report from Makefile' \
+	  REPORTER='cli-test' \
+	  PAGE='/admin'
+
+ai-suggest-enhancement:
+	curl -s -X POST http://localhost:$(PORT)/suggest-enhancement \
+	  -H 'Content-Type: application/json' \
+	  -d '{"description": "$(DESCRIPTION)", "suggested_by": "$(SUGGESTED_BY)", "page": "$(PAGE)", "tags": [$(TAGS)], "categories": [$(CATEGORIES)]}'
+
+ai-suggest-enhancement-test:
+	$(MAKE) -f Makefile.ai ai-suggest-enhancement \
+	  DESCRIPTION='Test enhancement from Makefile' \
+	  SUGGESTED_BY='cli-test' \
+	  PAGE='/admin' \
+	  TAGS='"cli","test"' \
+	  CATEGORIES='"usability"'
+
+ai-enhancement-to-proposal:
+	curl -s -X POST http://localhost:$(PORT)/enhancement-to-proposal/$(ENHANCEMENT_ID)
+
+ai-proposal-to-enhancement:
+	curl -s -X POST http://localhost:$(PORT)/proposal-to-enhancement/$(PROPOSAL_ID)
+
+ai-accept-enhancement:
+	curl -s -X POST http://localhost:$(PORT)/accept-enhancement/$(ENHANCEMENT_ID)
+
+ai-complete-enhancement:
+	curl -s -X POST http://localhost:$(PORT)/complete-enhancement/$(ENHANCEMENT_ID)
+
+ai-list-enhancements:
+	@if [ -z "$(STATUS)" ]; then \
+	  curl -s http://localhost:$(PORT)/enhancements | jq '.'; \
+	else \
+	  curl -s http://localhost:$(PORT)/enhancements | jq '.[] | select(.status == "$(STATUS)")'; \
+	fi
+
+ai-onboarding-health:
+	python scripts/onboarding_health_check.py
+
+# Migrate rules.db (SQLite) to Postgres using pgloader in Docker
+# Usage: make -f Makefile.ai ai-migrate-sqlite-to-postgres
+ai-migrate-sqlite-to-postgres:
+	docker-compose up -d rules-postgres pgloader
+	docker cp rules.db pgloader:/data/rules.db
+	docker cp pgloader.load pgloader:/data/pgloader.load
+	docker-compose exec pgloader pgloader /data/pgloader.load
+	@echo "Migration from SQLite to Postgres complete!"
+
+# Build the custom pgloader image for multi-arch (Apple Silicon) compatibility
+# Usage: make -f Makefile.ai ai-build-pgloader
+ai-build-pgloader:
+	docker build -f Dockerfile.pgloader -t local/pgloader:latest .
+
+# Migrate all tables from rules.db (SQLite) to Postgres using CSV and psql in Docker
+# Usage: make -f Makefile.ai ai-migrate-sqlite-to-postgres-csv
+ai-migrate-sqlite-to-postgres-csv:
+	mkdir -p sqlite_export
+	docker run --rm -v $(PWD):/data alpine:latest sh -c 'apk add --no-cache sqlite sqlite-libs > /dev/null && sqlite3 /data/rules.db ".tables" | tr " " "\n" | grep -v "^$$" | while read tbl; do sqlite3 /data/rules.db ".headers on" ".mode csv" ".output /data/sqlite_export/$$tbl.csv" "select * from \"$$tbl\";" ".output stdout"; done'
+	docker run --rm -v $(PWD):/data alpine:latest sh -c 'apk add --no-cache sqlite sqlite-libs > /dev/null && sqlite3 /data/rules.db ".schema" > /data/sqlite_export/schema.sql'
+	# Patch schema.sql: replace DATETIME with TIMESTAMPTZ and add DROP TABLE IF EXISTS
+	sed -i '' 's/DATETIME/TIMESTAMPTZ/g' sqlite_export/schema.sql
+	awk '/^CREATE TABLE /{print "DROP TABLE IF EXISTS " $$3 " CASCADE;"} 1' sqlite_export/schema.sql > sqlite_export/schema.patched.sql
+	chmod +x import_csvs.sh
+	docker run --rm -e PGPASSWORD=postgres -v $(PWD):/data --network ai-ide-api_default postgres:15 bash /data/import_csvs.sh
+	@echo "Migration from SQLite to Postgres via CSV complete!"

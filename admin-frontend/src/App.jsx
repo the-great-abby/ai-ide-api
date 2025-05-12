@@ -13,12 +13,37 @@ function App() {
   const [rejecting, setRejecting] = useState({});
   const [showDetails, setShowDetails] = useState({});
   const [showRuleDetails, setShowRuleDetails] = useState({});
+  const [categoryFilter, setCategoryFilter] = useState([]);
+  const [tagFilter, setTagFilter] = useState([]);
+  const [bugDescription, setBugDescription] = useState("");
+  const [bugReporter, setBugReporter] = useState("");
+  const [bugPage, setBugPage] = useState("/admin");
+  const [bugStatus, setBugStatus] = useState(null);
+  const [bugSubmitting, setBugSubmitting] = useState(false);
+  const [enhancements, setEnhancements] = useState([]);
+  const [loadingEnhancements, setLoadingEnhancements] = useState(true);
+  const [enhancementsError, setEnhancementsError] = useState(null);
+  const [transferring, setTransferring] = useState({});
+  const [transferStatus, setTransferStatus] = useState({});
+  const [rejectingEnh, setRejectingEnh] = useState({});
+  const [rejectStatus, setRejectStatus] = useState({});
+  const [reverting, setReverting] = useState({});
+  const [revertStatus, setRevertStatus] = useState({});
+  const [acceptingEnh, setAcceptingEnh] = useState({});
+  const [acceptStatus, setAcceptStatus] = useState({});
+  const [completingEnh, setCompletingEnh] = useState({});
+  const [completeStatus, setCompleteStatus] = useState({});
+
+  // Extract unique categories and tags from rules
+  const uniqueCategories = Array.from(new Set(rules.flatMap(r => r.categories || []))).filter(Boolean);
+  const uniqueTags = Array.from(new Set(rules.flatMap(r => r.tags || []))).filter(Boolean);
 
   useEffect(() => {
     fetchAll();
+    fetchEnhancements();
   }, []);
 
-  const fetchAll = async () => {
+  const fetchAll = async (categories = categoryFilter, tags = tagFilter) => {
     setLoading(true);
     setError(null);
     try {
@@ -32,6 +57,40 @@ function App() {
       setError('Failed to fetch proposals or rules');
     }
     setLoading(false);
+  };
+
+  const fetchEnhancements = async () => {
+    setLoadingEnhancements(true);
+    setEnhancementsError(null);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/enhancements`);
+      setEnhancements(res.data);
+    } catch (err) {
+      setEnhancementsError('Failed to fetch enhancements');
+    }
+    setLoadingEnhancements(false);
+  };
+
+  // Filter rules client-side for multi-select
+  const filteredRules = rules.filter(r => {
+    const catMatch = categoryFilter.length === 0 || r.categories.some(cat => categoryFilter.includes(cat));
+    const tagMatch = tagFilter.length === 0 || r.tags.some(tag => tagFilter.includes(tag));
+    return catMatch && tagMatch;
+  });
+
+  const handleCategoryFilter = (e) => {
+    const selected = Array.from(e.target.selectedOptions, option => option.value);
+    setCategoryFilter(selected);
+  };
+
+  const handleTagFilter = (e) => {
+    const selected = Array.from(e.target.selectedOptions, option => option.value);
+    setTagFilter(selected);
+  };
+
+  const clearFilters = () => {
+    setCategoryFilter([]);
+    setTagFilter([]);
   };
 
   const approveProposal = async (id) => {
@@ -63,6 +122,93 @@ function App() {
 
   const toggleRuleDetails = (id) => {
     setShowRuleDetails((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const submitBugReport = async (e) => {
+    e.preventDefault();
+    setBugSubmitting(true);
+    setBugStatus(null);
+    try {
+      const res = await axios.post(`${API_BASE_URL}/bug-report`, {
+        description: bugDescription,
+        reporter: bugReporter,
+        page: bugPage,
+      });
+      setBugStatus({ success: true, id: res.data.id });
+      setBugDescription("");
+      setBugReporter("");
+      setBugPage("/admin");
+    } catch (err) {
+      setBugStatus({ success: false, error: err?.response?.data?.detail || "Failed to submit bug report" });
+    }
+    setBugSubmitting(false);
+  };
+
+  const transferEnhancement = async (id) => {
+    setTransferring((prev) => ({ ...prev, [id]: true }));
+    setTransferStatus((prev) => ({ ...prev, [id]: null }));
+    try {
+      const res = await axios.post(`${API_BASE_URL}/enhancement-to-proposal/${id}`);
+      setTransferStatus((prev) => ({ ...prev, [id]: { success: true, proposal_id: res.data.proposal_id } }));
+      fetchEnhancements();
+      fetchAll();
+    } catch (err) {
+      setTransferStatus((prev) => ({ ...prev, [id]: { success: false, error: err?.response?.data?.detail || 'Failed to transfer' } }));
+    }
+    setTransferring((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const rejectEnhancement = async (id) => {
+    setRejectingEnh((prev) => ({ ...prev, [id]: true }));
+    setRejectStatus((prev) => ({ ...prev, [id]: null }));
+    try {
+      const res = await axios.post(`${API_BASE_URL}/reject-enhancement/${id}`);
+      setRejectStatus((prev) => ({ ...prev, [id]: { success: true } }));
+      fetchEnhancements();
+    } catch (err) {
+      setRejectStatus((prev) => ({ ...prev, [id]: { success: false, error: err?.response?.data?.detail || 'Failed to reject' } }));
+    }
+    setRejectingEnh((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const revertProposalToEnhancement = async (id) => {
+    setReverting((prev) => ({ ...prev, [id]: true }));
+    setRevertStatus((prev) => ({ ...prev, [id]: null }));
+    try {
+      const res = await axios.post(`${API_BASE_URL}/proposal-to-enhancement/${id}`);
+      setRevertStatus((prev) => ({ ...prev, [id]: { success: true, enhancement_id: res.data.enhancement_id } }));
+      fetchEnhancements();
+      fetchAll();
+    } catch (err) {
+      setRevertStatus((prev) => ({ ...prev, [id]: { success: false, error: err?.response?.data?.detail || 'Failed to revert' } }));
+    }
+    setReverting((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const acceptEnhancement = async (id) => {
+    setAcceptingEnh((prev) => ({ ...prev, [id]: true }));
+    setAcceptStatus((prev) => ({ ...prev, [id]: null }));
+    try {
+      const res = await axios.post(`${API_BASE_URL}/accept-enhancement/${id}`);
+      setAcceptStatus((prev) => ({ ...prev, [id]: { success: true } }));
+      fetchEnhancements();
+    } catch (err) {
+      setAcceptStatus((prev) => ({ ...prev, [id]: { success: false, error: err?.response?.data?.detail || 'Failed to accept' } }));
+    }
+    setAcceptingEnh((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const completeEnhancement = async (id) => {
+    setCompletingEnh((prev) => ({ ...prev, [id]: true }));
+    setCompleteStatus((prev) => ({ ...prev, [id]: null }));
+    try {
+      const res = await axios.post(`${API_BASE_URL}/complete-enhancement/${id}`);
+      setCompleteStatus((prev) => ({ ...prev, [id]: { success: true } }));
+      fetchEnhancements();
+    } catch (err) {
+      setCompleteStatus((prev) => ({ ...prev, [id]: { success: false, error: err?.response?.data?.detail || 'Failed to complete' } }));
+    }
+    setCompletingEnh((prev) => ({ ...prev, [id]: false }));
   };
 
   return (
@@ -112,6 +258,15 @@ function App() {
                       >
                         {rejecting[p.id] ? 'Rejecting...' : 'Reject'}
                       </button>
+                      {(p.status === 'pending' || p.status === 'rejected') && (
+                        <button
+                          onClick={() => revertProposalToEnhancement(p.id)}
+                          disabled={reverting[p.id]}
+                          style={{ marginRight: 8 }}
+                        >
+                          {reverting[p.id] ? 'Reverting...' : 'Move back to Enhancement'}
+                        </button>
+                      )}
                       <button onClick={() => toggleDetails(p.id)}>
                         {showDetails[p.id] ? 'Hide Details' : 'Details'}
                       </button>
@@ -131,6 +286,22 @@ function App() {
                       </td>
                     </tr>
                   )}
+                  {revertStatus[p.id] && revertStatus[p.id].success && (
+                    <tr>
+                      <td colSpan={5} style={{ background: '#f9f9f9', textAlign: 'left' }}>
+                        <strong>Reverted to Enhancement:</strong>
+                        <div style={{ color: 'green', fontSize: 12 }}>Reverted! Enhancement ID: {revertStatus[p.id].enhancement_id}</div>
+                      </td>
+                    </tr>
+                  )}
+                  {revertStatus[p.id] && !revertStatus[p.id].success && (
+                    <tr>
+                      <td colSpan={5} style={{ background: '#f9f9f9', textAlign: 'left' }}>
+                        <strong>Revert Error:</strong>
+                        <div style={{ color: 'red', fontSize: 12 }}>{revertStatus[p.id].error}</div>
+                      </td>
+                    </tr>
+                  )}
                   </>
                 ))}
               </tbody>
@@ -138,7 +309,35 @@ function App() {
           )}
 
           <h2 style={{ marginTop: 40 }}>Approved Rules</h2>
-          {rules.length === 0 ? (
+          {uniqueCategories.length > 0 || uniqueTags.length > 0 ? (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ marginRight: 8 }}>
+                Categories:
+                <select multiple value={categoryFilter} onChange={handleCategoryFilter} style={{ marginLeft: 4, marginRight: 8 }}>
+                  {uniqueCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ marginRight: 8 }}>
+                Tags:
+                <select multiple value={tagFilter} onChange={handleTagFilter} style={{ marginLeft: 4, marginRight: 8 }}>
+                  {uniqueTags.map(tag => (
+                    <option key={tag} value={tag}>{tag}</option>
+                  ))}
+                </select>
+              </label>
+              <button onClick={clearFilters}>Clear Filters</button>
+            </div>
+          ) : null}
+          {(categoryFilter.length > 0 || tagFilter.length > 0) && (
+            <div style={{ marginBottom: 8 }}>
+              <strong>Current Filters:</strong>
+              {categoryFilter.length > 0 && <span> Categories: {categoryFilter.join(', ')}</span>}
+              {tagFilter.length > 0 && <span> Tags: {tagFilter.join(', ')}</span>}
+            </div>
+          )}
+          {filteredRules.length === 0 ? (
             <p>No approved rules.</p>
           ) : (
             <table style={{ margin: '0 auto' }}>
@@ -152,7 +351,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {rules.map((r) => (
+                {filteredRules.map((r) => (
                   <>
                   <tr key={r.id}>
                     <td>{r.id}</td>
@@ -184,6 +383,144 @@ function App() {
               </tbody>
             </table>
           )}
+
+          {/* Bug Report Form */}
+          <div style={{ marginTop: 40, padding: 20, border: '1px solid #ccc', borderRadius: 8, maxWidth: 600, marginLeft: 'auto', marginRight: 'auto' }}>
+            <h2>Report a Bug</h2>
+            <form onSubmit={submitBugReport}>
+              <div style={{ marginBottom: 12 }}>
+                <label>Description (required):<br />
+                  <textarea value={bugDescription} onChange={e => setBugDescription(e.target.value)} required rows={3} style={{ width: '100%' }} />
+                </label>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label>Your Name or Email (optional):<br />
+                  <input type="text" value={bugReporter} onChange={e => setBugReporter(e.target.value)} style={{ width: '100%' }} />
+                </label>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label>Page (optional):<br />
+                  <input type="text" value={bugPage} onChange={e => setBugPage(e.target.value)} style={{ width: '100%' }} />
+                </label>
+              </div>
+              <button type="submit" disabled={bugSubmitting || !bugDescription}>{bugSubmitting ? 'Submitting...' : 'Submit Bug Report'}</button>
+            </form>
+            {bugStatus && bugStatus.success && (
+              <p style={{ color: 'green', marginTop: 10 }}>Thank you! Bug report submitted (ID: {bugStatus.id})</p>
+            )}
+            {bugStatus && !bugStatus.success && (
+              <p style={{ color: 'red', marginTop: 10 }}>Error: {bugStatus.error}</p>
+            )}
+          </div>
+
+          {/* Enhancements Section */}
+          <div style={{ marginTop: 40, padding: 20, border: '1px solid #ccc', borderRadius: 8, maxWidth: 900, marginLeft: 'auto', marginRight: 'auto' }}>
+            <h2>Suggested Enhancements</h2>
+            <button onClick={fetchEnhancements} style={{ marginBottom: 16 }}>Refresh Enhancements</button>
+            {loadingEnhancements ? (
+              <p>Loading enhancements...</p>
+            ) : enhancementsError ? (
+              <p style={{ color: 'red' }}>{enhancementsError}</p>
+            ) : enhancements.length === 0 ? (
+              <p>No enhancements submitted yet.</p>
+            ) : (
+              <table style={{ margin: '0 auto', width: '100%', fontSize: 14 }}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Description</th>
+                    <th>Suggested By</th>
+                    <th>Page</th>
+                    <th>Tags</th>
+                    <th>Categories</th>
+                    <th>Timestamp</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enhancements.map(e => (
+                    <tr key={e.id}>
+                      <td style={{ maxWidth: 120, wordBreak: 'break-all' }}>{e.id}</td>
+                      <td>{e.description}</td>
+                      <td>{e.suggested_by}</td>
+                      <td>{e.page}</td>
+                      <td>{(e.tags || []).join(', ')}</td>
+                      <td>{(e.categories || []).join(', ')}</td>
+                      <td>{e.timestamp}</td>
+                      <td>
+                        {e.status === 'open' ? (
+                          <>
+                            <button
+                              onClick={() => transferEnhancement(e.id)}
+                              disabled={transferring[e.id]}
+                              style={{ marginRight: 8 }}
+                            >
+                              {transferring[e.id] ? 'Transferring...' : 'Transfer to Proposal'}
+                            </button>
+                            <button
+                              onClick={() => rejectEnhancement(e.id)}
+                              disabled={rejectingEnh[e.id]}
+                              style={{ marginRight: 8 }}
+                            >
+                              {rejectingEnh[e.id] ? 'Rejecting...' : 'Reject'}
+                            </button>
+                            <button
+                              onClick={() => acceptEnhancement(e.id)}
+                              disabled={acceptingEnh[e.id]}
+                              style={{ marginRight: 8 }}
+                            >
+                              {acceptingEnh[e.id] ? 'Accepting...' : 'Accept'}
+                            </button>
+                          </>
+                        ) : e.status === 'accepted' ? (
+                          <>
+                            <button
+                              onClick={() => completeEnhancement(e.id)}
+                              disabled={completingEnh[e.id]}
+                              style={{ marginRight: 8 }}
+                            >
+                              {completingEnh[e.id] ? 'Completing...' : 'Complete'}
+                            </button>
+                            <span style={{ color: 'blue' }}>Accepted</span>
+                          </>
+                        ) : e.status === 'completed' ? (
+                          <span style={{ color: 'green' }}>Completed</span>
+                        ) : e.status === 'transferred' ? (
+                          <span style={{ color: 'gray' }}>Transferred</span>
+                        ) : (
+                          <span style={{ color: 'red' }}>Rejected</span>
+                        )}
+                        {transferStatus[e.id] && transferStatus[e.id].success && (
+                          <div style={{ color: 'green', fontSize: 12 }}>Transferred! Proposal ID: {transferStatus[e.id].proposal_id}</div>
+                        )}
+                        {transferStatus[e.id] && !transferStatus[e.id].success && (
+                          <div style={{ color: 'red', fontSize: 12 }}>Error: {transferStatus[e.id].error}</div>
+                        )}
+                        {rejectStatus[e.id] && rejectStatus[e.id].success && (
+                          <div style={{ color: 'red', fontSize: 12 }}>Rejected!</div>
+                        )}
+                        {rejectStatus[e.id] && !rejectStatus[e.id].success && (
+                          <div style={{ color: 'red', fontSize: 12 }}>Error: {rejectStatus[e.id].error}</div>
+                        )}
+                        {acceptStatus[e.id] && acceptStatus[e.id].success && (
+                          <div style={{ color: 'blue', fontSize: 12 }}>Accepted!</div>
+                        )}
+                        {acceptStatus[e.id] && !acceptStatus[e.id].success && (
+                          <div style={{ color: 'red', fontSize: 12 }}>{acceptStatus[e.id].error}</div>
+                        )}
+                        {completeStatus[e.id] && completeStatus[e.id].success && (
+                          <div style={{ color: 'green', fontSize: 12 }}>Completed!</div>
+                        )}
+                        {completeStatus[e.id] && !completeStatus[e.id].success && (
+                          <div style={{ color: 'red', fontSize: 12 }}>{completeStatus[e.id].error}</div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </>
       )}
     </div>

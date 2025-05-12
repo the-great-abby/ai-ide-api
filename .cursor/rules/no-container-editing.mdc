@@ -1,0 +1,27 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Container Editing Prohibition
+
+**Rule:**  
+All source code and configuration changes must be made on the host system, not inside running containers.
+
+**Rationale:**  
+- Ensures changes are tracked in version control.
+- Maintains container immutability and reproducibility.
+- Prevents loss of work when containers are rebuilt or removed.
+- Aligns with [Docker's official best practices](https://docs.docker.com/build/building/best-practices/).
+
+**How to comply:**  
+- Edit files on your host machine.
+- Use `docker compose up --build` or your Makefile targets to rebuild/restart containers after changes.
+- Never use `vi`, `nano`, or similar editors inside a running container for project files.
+
+**Examples:**
+- ✅ Good: Edit `migrations/env.py` on your host, then run `make -f Makefile.ai ai-up`.
+- ❌ Bad: Run `docker exec -it <container> vi /app/migrations/env.py` and edit inside the container.
+
+**Enforcement:**  
+This rule should be referenced in onboarding, code review, and troubleshooting documentation.

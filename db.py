@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Text, DateTime, Enum
+from sqlalchemy import create_engine, Column, String, Text, DateTime, Enum, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.sqlite import BLOB
@@ -19,6 +19,7 @@ class StatusEnum(str, enum.Enum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
+    reverted_to_enhancement = "reverted_to_enhancement"  # New status
 
 # Rule model
 class Rule(Base):
@@ -32,11 +33,15 @@ class Rule(Base):
     added_by = Column(String, index=True, nullable=True)
     project = Column(String, index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    version = Column(Integer, default=1)
+    categories = Column(String, default="")  # Comma-separated
+    tags = Column(String, default="")        # Comma-separated
 
 # Proposal model
 class Proposal(Base):
     __tablename__ = "proposals"
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    rule_id = Column(String, nullable=True)  # New: reference to rule being updated
     rule_type = Column(String, index=True)
     description = Column(Text)
     diff = Column(Text)
@@ -44,6 +49,9 @@ class Proposal(Base):
     submitted_by = Column(String, index=True)
     project = Column(String, index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    version = Column(Integer, default=1)
+    categories = Column(String, default="")  # Comma-separated
+    tags = Column(String, default="")        # Comma-separated
 
 # Feedback model
 class Feedback(Base):
@@ -55,6 +63,45 @@ class Feedback(Base):
     comment = Column(Text, nullable=True)
     submitted_by = Column(String, index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+# RuleVersion model for version history
+class RuleVersion(Base):
+    __tablename__ = "rule_versions"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    rule_id = Column(String, index=True)
+    version = Column(Integer)
+    rule_type = Column(String)
+    description = Column(Text)
+    diff = Column(Text)
+    status = Column(Enum(StatusEnum))
+    submitted_by = Column(String)
+    added_by = Column(String, nullable=True)
+    project = Column(String, nullable=True)
+    timestamp = Column(DateTime)
+    categories = Column(String, default="")
+    tags = Column(String, default="")
+
+# BugReport model for bug reporting
+class BugReport(Base):
+    __tablename__ = "bug_reports"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    description = Column(Text)
+    reporter = Column(String, nullable=True)
+    page = Column(String, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+# Enhancement model for suggested improvements
+class Enhancement(Base):
+    __tablename__ = "enhancements"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    description = Column(Text)
+    suggested_by = Column(String, nullable=True)
+    page = Column(String, nullable=True)
+    tags = Column(String, default="")
+    categories = Column(String, default="")
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, default="open")
+    proposal_id = Column(String, nullable=True, default=None)  # New: reference to original proposal
 
 # Initialize the database and create tables
 def init_db():

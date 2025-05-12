@@ -1,0 +1,31 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Makefile.ai Required for Automation
+
+**Rule:**  
+All test, migration, build, and environment setup commands must be executed using `Makefile.ai` targets. Do **not** run scripts or commands directly (e.g., `pytest`, `alembic`, `docker compose`, etc.).
+
+**Rationale:**  
+- Ensures consistent, reproducible automation for both humans and AI agents.
+- Centralizes workflow changes in one place (`Makefile.ai`).
+- Prevents environment drift and hard-to-debug issues.
+- Aligns with project onboarding and integration best practices.
+
+**How to comply:**  
+- Use `make -f Makefile.ai <target>` for all automation tasks.
+- See [ONBOARDING.md](../ONBOARDING.md) for a full list of targets and usage examples.
+
+**Examples:**
+```sh
+make -f Makefile.ai ai-test
+make -f Makefile.ai ai-db-migrate
+make -f Makefile.ai ai-up
+```
+
+**Do NOT:**
+- Run `pytest` or `alembic` directly
+- Use `docker compose` commands directly
+- Bypass Makefile.ai for any automation

@@ -1,6 +1,6 @@
 .PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down
 
-PORT ?= 8000
+PORT ?= 9103
 
 help:
 	@echo "Available targets:"

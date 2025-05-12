@@ -1,0 +1,12 @@
+LOAD DATABASE
+     FROM sqlite:///data/rules.db
+     INTO postgresql://postgres:postgres@rules-postgres:5432/rulesdb
+
+ WITH include no drop, create tables, create indexes, reset sequences
+
+ SET work_mem to '16MB', maintenance_work_mem to '512 MB';
+
+ CAST type datetime to timestamptz drop default drop not null using zero-dates-to-null;
+
+ BEFORE LOAD DO
+ $$ drop schema if exists public cascade; create schema if not exists public; $$; 
