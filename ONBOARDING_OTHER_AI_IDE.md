@@ -22,6 +22,13 @@ You are being onboarded as an AI IDE agent to an existing Rule Management System
 - Never run tests or scripts directly—always use `Makefile.ai` targets for all automation.
 - Use Docker service names and internal ports for all connections (e.g., `db-test:5432`, `redis-test:6379`).
 
+**API Discovery:**
+- To discover all available endpoints and their request/response formats, fetch the OpenAPI schema from the API docs:
+  - Visit the interactive docs at `http://localhost:9103/docs` in your browser.
+  - For programmatic access, fetch the raw OpenAPI schema from `http://localhost:9103/openapi.json`.
+- Parse this schema to list all endpoints, their methods, parameters, and expected responses.
+- Use this information to generate client code, documentation, or integration tests as needed.
+
 **Example .mdc rule file:**
 ```yaml
 ---
@@ -59,13 +66,19 @@ globs:
 ```
    - Place this file in `.cursor/rules/`.
 4. **Connect to the API server at `http://localhost:9103` (or the provided server URL)** and use the `/rules` endpoint to fetch all approved rules.
-5. **Environment Setup**
+5. **API Discovery:**
+   - To discover all available endpoints and their request/response formats, fetch the OpenAPI schema from the API docs:
+     - Visit the interactive docs at `http://localhost:9103/docs` in your browser.
+     - For programmatic access, fetch the raw OpenAPI schema from `http://localhost:9103/openapi.json`.
+   - Parse this schema to list all endpoints, their methods, parameters, and expected responses.
+   - Use this information to generate client code, documentation, or integration tests as needed.
+6. **Environment Setup**
    - Add example `.env` files and document required environment variables.
    - Never hardcode secrets or credentials.
-6. **Testing and Linting**
+7. **Testing and Linting**
    - Add make targets for testing (`ai-test`) and linting (`ai-lint`).
    - Use `make -f Makefile.ai ai-test PYTEST_ARGS="-x"` for tests.
-7. **Documentation**
+8. **Documentation**
    - Add `ONBOARDING.md` and `INTEGRATING_AI_IDE.md` for setup and integration instructions.
 
 If you need more details on automation, rule file structure, or best practices, refer to the [ONBOARDING_OTHER_AI_IDE.md](./ONBOARDING_OTHER_AI_IDE.md) document. If anything is unclear, ask clarifying questions before proceeding.
