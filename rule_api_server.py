@@ -457,4 +457,51 @@ def complete_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "completed", "id": enh.id}
 
+# Endpoint: Get changelog as Markdown
+@app.get("/changelog", response_class=JSONResponse)
+def get_changelog_markdown():
+    try:
+        with open("CHANGELOG.md", "r") as f:
+            content = f.read()
+        # Return as Markdown content type
+        from fastapi.responses import Response
+        return Response(content, media_type="text/markdown")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not read changelog: {e}")
+
+# Endpoint: Get changelog as JSON
+@app.get("/changelog.json")
+def get_changelog_json():
+    try:
+        with open("CHANGELOG.md", "r") as f:
+            content = f.read()
+        # Simple parser: split by headings and bullet points
+        import re
+        changelog = []
+        current_section = None
+        current_subsection = None
+        for line in content.splitlines():
+            if line.startswith("# "):
+                current_section = {"title": line[2:].strip(), "subsections": []}
+                changelog.append(current_section)
+            elif line.startswith("## "):
+                current_subsection = {"title": line[3:].strip(), "entries": []}
+                if current_section:
+                    current_section["subsections"].append(current_subsection)
+            elif line.startswith("### "):
+                # Treat as a sub-subsection
+                subsub = {"title": line[4:].strip(), "entries": []}
+                if current_subsection:
+                    current_subsection["entries"].append(subsub)
+                    current_subsection = subsub
+            elif line.strip().startswith("-"):
+                entry = line.strip()[1:].strip()
+                if current_subsection:
+                    current_subsection.setdefault("entries", []).append(entry)
+                elif current_section:
+                    current_section.setdefault("entries", []).append(entry)
+        return changelog
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not parse changelog: {e}")
+
 # Run with: uvicorn rule_api_server:app --reload 

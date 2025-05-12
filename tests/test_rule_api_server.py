@@ -296,4 +296,29 @@ def test_accept_and_complete_enhancement():
     assert complete_data["id"] == enh_id
     # Complete again (should fail)
     complete_again = client.post(f"/complete-enhancement/{enh_id}")
-    assert complete_again.status_code == 400 
+    assert complete_again.status_code == 400
+
+
+def test_changelog_markdown_endpoint():
+    response = client.get("/changelog")
+    assert response.status_code == 200
+    assert "# Changelog" in response.text or "Changelog" in response.text
+    assert response.headers["content-type"].startswith("text/markdown")
+
+
+def test_changelog_json_endpoint():
+    response = client.get("/changelog.json")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert any(
+        section.get("title", "").lower() == "changelog" for section in data
+    )
+    # Check for at least one subsection and entry
+    changelog_section = next((s for s in data if s.get("title", "").lower() == "changelog"), None)
+    assert changelog_section is not None
+    assert "subsections" in changelog_section
+    assert len(changelog_section["subsections"]) > 0
+    unreleased = changelog_section["subsections"][0]
+    assert "entries" in unreleased
+    assert len(unreleased["entries"]) > 0 

@@ -8,11 +8,14 @@
 - **New API Endpoints:**
   - `/bug-report`, `/suggest-enhancement`, `/enhancements`, `/enhancement-to-proposal/{id}`
   - `/reject-enhancement/{id}`, `/proposal-to-enhancement/{id}`, `/accept-enhancement/{id}`, `/complete-enhancement/{id}`
+  - `/changelog` (Markdown changelog for humans/UIs)
+  - `/changelog.json` (Structured changelog for programmatic access)
 - **Enhancement & Bug Workflow:**
   - Submit, accept, complete, transfer, and reject enhancements via API or UI.
   - Bug reports and enhancements are now first-class citizens in the workflow.
 - **Rule Versioning:**
   - Proposals can now reference `rule_id` for updates; rule version history is accessible via `/rules/{rule_id}/history`.
+  - **Changelog endpoints:** `/changelog` returns the Markdown changelog for UI/human consumption, `/changelog.json` returns a structured JSON changelog for automation and bots.
 - **Makefile.ai Targets:**
   - New targets for enhancements, bug reports, migrations, and DB management.
 - **Onboarding & Integration:**
