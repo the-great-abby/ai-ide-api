@@ -5,12 +5,18 @@ from sqlalchemy.dialects.sqlite import BLOB
 from datetime import datetime
 import enum
 import uuid
+import os
 
 # SQLite database URL
-DATABASE_URL = "sqlite:///rules.db"
+POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "postgres")
+POSTGRES_DB = os.environ.get("POSTGRES_DB", "rulesdb")
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "db-test")
+POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
+DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 # SQLAlchemy setup
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

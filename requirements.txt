@@ -8,3 +8,4 @@ sqlalchemy
 python-multipart
 alembic
 python-dateutil 
+psycopg2-binary 

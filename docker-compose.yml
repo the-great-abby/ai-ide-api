@@ -10,6 +10,10 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
+      - POSTGRES_DB=rulesdb
+      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/rulesdb
+    depends_on:
+      - db-test
     command: ["uvicorn", "rule_api_server:app", "--host", "0.0.0.0", "--reload"]
 
   test:
@@ -43,21 +47,19 @@ services:
     environment:
       - VITE_API_BASE_URL=http://localhost:${PORT:-9103}
 
-  rules-postgres:
+  db-test:
     image: postgres:15
     environment:
       POSTGRES_DB: rulesdb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - rules_postgres_data:/var/lib/postgresql/data
 
   pgloader:
     image: local/pgloader:latest
     depends_on:
-      - rules-postgres
+      - db-test
     volumes:
       - ./:/data
     entrypoint: ["/bin/sleep", "infinity"]  # For one-off exec usage
