@@ -76,9 +76,12 @@ class EnhancementModel(BaseModel):
     description: str
     suggested_by: Optional[str] = None
     page: Optional[str] = None
-    tags: Optional[list[str]] = []
-    categories: Optional[list[str]] = []
-    timestamp: Optional[str] = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    tags: Optional[List[str]] = []
+    categories: Optional[List[str]] = []
+    timestamp: Optional[datetime] = None
+    status: Optional[str] = "open"
+    proposal_id: Optional[str] = None
+    project: Optional[str] = None  # Project association
 
 # Utility functions to load/save JSON
 def load_json(path):
@@ -341,6 +344,7 @@ def suggest_enhancement(enh: EnhancementModel, db: Session = Depends(get_db)):
         tags=",".join(enh.tags) if enh.tags else "",
         categories=",".join(enh.categories) if enh.categories else "",
         timestamp=ts,
+        project=enh.project
     )
     db.add(db_enh)
     db.commit()

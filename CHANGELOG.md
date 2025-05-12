@@ -16,4 +16,9 @@
   - Consistent, versioned database setup for all contributors and CI.
 - **How to use:**
   - See the Makefile.ai for migration and database management commands.
-  - All app services now connect to Postgres by default. 
+  - All app services now connect to Postgres by default.
+
+### ✨ Enhancements
+
+- **Project-specific tracking:** Added a `project` field to rule and enhancement submissions, enabling project-specific rule/enhancement management and filtering.
+- **Automated knowledge graph:** Implemented an automated, database-driven knowledge graph (`KNOWLEDGE_GRAPH.md`) with a Makefile target (`make generate-knowledge-graph`) for easy updates and onboarding. 

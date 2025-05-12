@@ -221,7 +221,14 @@ def test_bug_report_endpoint():
 
 
 def test_suggest_enhancement_and_list():
-    enh_payload = {"description": "Add dark mode", "suggested_by": "tester", "page": "/admin", "tags": ["ui"], "categories": ["feature"]}
+    enh_payload = {
+        "description": "Test enhancement with project field",
+        "suggested_by": "test-user",
+        "page": "test-page.md",
+        "tags": ["test"],
+        "categories": ["testing"],
+        "project": "test-project"
+    }
     response = client.post("/suggest-enhancement", json=enh_payload)
     assert response.status_code == 200
     enh_id = response.json()["id"]
@@ -229,7 +236,7 @@ def test_suggest_enhancement_and_list():
     list_response = client.get("/enhancements")
     assert list_response.status_code == 200
     enhancements = list_response.json()
-    assert any(e["id"] == enh_id for e in enhancements)
+    assert any(e["id"] == enh_id and e.get("project") == "test-project" for e in enhancements)
 
 
 def test_enhancement_to_proposal_and_reject():

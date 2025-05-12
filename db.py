@@ -108,6 +108,7 @@ class Enhancement(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="open")
     proposal_id = Column(String, nullable=True, default=None)  # New: reference to original proposal
+    project = Column(String, index=True, nullable=True)  # Project association
 
 # Initialize the database and create tables
 def init_db():

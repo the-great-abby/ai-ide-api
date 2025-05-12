@@ -1,4 +1,4 @@
-.PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down
+.PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down frontend generate-knowledge-graph
 
 PORT ?= 9103
 
@@ -16,6 +16,8 @@ help:
 	@echo "  lint-rule    Lint a single rule file: make lint-rule FILE=path/to/rule.json"
 	@echo "  lint-rules   Lint all rules in rules.json"
 	@echo "  down         Stop and remove containers"
+	@echo "  frontend     Launch the admin frontend as a Docker container"
+	@echo "  generate-knowledge-graph  Generate the project knowledge graph (KNOWLEDGE_GRAPH.md)"
 	@echo ""
 	@echo "You can override the port with: make up PORT=9000"
 	@echo "To run a specific test: make test-one TEST=test_rule_api_server.py::test_docs_endpoint"
@@ -55,4 +57,11 @@ lint-rules:
 	python scripts/lint_rules.py
 
 down:
-	docker-compose down 
+	docker-compose down
+
+# Launch the admin frontend as a Docker container
+frontend:
+	docker-compose up frontend
+
+generate-knowledge-graph:
+	docker compose exec api python scripts/generate_knowledge_graph.py 
