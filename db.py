@@ -42,6 +42,7 @@ class Rule(Base):
     version = Column(Integer, default=1)
     categories = Column(String, default="")  # Comma-separated
     tags = Column(String, default="")        # Comma-separated
+    examples = Column(Text, nullable=True, default=None)
 
 # Proposal model
 class Proposal(Base):
@@ -58,6 +59,7 @@ class Proposal(Base):
     version = Column(Integer, default=1)
     categories = Column(String, default="")  # Comma-separated
     tags = Column(String, default="")        # Comma-separated
+    examples = Column(Text, nullable=True, default=None)
 
 # Feedback model
 class Feedback(Base):
@@ -86,6 +88,7 @@ class RuleVersion(Base):
     timestamp = Column(DateTime)
     categories = Column(String, default="")
     tags = Column(String, default="")
+    examples = Column(Text, nullable=True, default=None)
 
 # BugReport model for bug reporting
 class BugReport(Base):

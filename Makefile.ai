@@ -1,5 +1,9 @@
 PORT ?= 9103
 ADMIN_FRONTEND_PORT ?= 3000
+API_PORT ?= 9103
+
+# TODO: Implement a script for interactive Alembic head-checking and prompting for merges.
+# This will help users resolve migration graph conflicts more safely and with better UX.
 
 ai-up:
 	docker-compose up -d api frontend
@@ -84,9 +88,17 @@ ai-propose-makefile-rule:
 ai-docs:
 	curl -s http://localhost:$(PORT)/docs || echo 'Could not fetch docs. Is the API running?' 
 
-# Show logs for the API container
-ai-api-logs:
-	docker compose logs api --tail=100 
+# Show logs for all main containers (api, db-test, frontend)
+logs:
+	docker compose logs --tail=100 api db-test frontend || docker-compose logs --tail=100 api db-test frontend
+
+# Show logs for just the API container
+logs-api:
+	docker compose logs --tail=100 api || docker-compose logs --tail=100 api
+
+# Show logs for just the database container
+logs-db:
+	docker compose logs --tail=100 db-test || docker-compose logs --tail=100 db-test
 
 # Open the FastAPI docs in the default browser (macOS)
 open-docs:
@@ -178,3 +190,93 @@ ai-migrate-sqlite-to-postgres-csv:
 	chmod +x import_csvs.sh
 	docker run --rm -e PGPASSWORD=postgres -v $(PWD):/data --network ai-ide-api_default postgres:15 bash /data/import_csvs.sh
 	@echo "Migration from SQLite to Postgres via CSV complete!"
+
+# Propose a portable rule to the API
+# Usage:
+# make -f Makefile.ai ai-propose-portable-rule \
+#   RULE_TYPE=formatting \
+#   DESCRIPTION='All .mdc files must have frontmatter' \
+#   DIFF='---\ndescription: ...\nglobs: ...\n---' \
+#   SUBMITTED_BY=portable-rules-bot \
+#   CATEGORIES='"formatting","cursor","portable"' \
+#   TAGS='"formatting","cursor","portable"' \
+#   PROJECT=my-shared-rules \
+#   [API_PORT=9103]
+ai-propose-portable-rule:
+	curl -s -X POST http://localhost:$(API_PORT)/propose-rule-change \
+	  -H 'Content-Type: application/json' \
+	  -d '{ \
+	    "rule_type": "$(RULE_TYPE)", \
+	    "description": "$(DESCRIPTION)", \
+	    "diff": "$(DIFF)", \
+	    "submitted_by": "$(SUBMITTED_BY)", \
+	    "categories": [$(CATEGORIES)], \
+	    "tags": [$(TAGS)], \
+	    "project": "$(PROJECT)" \
+	  }'
+
+# Rollback any failed transaction in the Postgres database (useful for clearing migration errors)
+# Usage: make -f Makefile.ai ai-db-rollback
+ai-db-rollback:
+	docker compose exec -T db-test psql -U postgres -d rulesdb -c 'ROLLBACK;'
+
+# Reset the database migration state (for development):
+# 1. Stops all containers
+# 2. Restarts only the db-test container
+# 3. Runs ai-db-rollback to clear failed transactions
+# 4. Restarts all containers
+# 5. Runs ai-db-migrate to apply migrations
+# Usage: make -f Makefile.ai ai-db-reset-migrations
+ai-db-reset-migrations:
+	docker compose down
+	docker compose up -d db-test
+	$(MAKE) -f Makefile.ai ai-db-rollback
+	docker compose up -d
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+# Backup the rulesdb database to backups/rulesdb-YYYYMMDD-HHMMSS.sql
+# Usage: make -f Makefile.ai ai-db-backup
+ai-db-backup:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump -U postgres -d rulesdb > backups/rulesdb-`date +"%Y%m%d-%H%M%S"`.sql
+
+# Drop and recreate the rulesdb database, then run migrations (development only!)
+# Usage: make -f Makefile.ai ai-db-drop-recreate
+ai-db-drop-recreate:
+	docker compose exec -T db-test psql -U postgres -c 'DROP DATABASE IF EXISTS rulesdb;'
+	docker compose exec -T db-test psql -U postgres -c 'CREATE DATABASE rulesdb;'
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+# Drop the statusenum type from Postgres (if it exists)
+# Usage: make -f Makefile.ai ai-db-drop-statusenum
+ai-db-drop-statusenum:
+	docker compose cp scripts/drop_statusenum.sql db-test:/tmp/drop_statusenum.sql
+	docker compose exec -T db-test psql -U postgres -d rulesdb -f /tmp/drop_statusenum.sql
+
+# Danger: This will delete ALL Postgres data and volumes!
+# Usage: make -f Makefile.ai ai-db-nuke
+ai-db-nuke:
+	docker compose down -v
+	docker compose up -d db-test
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+# Restore the rulesdb database from a SQL backup file
+# Usage: make -f Makefile.ai ai-db-restore BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
+ai-db-restore:
+	docker compose exec -T db-test psql -U postgres -d rulesdb < $(BACKUP)
+
+# Restore only the data (not schema) from a SQL backup file
+# Usage: make -f Makefile.ai ai-db-restore-data BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
+ai-db-restore-data:
+	cat $(BACKUP) | grep -vE '^CREATE |^ALTER |^DROP |^--' | docker compose exec -T db-test psql -U postgres -d rulesdb
+
+# Backup only the data (no schema) from the rulesdb database
+# Usage: make -f Makefile.ai ai-db-backup-data-only
+ai-db-backup-data-only:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump --data-only -U postgres -d rulesdb > backups/rulesdb-data-`date +"%Y%m%d-%H%M%S"`.sql
+
+# Merge Alembic heads automatically (use with caution!)
+ai-db-merge-heads:
+	docker compose exec api alembic heads
+	docker compose exec api alembic merge -m "auto-merge heads" $(shell docker compose exec api alembic heads | awk '{print $$1}' | xargs)

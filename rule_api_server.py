@@ -53,6 +53,7 @@ class RuleProposal(BaseModel):
     version: int = 1
     categories: List[str] = []
     tags: List[str] = []
+    examples: Optional[str] = None
 
 class Rule(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -65,6 +66,7 @@ class Rule(BaseModel):
     version: int = 1
     categories: List[str] = []
     tags: List[str] = []
+    examples: Optional[str] = None
 
 class BugReportModel(BaseModel):
     description: str
@@ -130,6 +132,7 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
         version=proposal.version,
         categories=list_to_str(proposal.categories),
         tags=list_to_str(proposal.tags),
+        examples=proposal.examples,
     )
     db.add(db_proposal)
     db.commit()
@@ -145,6 +148,7 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
         timestamp=db_proposal.timestamp.isoformat() if isinstance(db_proposal.timestamp, datetime) else db_proposal.timestamp,
         categories=str_to_list(db_proposal.categories),
         tags=str_to_list(db_proposal.tags),
+        examples=db_proposal.examples,
     )
 
 # Endpoint: List all pending proposals
@@ -192,6 +196,7 @@ def approve_rule_change(proposal_id: str = Path(..., description="Proposal ID"),
             timestamp=existing_rule.timestamp,
             categories=existing_rule.categories,
             tags=existing_rule.tags,
+            examples=existing_rule.examples,
         ))
         new_version = existing_rule.version + 1
         db.delete(existing_rule)
@@ -212,6 +217,7 @@ def approve_rule_change(proposal_id: str = Path(..., description="Proposal ID"),
         version=new_version,
         categories=proposal.categories,
         tags=proposal.tags,
+        examples=proposal.examples,
     )
     db.add(db_rule)
     db.commit()

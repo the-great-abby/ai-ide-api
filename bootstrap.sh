@@ -26,7 +26,7 @@ make build
 echo "[SUCCESS] Bootstrap complete!"
 echo "Next steps:"
 echo "  1. Run 'make up' to start the dev server."
-echo "  2. Visit http://localhost:8000/docs in your browser."
+echo "  2. Visit http://localhost:9103/docs in your browser."
 echo "  3. Run 'make test' to check the test suite."
 echo "  4. Run 'make coverage' to see test coverage."
 echo "  5. See ONBOARDING.md for more info." 

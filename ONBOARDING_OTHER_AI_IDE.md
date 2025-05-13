@@ -212,4 +212,118 @@ If you need more details on automation, rule file structure, or best practices, 
 
 ---
 
+> _Tip: You can use this document as a system prompt, onboarding doc, or preamble for new agents or users. The more context you provide, the better the results—see [TeamAI's prompt engineering guide](https://teamai.com/blog/prompt-libraries/8-step-guide-to-creating-a-prompt-for-ai/) for more tips._
+
+---
+
+## 🛡️ Database Backup, Restore, and Nuke (NEW)
+
+**Backup the database:**
+```bash
+make -f Makefile.ai ai-db-backup
+# or data-only:
+make -f Makefile.ai ai-db-backup-data-only
+```
+Creates a timestamped SQL file in `backups/`.
+
+**Restore the database:**
+```bash
+make -f Makefile.ai ai-db-restore BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
+# or data-only:
+make -f Makefile.ai ai-db-restore-data BACKUP=backups/rulesdb-data-YYYYMMDD-HHMMSS.sql
+```
+
+**Nuke the database (danger!):**
+```bash
+make -f Makefile.ai ai-db-nuke
+```
+This will delete ALL Postgres data and volumes, then re-run migrations.
+
+**Troubleshooting:**
+- If you see enum or duplicate key errors on restore, ensure your schema matches the backup and use data-only restore if needed.
+- Always use internal Docker service names and ports (e.g., `db-test:5432`).
+
+---
+
+## 🌍 Portable Rules Import/Export (NEW)
+
+**Propose a portable rule:**
+```bash
+make -f Makefile.ai ai-propose-portable-rule \
+  RULE_TYPE=formatting \
+  DESCRIPTION='All .mdc files must have frontmatter' \
+  DIFF='---\ndescription: ...\nglobs: ...\n---' \
+  SUBMITTED_BY=portable-rules-bot \
+  CATEGORIES='"formatting","cursor","portable"' \
+  TAGS='"formatting","cursor","portable"' \
+  PROJECT=portable-rules
+```
+
+**Batch import portable rules:**
+```bash
+bash scripts/batch_import_portable_rules.sh
+```
+
+---
+
+## 📋 Viewing Logs (NEW)
+
+Use these Makefile.ai targets to view logs for troubleshooting:
+
+- **All containers:**
+  ```bash
+  make -f Makefile.ai logs
+  ```
+  Shows the last 100 lines for API, db-test, and frontend containers.
+
+- **API only:**
+  ```bash
+  make -f Makefile.ai logs-api
+  ```
+
+- **Database only:**
+  ```bash
+  make -f Makefile.ai logs-db
+  ```
+
+---
+
+## 🔑 Makefile.ai Target Reference (Updated)
+
+| Target                        | Description                                    |
+|-------------------------------|------------------------------------------------|
+| ai-test, ai-test-one, ai-test-json | Run tests (all, one, or JSON output)      |
+| ai-db-migrate, ai-db-autorevision  | Run/apply DB migrations                   |
+| ai-db-backup, ai-db-backup-data-only | Backup DB (full/data-only)              |
+| ai-db-restore, ai-db-restore-data   | Restore DB (full/data-only)              |
+| ai-db-nuke, ai-db-drop-recreate     | Nuke or reset DB (danger!)               |
+| ai-propose-portable-rule            | Propose a portable rule                  |
+| ai-approve-all-pending              | Approve all pending proposals            |
+| ai-up, ai-down, ai-build, ai-rebuild-all | Start/stop/build/rebuild services   |
+| ai-list-rules, ai-list-rules-mdc    | List rules (JSON/MDC)                    |
+| ai-onboarding-health                | Run onboarding health check              |
+| logs, logs-api, logs-db             | View logs for all, API, or DB containers |
+
+See `Makefile.ai` for the full list and usage examples.
+
+---
+
+## 📌 Port Usage (Reminder)
+- **Default API port:** `9103` (update all configs, docs, and clients accordingly)
+- **Frontend port:** `3000` (or as set by `ADMIN_FRONTEND_PORT`)
+- Always use Docker service names and internal ports for all connections.
+
+---
+
+## 📖 References
+
+- [8-Step Guide to Creating a Prompt for AI (TeamAI)](https://teamai.com/blog/prompt-libraries/8-step-guide-to-creating-a-prompt-for-ai/)
+- [Create Onboarding Documents FASTER with AI (OmniGPT)](https://www.linkedin.com/pulse/create-onboarding-documents-faster-ai-ultimate-prompt-every-project-vp0uc)
+- [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc)
+- [pytest_execution.mdc](mdc:.cursor/rules/pytest_execution.mdc)
+- [testing_flow.mdc](mdc:.cursor/rules/testing_flow.mdc)
+- [GitHub Markdown Syntax Guide](https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
+
+---
+
 > _Tip: You can use this document as a system prompt, onboarding doc, or preamble for new agents or users. The more context you provide, the better the results—see [TeamAI's prompt engineering guide](https://teamai.com/blog/prompt-libraries/8-step-guide-to-creating-a-prompt-for-ai/) for more tips._ 
