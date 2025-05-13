@@ -1,5 +1,9 @@
 PORT ?= 9103
 ADMIN_FRONTEND_PORT ?= 3000
+API_PORT ?= 9103
+
+# TODO: Implement a script for interactive Alembic head-checking and prompting for merges.
+# This will help users resolve migration graph conflicts more safely and with better UX.
 
 ai-up:
 	docker-compose up -d api frontend
@@ -78,15 +82,34 @@ ai-db-autorevision:
 ai-propose-makefile-rule:
 	curl -s -X POST http://localhost:$(PORT)/propose-rule-change \
 	  -H "Content-Type: application/json" \
-	  -d '{"content": "---\\ndescription: All automation (tests, migrations, builds, etc.) must be run via Makefile.ai targets, not by running commands directly.\\nglobs: \\\"**/*\\\"\\n---\\n# Makefile.ai Required for Automation\\n\\n**Rule:**  \\nAll test, migration, build, and environment setup commands must be executed using \\`Makefile.ai\\` targets. Do **not** run scripts or commands directly (e.g., \\`pytest\\`, \\`alembic\\`, \\`docker compose\\`, etc.).\\n\\n**Rationale:**  \\n- Ensures consistent, reproducible automation for both humans and AI agents.\\n- Centralizes workflow changes in one place (\\`Makefile.ai\\`).\\n- Prevents environment drift and hard-to-debug issues.\\n- Aligns with project onboarding and integration best practices.\\n\\n**How to comply:**  \\n- Use \\`make -f Makefile.ai <target>\\` for all automation tasks.\\n- See [ONBOARDING.md](../ONBOARDING.md) for a full list of targets and usage examples.\\n\\n**Examples:**\\n\\`\\`\\`sh\\nmake -f Makefile.ai ai-test\\nmake -f Makefile.ai ai-db-migrate\\nmake -f Makefile.ai ai-up\\n\\`\\`\\`\\n\\n**Do NOT:**\\n- Run \\`pytest\\` or \\`alembic\\` directly\\n- Use \\`docker compose\\` commands directly\\n- Bypass Makefile.ai for any automation\\n"}'
+	  -d '{ \
+	    "rule_type": "$(RULE_TYPE)", \
+	    "description": "$(DESCRIPTION)", \
+	    "diff": "$(DIFF)", \
+	    "submitted_by": "$(SUBMITTED_BY)", \
+	    "categories": [$(CATEGORIES)], \
+	    "tags": [$(TAGS)], \
+	    "project": "$(PROJECT)", \
+	    "applies_to": [$(APPLIES_TO)], \
+	    "applies_to_rationale": "$(APPLIES_TO_RATIONALE)", \
+	    "examples": "$(EXAMPLES)" \
+	  }'
 
 # Open or fetch the FastAPI docs endpoint
 ai-docs:
 	curl -s http://localhost:$(PORT)/docs || echo 'Could not fetch docs. Is the API running?' 
 
-# Show logs for the API container
-ai-api-logs:
-	docker compose logs api --tail=100 
+# Show logs for all main containers (api, db-test, frontend)
+logs:
+	docker compose logs --tail=100 api db-test frontend || docker-compose logs --tail=100 api db-test frontend
+
+# Show logs for just the API container
+logs-api:
+	docker compose logs --tail=100 api || docker-compose logs --tail=100 api
+
+# Show logs for just the database container
+logs-db:
+	docker compose logs --tail=100 db-test || docker-compose logs --tail=100 db-test
 
 # Open the FastAPI docs in the default browser (macOS)
 open-docs:
@@ -178,3 +201,140 @@ ai-migrate-sqlite-to-postgres-csv:
 	chmod +x import_csvs.sh
 	docker run --rm -e PGPASSWORD=postgres -v $(PWD):/data --network ai-ide-api_default postgres:15 bash /data/import_csvs.sh
 	@echo "Migration from SQLite to Postgres via CSV complete!"
+
+# Propose a portable rule to the API
+# Usage:
+# make -f Makefile.ai ai-propose-portable-rule \
+#   RULE_TYPE=formatting \
+#   DESCRIPTION='All .mdc files must have frontmatter' \
+#   DIFF='---\ndescription: ...\nglobs: ...\n---' \
+#   SUBMITTED_BY=portable-rules-bot \
+#   CATEGORIES='"formatting","cursor","portable"' \
+#   TAGS='"formatting","cursor","portable"' \
+#   PROJECT=my-shared-rules \
+#   [API_PORT=9103]
+ai-propose-portable-rule:
+	curl -s -X POST http://localhost:$(API_PORT)/propose-rule-change \
+	  -H 'Content-Type: application/json' \
+	  -d '{ \
+	    "rule_type": "$(RULE_TYPE)", \
+	    "description": "$(DESCRIPTION)", \
+	    "diff": "$(DIFF)", \
+	    "submitted_by": "$(SUBMITTED_BY)", \
+	    "categories": [$(CATEGORIES)], \
+	    "tags": [$(TAGS)], \
+	    "project": "$(PROJECT)" \
+	  }'
+
+# Rollback any failed transaction in the Postgres database (useful for clearing migration errors)
+# Usage: make -f Makefile.ai ai-db-rollback
+ai-db-rollback:
+	docker compose exec -T db-test psql -U postgres -d rulesdb -c 'ROLLBACK;'
+
+# Reset the database migration state (for development):
+# 1. Stops all containers
+# 2. Restarts only the db-test container
+# 3. Runs ai-db-rollback to clear failed transactions
+# 4. Restarts all containers
+# 5. Runs ai-db-migrate to apply migrations
+# Usage: make -f Makefile.ai ai-db-reset-migrations
+ai-db-reset-migrations:
+	docker compose down
+	docker compose up -d db-test
+	$(MAKE) -f Makefile.ai ai-db-rollback
+	docker compose up -d
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+# Backup the rulesdb database to backups/rulesdb-YYYYMMDD-HHMMSS.sql
+# Usage: make -f Makefile.ai ai-db-backup
+ai-db-backup:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump -U postgres -d rulesdb > backups/rulesdb-`date +"%Y%m%d-%H%M%S"`.sql
+
+# Drop and recreate the rulesdb database, then run migrations (development only!)
+# Usage: make -f Makefile.ai ai-db-drop-recreate
+ai-db-drop-recreate:
+	docker compose exec -T db-test psql -U postgres -c 'DROP DATABASE IF EXISTS rulesdb;'
+	docker compose exec -T db-test psql -U postgres -c 'CREATE DATABASE rulesdb;'
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+# Drop the statusenum type from Postgres (if it exists)
+# Usage: make -f Makefile.ai ai-db-drop-statusenum
+ai-db-drop-statusenum:
+	docker compose cp scripts/drop_statusenum.sql db-test:/tmp/drop_statusenum.sql
+	docker compose exec -T db-test psql -U postgres -d rulesdb -f /tmp/drop_statusenum.sql
+
+# Danger: This will delete ALL Postgres data and volumes!
+# Usage: make -f Makefile.ai ai-db-nuke
+ai-db-nuke:
+	docker compose down -v
+	docker compose up -d db-test
+
+# Restore the rulesdb database from a SQL backup file
+# Usage: make -f Makefile.ai ai-db-restore BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
+ai-db-restore:
+	docker compose exec -T db-test psql -U postgres -d rulesdb < $(BACKUP)
+
+# Restore only the data (not schema) from a SQL backup file
+# Usage: make -f Makefile.ai ai-db-restore-data BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
+ai-db-restore-data:
+	cat $(BACKUP) | grep -vE '^CREATE |^ALTER |^DROP |^--' | docker compose exec -T db-test psql -U postgres -d rulesdb
+
+# Backup only the data (no schema) from the rulesdb database
+# Usage: make -f Makefile.ai ai-db-backup-data-only
+ai-db-backup-data-only:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump --data-only -U postgres -d rulesdb > backups/rulesdb-data-`date +"%Y%m%d-%H%M%S"`.sql
+
+# Merge Alembic heads automatically (use with caution!)
+ai-db-merge-heads:
+	docker compose exec api alembic heads
+
+ai-db-heads:
+	docker compose exec api alembic heads
+
+ai-db-history:
+	docker compose exec api alembic history --verbose
+
+ai-api-wait:
+	@echo "Waiting for API to be ready..."
+	@until curl -sf http://localhost:$(API_PORT)/env > /dev/null; do sleep 2; done
+	@echo "API is up!"
+
+ai-db-nuke-and-restore-data:
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+	$(MAKE) -f Makefile.ai ai-db-nuke
+	$(MAKE) -f Makefile.ai ai-up
+	$(MAKE) -f Makefile.ai ai-api-wait
+	$(MAKE) -f Makefile.ai ai-db-migrate
+	BACKUP=$$(ls -t backups/rulesdb-data-*.sql | head -1) $(MAKE) -f Makefile.ai ai-db-restore-data
+
+ai-misc-install:
+	docker compose exec misc-scripts pip install -r requirements.txt
+
+ai-misc-up:
+	docker compose up -d misc-scripts
+
+ai-misc-update-rules:
+	$(MAKE) -f Makefile.ai ai-misc-up
+	docker compose exec misc-scripts pip install -r requirements.txt
+	docker compose exec misc-scripts python update_rules.py
+
+ai-misc-generate-update-template:
+	docker compose exec misc-scripts python generate_rules_update_template.py
+
+ai-api-restart-wait:
+	docker compose restart api
+	$(MAKE) -f Makefile.ai ai-api-wait
+
+ai-propose-rules:
+	bash misc_scripts/propose_rules.sh
+
+ai-misc-mdc-to-json: ai-misc-install
+	docker compose exec misc-scripts python mdc_to_json_rule_proposals.py
+
+ai-misc-enrich-rules:
+	docker compose exec misc-scripts python enrich_rule_proposals.py
+
+ai-list-bug-reports:
+	curl -s http://localhost:$(PORT)/bug-reports | jq '.'

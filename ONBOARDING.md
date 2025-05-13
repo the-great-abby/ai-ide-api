@@ -42,14 +42,14 @@ Welcome to the Rule Proposal API project! We're excited to have you here. This p
 - [ ] Enter the project directory: `cd <project-dir>`
 - [ ] Build Docker images: `make build`
 - [ ] **Start the dev server (preferred):** `make up` (or `make up PORT=9001` to use a custom port)
-- [ ] Visit the API docs: [http://localhost:8000/docs](http://localhost:8000/docs) (replace 8000 with your chosen port)
+- [ ] Visit the API docs: [http://localhost:9103/docs](http://localhost:9103/docs)
 - [ ] Run the tests: `make test` (human readable) or `make test-json` (AI/automation friendly)
 - [ ] Run a specific test: `make test-one TEST=test_rule_api_server.py::test_docs_endpoint`
 - [ ] Run the coverage report: `make coverage`
 - [ ] Propose a test rule via the API docs (see below!)
 - [ ] **Stop containers:** `make down`
 
-> **Note:** The default API server port for this project is **9103** (not 8000). Update your client, integration, and rule config URLs accordingly.
+> **Note:** The default API server port for this project is **9103**. Update your client, integration, and rule config URLs accordingly.
 
 > **Note:** The API will be available at [http://localhost:<PORT>](http://localhost:<PORT>) when using `make up` or `make up PORT=9001`.
 
@@ -94,10 +94,10 @@ graph TD
 
 ### Service Ports
 - **Frontend:** http://localhost:3000 (or your chosen `ADMIN_FRONTEND_PORT`)
-- **Backend:** http://localhost:8000 (or your chosen `PORT`)
+- **Backend:** http://localhost:9103 (or your chosen `PORT`)
 
 ### How They Communicate
-- The frontend makes API requests to the backend (default: `http://localhost:8000`)
+- The frontend makes API requests to the backend (default: `http://localhost:9103`)
 - CORS is enabled in FastAPI for local development
 - Both services can be started/stopped together with:
   ```bash
@@ -117,7 +117,7 @@ In `docker-compose.yml`:
 ```yaml
 environment:
   - RULE_API_HOST=${RULE_API_HOST:-localhost}
-  - RULE_API_PORT=${RULE_API_PORT:-8000}
+  - RULE_API_PORT=${RULE_API_PORT:-9103}
 ```
 
 Or set them in your shell before running Compose:
@@ -211,7 +211,7 @@ The API provides a `/env` endpoint to help you determine which environment (test
   ```
 - **Example Usage:**
   ```bash
-  curl http://localhost:8000/env
+  curl http://localhost:9103/env
   ```
 
 This is useful for debugging, CI, and AI-IDE integration.
@@ -368,5 +368,104 @@ See `/docs` for full OpenAPI schema and request/response details.
 - Keep onboarding and integration docs up to date
 - Never mix test and dev environments
 - Add/expand tests for new features and workflows
+
+---
+
+## 🛡️ Database Backup, Restore, and Nuke (NEW)
+
+**Backup the database:**
+```bash
+make -f Makefile.ai ai-db-backup
+# or data-only:
+make -f Makefile.ai ai-db-backup-data-only
+```
+Creates a timestamped SQL file in `backups/`.
+
+**Restore the database:**
+```bash
+make -f Makefile.ai ai-db-restore BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
+# or data-only:
+make -f Makefile.ai ai-db-restore-data BACKUP=backups/rulesdb-data-YYYYMMDD-HHMMSS.sql
+```
+
+**Nuke the database (danger!):**
+```bash
+make -f Makefile.ai ai-db-nuke
+```
+This will delete ALL Postgres data and volumes, then re-run migrations.
+
+**Troubleshooting:**
+- If you see enum or duplicate key errors on restore, ensure your schema matches the backup and use data-only restore if needed.
+- Always use internal Docker service names and ports (e.g., `db-test:5432`).
+
+---
+
+## 🌍 Portable Rules Import/Export (NEW)
+
+**Propose a portable rule:**
+```bash
+make -f Makefile.ai ai-propose-portable-rule \
+  RULE_TYPE=formatting \
+  DESCRIPTION='All .mdc files must have frontmatter' \
+  DIFF='---\ndescription: ...\nglobs: ...\n---' \
+  SUBMITTED_BY=portable-rules-bot \
+  CATEGORIES='"formatting","cursor","portable"' \
+  TAGS='"formatting","cursor","portable"' \
+  PROJECT=portable-rules
+```
+
+**Batch import portable rules:**
+```bash
+bash scripts/batch_import_portable_rules.sh
+```
+
+---
+
+## 📋 Viewing Logs (NEW)
+
+Use these Makefile.ai targets to view logs for troubleshooting:
+
+- **All containers:**
+  ```bash
+  make -f Makefile.ai logs
+  ```
+  Shows the last 100 lines for API, db-test, and frontend containers.
+
+- **API only:**
+  ```bash
+  make -f Makefile.ai logs-api
+  ```
+
+- **Database only:**
+  ```bash
+  make -f Makefile.ai logs-db
+  ```
+
+---
+
+## 🔑 Makefile.ai Target Reference (Updated)
+
+| Target                        | Description                                    |
+|-------------------------------|------------------------------------------------|
+| ai-test, ai-test-one, ai-test-json | Run tests (all, one, or JSON output)      |
+| ai-db-migrate, ai-db-autorevision  | Run/apply DB migrations                   |
+| ai-db-backup, ai-db-backup-data-only | Backup DB (full/data-only)              |
+| ai-db-restore, ai-db-restore-data   | Restore DB (full/data-only)              |
+| ai-db-nuke, ai-db-drop-recreate     | Nuke or reset DB (danger!)               |
+| ai-propose-portable-rule            | Propose a portable rule                  |
+| ai-approve-all-pending              | Approve all pending proposals            |
+| ai-up, ai-down, ai-build, ai-rebuild-all | Start/stop/build/rebuild services   |
+| ai-list-rules, ai-list-rules-mdc    | List rules (JSON/MDC)                    |
+| ai-onboarding-health                | Run onboarding health check              |
+| logs, logs-api, logs-db             | View logs for all, API, or DB containers |
+
+See `Makefile.ai` for the full list and usage examples.
+
+---
+
+## 📌 Port Usage (Reminder)
+- **Default API port:** `9103` (update all configs, docs, and clients accordingly)
+- **Frontend port:** `3000` (or as set by `ADMIN_FRONTEND_PORT`)
+- Always use Docker service names and internal ports for all connections.
 
 --- 

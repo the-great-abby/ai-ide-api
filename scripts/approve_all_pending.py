@@ -1,7 +1,7 @@
 import sqlite3
 import requests
 
-API_URL = "http://localhost:8000/approve-rule-change/{}"
+API_URL = "http://localhost:9103/approve-rule-change/{}"
 DB_PATH = "rules.db"
 
 def get_pending_proposal_ids(db_path):

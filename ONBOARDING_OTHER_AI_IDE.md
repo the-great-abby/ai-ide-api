@@ -4,6 +4,54 @@ Welcome! This document is your comprehensive onboarding guide for integrating an
 
 ---
 
+# 🚀 Improved Initial Prompt for Onboarding AI IDEs/Agents
+
+> **You are being onboarded as an AI IDE agent for a project using the AI-IDE Rule Management System. Follow these steps exactly:**
+>
+> 1. **Sync all approved rules from the central rule server:**
+>    - Connect to the API at `http://localhost:9103` (or the provided server URL).
+>    - Use the `/rules` endpoint to fetch all approved rules.
+>    - Save the results as a `.mdc` (Markdown Cursor) file in your `.cursor/rules/` directory (e.g., `rules.mdc`).
+>    - The `.mdc` file must start with YAML frontmatter:
+>      ```yaml
+>      ---
+>      description: "Fetched rules from the central rule server"
+>      globs:
+>        - .cursor/rules/rules.mdc
+>      ---
+>      ```
+>    - **Never run tests or scripts directly—always use `Makefile.ai` targets for all automation.**
+>
+> 2. **When creating or proposing new rules:**
+>    - **Draft the rule as a `.txt` file** in your workspace root.
+>    - **Review and validate** the content for structure and clarity.
+>    - **Rename/move** the file to `.cursor/rules/` with a `.mdc` extension.
+>    - **Required YAML frontmatter:**
+>      ```yaml
+>      ---
+>      description: "Clear, actionable summary of the rule."
+>      globs:
+>        - "glob/pattern/for/applicability"
+>      ---
+>      ```
+>    - **Update the rule index** (`.cursor/rules/cursor_rules.mdc`) after adding a new rule.
+>    - **After any rule changes, run:**
+>      ```
+>      make -f Makefile.ai admin-maintain-rules
+>      ```
+>
+> 3. **For all automation (tests, builds, migrations):**
+>    - Use only `Makefile.ai` targets.
+>    - Use Docker service names and internal ports for all connections.
+>
+> 4. **If you need more details, refer to:**
+>    - [ONBOARDING_OTHER_AI_IDE.md](./ONBOARDING_OTHER_AI_IDE.md)
+>    - [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc)
+>
+> **If anything is unclear, ask clarifying questions before proceeding.**
+
+---
+
 ## 🟢 Initial Prompts for Onboarding an AI IDE
 
 Use the following copy-paste prompts to onboard an AI IDE agent. Choose the one that matches your situation:
@@ -212,4 +260,192 @@ If you need more details on automation, rule file structure, or best practices, 
 
 ---
 
-> _Tip: You can use this document as a system prompt, onboarding doc, or preamble for new agents or users. The more context you provide, the better the results—see [TeamAI's prompt engineering guide](https://teamai.com/blog/prompt-libraries/8-step-guide-to-creating-a-prompt-for-ai/) for more tips._ 
+> _Tip: You can use this document as a system prompt, onboarding doc, or preamble for new agents or users. The more context you provide, the better the results—see [TeamAI's prompt engineering guide](https://teamai.com/blog/prompt-libraries/8-step-guide-to-creating-a-prompt-for-ai/) for more tips._
+
+---
+
+## 🛡️ Database Backup, Restore, and Nuke (NEW)
+
+**Backup the database:**
+```bash
+make -f Makefile.ai ai-db-backup
+# or data-only:
+make -f Makefile.ai ai-db-backup-data-only
+```
+Creates a timestamped SQL file in `backups/`.
+
+**Restore the database:**
+```bash
+make -f Makefile.ai ai-db-restore BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
+# or data-only:
+make -f Makefile.ai ai-db-restore-data BACKUP=backups/rulesdb-data-YYYYMMDD-HHMMSS.sql
+```
+
+**Nuke the database (danger!):**
+```bash
+make -f Makefile.ai ai-db-nuke
+```
+This will delete ALL Postgres data and volumes, then re-run migrations.
+
+**Troubleshooting:**
+- If you see enum or duplicate key errors on restore, ensure your schema matches the backup and use data-only restore if needed.
+- Always use internal Docker service names and ports (e.g., `db-test:5432`).
+
+---
+
+## 🌍 Portable Rules Import/Export (NEW)
+
+**Propose a portable rule:**
+```bash
+make -f Makefile.ai ai-propose-portable-rule \
+  RULE_TYPE=formatting \
+  DESCRIPTION='All .mdc files must have frontmatter' \
+  DIFF='---\ndescription: ...\nglobs: ...\n---' \
+  SUBMITTED_BY=portable-rules-bot \
+  CATEGORIES='"formatting","cursor","portable"' \
+  TAGS='"formatting","cursor","portable"' \
+  PROJECT=portable-rules
+```
+
+**Batch import portable rules:**
+```bash
+bash scripts/batch_import_portable_rules.sh
+```
+
+---
+
+## 📋 Viewing Logs (NEW)
+
+Use these Makefile.ai targets to view logs for troubleshooting:
+
+- **All containers:**
+  ```bash
+  make -f Makefile.ai logs
+  ```
+  Shows the last 100 lines for API, db-test, and frontend containers.
+
+- **API only:**
+  ```bash
+  make -f Makefile.ai logs-api
+  ```
+
+- **Database only:**
+  ```bash
+  make -f Makefile.ai logs-db
+  ```
+
+---
+
+## 🔑 Makefile.ai Target Reference (Updated)
+
+| Target                        | Description                                    |
+|-------------------------------|------------------------------------------------|
+| ai-test, ai-test-one, ai-test-json | Run tests (all, one, or JSON output)      |
+| ai-db-migrate, ai-db-autorevision  | Run/apply DB migrations                   |
+| ai-db-backup, ai-db-backup-data-only | Backup DB (full/data-only)              |
+| ai-db-restore, ai-db-restore-data   | Restore DB (full/data-only)              |
+| ai-db-nuke, ai-db-drop-recreate     | Nuke or reset DB (danger!)               |
+| ai-propose-portable-rule            | Propose a portable rule                  |
+| ai-approve-all-pending              | Approve all pending proposals            |
+| ai-up, ai-down, ai-build, ai-rebuild-all | Start/stop/build/rebuild services   |
+| ai-list-rules, ai-list-rules-mdc    | List rules (JSON/MDC)                    |
+| ai-onboarding-health                | Run onboarding health check              |
+| logs, logs-api, logs-db             | View logs for all, API, or DB containers |
+
+See `Makefile.ai` for the full list and usage examples.
+
+---
+
+## 📌 Port Usage (Reminder)
+- **Default API port:** `9103` (update all configs, docs, and clients accordingly)
+- **Frontend port:** `3000` (or as set by `ADMIN_FRONTEND_PORT`)
+- Always use Docker service names and internal ports for all connections.
+
+---
+
+## 📖 References
+
+- [8-Step Guide to Creating a Prompt for AI (TeamAI)](https://teamai.com/blog/prompt-libraries/8-step-guide-to-creating-a-prompt-for-ai/)
+- [Create Onboarding Documents FASTER with AI (OmniGPT)](https://www.linkedin.com/pulse/create-onboarding-documents-faster-ai-ultimate-prompt-every-project-vp0uc)
+- [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc)
+- [pytest_execution.mdc](mdc:.cursor/rules/pytest_execution.mdc)
+- [testing_flow.mdc](mdc:.cursor/rules/testing_flow.mdc)
+- [GitHub Markdown Syntax Guide](https://docs.github.com/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
+
+---
+
+> _Tip: You can use this document as a system prompt, onboarding doc, or preamble for new agents or users. The more context you provide, the better the results—see [TeamAI's prompt engineering guide](https://teamai.com/blog/prompt-libraries/8-step-guide-to-creating-a-prompt-for-ai/) for more tips._
+
+---
+
+## 📝 Example: Fetching and Writing Rules to .mdc File
+
+Below is a robust example of how to fetch rules from the central server and write them to a `.mdc` file, ensuring no placeholders are left in the output.
+
+### Python Script Example
+
+```python
+import requests
+import json
+import os
+
+# Config
+RULE_API_URL = os.environ.get("RULE_API_URL", "http://localhost:9103/rules")
+OUTPUT_PATH = ".cursor/rules/rules.mdc"
+
+# Fetch rules from the API
+response = requests.get(RULE_API_URL)
+response.raise_for_status()
+rules = response.json()
+
+# Format as pretty JSON
+rules_json = json.dumps(rules, indent=2)
+
+# Write to .mdc file with required frontmatter
+with open(OUTPUT_PATH, "w") as f:
+    f.write("---\n")
+    f.write('description: "Fetched rules from the central rule server"\n')
+    f.write("globs:\n  - .cursor/rules/rules.mdc\n")
+    f.write("---\n\n")
+    f.write("```json\n")
+    f.write(rules_json)
+    f.write("\n```")
+
+print(f"Wrote {len(rules)} rules to {OUTPUT_PATH}")
+```
+
+### Shell Script Example (curl + jq)
+
+```bash
+#!/bin/bash
+API_URL="${RULE_API_URL:-http://localhost:9103/rules}"
+OUTPUT=".cursor/rules/rules.mdc"
+
+echo "---" > "$OUTPUT"
+echo 'description: "Fetched rules from the central rule server"' >> "$OUTPUT"
+echo "globs:" >> "$OUTPUT"
+echo "  - .cursor/rules/rules.mdc" >> "$OUTPUT"
+echo "---" >> "$OUTPUT"
+echo "" >> "$OUTPUT"
+echo '```json' >> "$OUTPUT"
+curl -s "$API_URL" | jq '.' >> "$OUTPUT"
+echo '```' >> "$OUTPUT"
+
+echo "Wrote rules to $OUTPUT"
+```
+
+### Validation Step (Recommended)
+
+After writing the file, you can add a check to ensure the code block contains valid JSON and not a placeholder:
+
+```python
+with open(OUTPUT_PATH) as f:
+    content = f.read()
+    if "[REPLACE_WITH_JSON_ARRAY]" in content:
+        raise ValueError("Placeholder found! The rules JSON was not inserted correctly.")
+```
+
+**Best Practices:**
+- Never leave a placeholder in the final `.mdc` file.
+- Always check that the code block contains valid JSON.
+- Reference this script as the standard for rule syncing in all IDEs/agents. 

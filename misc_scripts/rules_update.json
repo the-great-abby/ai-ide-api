@@ -1,0 +1,17 @@
+{
+  "60ad6ecd-15f7-4b4b-8fcf-b3f63f20781a": {
+    "description": "All new rules must be proposed as .mdc files, reviewed, and approved via the central rule server before being used in automation.",
+    "applies_to": ["rules", "enhancements", "features"],
+    "applies_to_rationale": "This rule applies to all projects that use rules, enhancements, and features."
+  },
+  "ab091fc8-e8f9-47bd-9104-225570f49797": {
+    "description": "Definition of Done (DoD) for all rules, enhancements, and features.",
+    "applies_to": ["rules", "enhancements", "features"],
+    "applies_to_rationale": "This rule applies to all projects that use rules, enhancements, and features."
+  },
+  "510aede7-b47b-42a4-94ce-13a3914ce6c4": {
+    "description": "Projects must provide a script and Makefile.ai target to fetch and sync rules from the central rule server, saving them to .cursor/rules/.",
+    "applies_to": ["rules", "enhancements", "features"],
+    "applies_to_rationale": "This rule applies to all projects that use rules, enhancements, and features."
+  }
+}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9103';
 
 function App() {
   const [proposals, setProposals] = useState([]);
@@ -49,7 +49,12 @@ function App() {
     try {
       const [proposalsRes, rulesRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/pending-rule-changes`),
-        axios.get(`${API_BASE_URL}/rules`)
+        axios.get(`${API_BASE_URL}/rules`, {
+          params: {
+            category: categories.join(','),
+            tag: tags.join(',')
+          }
+        })
       ]);
       setProposals(proposalsRes.data);
       setRules(rulesRes.data);
@@ -71,26 +76,31 @@ function App() {
     setLoadingEnhancements(false);
   };
 
-  // Filter rules client-side for multi-select
+  // Remove client-side category filtering for rules
   const filteredRules = rules.filter(r => {
-    const catMatch = categoryFilter.length === 0 || r.categories.some(cat => categoryFilter.includes(cat));
     const tagMatch = tagFilter.length === 0 || r.tags.some(tag => tagFilter.includes(tag));
-    return catMatch && tagMatch;
+    return tagMatch;
   });
 
+  // When category filter changes, fetch from backend
   const handleCategoryFilter = (e) => {
     const selected = Array.from(e.target.selectedOptions, option => option.value);
     setCategoryFilter(selected);
+    fetchAll(selected, tagFilter);
   };
 
+  // When tag filter changes, fetch from backend
   const handleTagFilter = (e) => {
     const selected = Array.from(e.target.selectedOptions, option => option.value);
     setTagFilter(selected);
+    fetchAll(categoryFilter, selected);
   };
 
+  // Clear filters and fetch all rules
   const clearFilters = () => {
     setCategoryFilter([]);
     setTagFilter([]);
+    fetchAll([], []);
   };
 
   const approveProposal = async (id) => {

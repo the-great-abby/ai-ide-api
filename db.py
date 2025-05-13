@@ -42,6 +42,9 @@ class Rule(Base):
     version = Column(Integer, default=1)
     categories = Column(String, default="")  # Comma-separated
     tags = Column(String, default="")        # Comma-separated
+    examples = Column(Text, nullable=True, default=None)
+    applies_to = Column(String, default="")  # Comma-separated list of targets
+    applies_to_rationale = Column(Text, nullable=True, default=None)
 
 # Proposal model
 class Proposal(Base):
@@ -58,6 +61,9 @@ class Proposal(Base):
     version = Column(Integer, default=1)
     categories = Column(String, default="")  # Comma-separated
     tags = Column(String, default="")        # Comma-separated
+    examples = Column(Text, nullable=True, default=None)
+    applies_to = Column(String, default="")  # Comma-separated list of targets
+    applies_to_rationale = Column(Text, nullable=True, default=None)
 
 # Feedback model
 class Feedback(Base):
@@ -86,6 +92,9 @@ class RuleVersion(Base):
     timestamp = Column(DateTime)
     categories = Column(String, default="")
     tags = Column(String, default="")
+    examples = Column(Text, nullable=True, default=None)
+    applies_to = Column(String, default="")  # Comma-separated list of targets
+    applies_to_rationale = Column(Text, nullable=True, default=None)
 
 # BugReport model for bug reporting
 class BugReport(Base):
@@ -109,6 +118,9 @@ class Enhancement(Base):
     status = Column(String, default="open")
     proposal_id = Column(String, nullable=True, default=None)  # New: reference to original proposal
     project = Column(String, index=True, nullable=True)  # Project association
+    examples = Column(Text, nullable=True, default=None)  # New field for examples
+    applies_to = Column(String, default="")  # Comma-separated list of targets
+    applies_to_rationale = Column(Text, nullable=True, default=None)
 
 # Initialize the database and create tables
 def init_db():

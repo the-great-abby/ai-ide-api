@@ -56,13 +56,16 @@ services:
     volumes:
       - rules_postgres_data:/var/lib/postgresql/data
 
-  pgloader:
-    image: local/pgloader:latest
-    depends_on:
-      - db-test
+  misc-scripts:
+    image: python:3.11
     volumes:
-      - ./:/data
-    entrypoint: ["/bin/sleep", "infinity"]  # For one-off exec usage
+      - ./misc_scripts:/scripts
+      - ./.cursor/rules:/app/.cursor/rules
+      - ./ai_ide_rules:/app/ai_ide_rules
+    working_dir: /scripts
+    depends_on:
+      - api
+    command: tail -f /dev/null
 
 volumes:
   rules_postgres_data: 

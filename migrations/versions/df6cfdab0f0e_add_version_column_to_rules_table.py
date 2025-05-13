@@ -21,6 +21,8 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     bind = op.get_bind()
+    status_enum = sa.Enum('pending', 'approved', 'rejected', 'reverted_to_enhancement', name='statusenum')
+    status_enum.create(bind, checkfirst=True)
     inspector = sa.inspect(bind)
     # Proposals table columns
     proposal_cols = [col['name'] for col in inspector.get_columns('proposals')]
@@ -36,14 +38,14 @@ def upgrade() -> None:
     try:
         op.alter_column('proposals', 'status',
             existing_type=sa.VARCHAR(length=8),
-            type_=sa.Enum('pending', 'approved', 'rejected', 'reverted_to_enhancement', name='statusenum'),
+            type_=status_enum,
             existing_nullable=True)
     except Exception:
         pass
     try:
         op.alter_column('rule_versions', 'status',
             existing_type=sa.VARCHAR(length=8),
-            type_=sa.Enum('pending', 'approved', 'rejected', 'reverted_to_enhancement', name='statusenum'),
+            type_=status_enum,
             existing_nullable=True)
     except Exception:
         pass
@@ -58,7 +60,7 @@ def upgrade() -> None:
     try:
         op.alter_column('rules', 'status',
             existing_type=sa.VARCHAR(length=8),
-            type_=sa.Enum('pending', 'approved', 'rejected', 'reverted_to_enhancement', name='statusenum'),
+            type_=status_enum,
             existing_nullable=True)
     except Exception:
         pass
@@ -88,3 +90,6 @@ def downgrade() -> None:
     op.drop_column('proposals', 'version')
     op.drop_column('proposals', 'rule_id')
     # ### end Alembic commands ###
+    bind = op.get_bind()
+    status_enum = sa.Enum('pending', 'approved', 'rejected', 'reverted_to_enhancement', name='statusenum')
+    status_enum.drop(bind, checkfirst=True)

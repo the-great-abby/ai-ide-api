@@ -1,6 +1,6 @@
 # Integrating an AI-IDE with the Rule API
 
-> **Note:** The default API server port is **9103** (not 8000). Update your URLs accordingly.
+> **Note:** The default API server port is **9103**. Update your URLs accordingly.
 
 ---
 
@@ -64,7 +64,7 @@
 ### Step-by-Step Onboarding
 
 1. **Configure the AI-IDE to Point to the Rule Server**
-   - Set the API base URL (e.g., `AI_IDE_API_URL=http://your-server:8000`).
+   - Set the API base URL (e.g., `AI_IDE_API_URL=http://your-server:9103`).
    - (If required) Add authentication credentials.
 
 2. **Create Cursor Rules for Remote Fetching**
@@ -151,7 +151,7 @@ See the OpenAPI docs for full details and request/response schemas.
 
 ## Environment & Configuration
 
-- **API Base URL:** Set the base URL for the backend API (e.g., `http://localhost:8000` or as provided).
+- **API Base URL:** Set the base URL for the backend API (e.g., `http://localhost:9103` or as provided).
 - **CORS:** Enabled for browser-based clients.
 - **Environment Variables:**
   - `AI_IDE_API_URL` (recommended for client config)
@@ -192,22 +192,22 @@ Multiple values (if supported): `/rules?category=pytest,unit&tag=docker,fast`
 
 ### Fetch All Rules (curl)
 ```sh
-curl -X GET "http://localhost:8000/rules"
+curl -X GET "http://localhost:9103/rules"
 ```
 
 ### Fetch Rules by Category and Tag (curl)
 ```sh
-curl -X GET "http://localhost:8000/rules?category=pytest&tag=docker"
+curl -X GET "http://localhost:9103/rules?category=pytest&tag=docker"
 ```
 
 ### Fetch Rule Version History (curl)
 ```sh
-curl -X GET "http://localhost:8000/rules/rule_123/history"
+curl -X GET "http://localhost:9103/rules/rule_123/history"
 ```
 
 ### Submit a New Proposal (curl)
 ```sh
-curl -X POST "http://localhost:8000/proposals" \
+curl -X POST "http://localhost:9103/proposals" \
      -H "Content-Type: application/json" \
      -d '{
            "content": "New rule text...",
@@ -220,7 +220,7 @@ curl -X POST "http://localhost:8000/proposals" \
 ```python
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:9103"
 resp = requests.get(f"{BASE_URL}/rules")
 rules = resp.json()
 print(rules)
@@ -230,7 +230,7 @@ print(rules)
 ```python
 import requests
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:9103"
 proposal = {
     "content": "New rule text...",
     "categories": ["pytest"],
@@ -255,7 +255,7 @@ print(resp.json())
 
 - [ONBOARDING.md](./ONBOARDING.md): System architecture, workflows, and environment setup
 - [RULES.md](./RULES.md): Rule structure, best practices, and examples
-- [OpenAPI Docs](http://localhost:8000/docs): Interactive API documentation
+- [OpenAPI Docs](http://localhost:9103/docs): Interactive API documentation
 
 ---
 
@@ -282,4 +282,103 @@ make -f Makefile.ai ai-db-migrate
 
 > **Why?**
 > This ensures all automation is consistent, reproducible, and works in both human and AI-driven workflows.
-> See [ONBOARDING.md](./ONBOARDING.md) for a full list of targets and best practices. 
+> See [ONBOARDING.md](./ONBOARDING.md) for a full list of targets and best practices.
+
+---
+
+## 🛡️ Database Backup, Restore, and Nuke (NEW)
+
+**Backup the database:**
+```bash
+make -f Makefile.ai ai-db-backup
+# or data-only:
+make -f Makefile.ai ai-db-backup-data-only
+```
+Creates a timestamped SQL file in `backups/`.
+
+**Restore the database:**
+```bash
+make -f Makefile.ai ai-db-restore BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
+# or data-only:
+make -f Makefile.ai ai-db-restore-data BACKUP=backups/rulesdb-data-YYYYMMDD-HHMMSS.sql
+```
+
+**Nuke the database (danger!):**
+```bash
+make -f Makefile.ai ai-db-nuke
+```
+This will delete ALL Postgres data and volumes, then re-run migrations.
+
+**Troubleshooting:**
+- If you see enum or duplicate key errors on restore, ensure your schema matches the backup and use data-only restore if needed.
+- Always use internal Docker service names and ports (e.g., `db-test:5432`).
+
+---
+
+## 🌍 Portable Rules Import/Export (NEW)
+
+**Propose a portable rule:**
+```bash
+make -f Makefile.ai ai-propose-portable-rule \
+  RULE_TYPE=formatting \
+  DESCRIPTION='All .mdc files must have frontmatter' \
+  DIFF='---\ndescription: ...\nglobs: ...\n---' \
+  SUBMITTED_BY=portable-rules-bot \
+  CATEGORIES='"formatting","cursor","portable"' \
+  TAGS='"formatting","cursor","portable"' \
+  PROJECT=portable-rules
+```
+
+**Batch import portable rules:**
+```bash
+bash scripts/batch_import_portable_rules.sh
+```
+
+---
+
+## 📋 Viewing Logs (NEW)
+
+Use these Makefile.ai targets to view logs for troubleshooting:
+
+- **All containers:**
+  ```bash
+  make -f Makefile.ai logs
+  ```
+  Shows the last 100 lines for API, db-test, and frontend containers.
+
+- **API only:**
+  ```bash
+  make -f Makefile.ai logs-api
+  ```
+
+- **Database only:**
+  ```bash
+  make -f Makefile.ai logs-db
+  ```
+
+---
+
+## 🔑 Makefile.ai Target Reference (Updated)
+
+| Target                        | Description                                    |
+|-------------------------------|------------------------------------------------|
+| ai-test, ai-test-one, ai-test-json | Run tests (all, one, or JSON output)      |
+| ai-db-migrate, ai-db-autorevision  | Run/apply DB migrations                   |
+| ai-db-backup, ai-db-backup-data-only | Backup DB (full/data-only)              |
+| ai-db-restore, ai-db-restore-data   | Restore DB (full/data-only)              |
+| ai-db-nuke, ai-db-drop-recreate     | Nuke or reset DB (danger!)               |
+| ai-propose-portable-rule            | Propose a portable rule                  |
+| ai-approve-all-pending              | Approve all pending proposals            |
+| ai-up, ai-down, ai-build, ai-rebuild-all | Start/stop/build/rebuild services   |
+| ai-list-rules, ai-list-rules-mdc    | List rules (JSON/MDC)                    |
+| ai-onboarding-health                | Run onboarding health check              |
+| logs, logs-api, logs-db             | View logs for all, API, or DB containers |
+
+See `Makefile.ai` for the full list and usage examples.
+
+---
+
+## 📌 Port Usage (Reminder)
+- **Default API port:** `9103` (update all configs, docs, and clients accordingly)
+- **Frontend port:** `3000` (or as set by `ADMIN_FRONTEND_PORT`)
+- Always use Docker service names and internal ports for all connections. 
