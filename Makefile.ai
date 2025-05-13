@@ -335,3 +335,6 @@ ai-misc-mdc-to-json: ai-misc-install
 
 ai-misc-enrich-rules:
 	docker compose exec misc-scripts python enrich_rule_proposals.py
+
+ai-list-bug-reports:
+	curl -s http://localhost:$(PORT)/bug-reports | jq '.'

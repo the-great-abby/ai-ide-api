@@ -112,8 +112,16 @@ def save_json(path, data):
         json.dump(data, f, indent=2)
 
 # Utility functions for categories/tags
+# Hardened: If applies_to is a list of single characters spelling 'all', treat as ['all']
 def list_to_str(lst):
-    return ",".join(lst) if lst else ""
+    if lst and isinstance(lst, list):
+        # Fix: If applies_to is ['a','l','l'], treat as ['all']
+        if len(lst) > 1 and all(isinstance(x, str) and len(x) == 1 for x in lst):
+            joined = ''.join(lst)
+            if joined == 'all':
+                return 'all'
+        return ",".join(lst)
+    return ""
 
 def str_to_list(s):
     return [x for x in (s or "").split(",") if x]
@@ -368,6 +376,25 @@ def submit_bug_report(report: BugReportModel, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_bug)
     return {"status": "received", "id": db_bug.id}
+
+# Endpoint: List all bug reports
+@app.get("/bug-reports")
+def list_bug_reports(db: Session = Depends(get_db)):
+    bugs = db.query(DBBugReport).order_by(DBBugReport.timestamp.desc()).all()
+    result = []
+    for b in bugs:
+        data = b.__dict__.copy()
+        data.pop('_sa_instance_state', None)
+        if isinstance(data.get("timestamp"), datetime):
+            data["timestamp"] = data["timestamp"].isoformat()
+        result.append({
+            "id": data["id"],
+            "description": data["description"],
+            "reporter": data["reporter"],
+            "page": data["page"],
+            "timestamp": data["timestamp"]
+        })
+    return result
 
 # Endpoint: Suggest an enhancement
 @app.post("/suggest-enhancement")

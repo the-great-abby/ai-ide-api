@@ -3,3 +3,63 @@ description:
 globs:
 alwaysApply: false
 ---
+# Proposing Rules via JSON Files and Makefile Targets
+
+**Rule:**
+All rule proposals should be written as individual JSON files in the `ai_ide_rules/` directory and submitted using a Makefile target that reads each file directly. This ensures rules are readable, version-controlled, and easy to review or update.
+
+**Directory Structure:**
+```
+ai_ide_rules/
+  automation_makefile.json
+  test_isolation.json
+  linting_formatting.json
+  no_secrets_in_repos.json
+  relative_paths.json
+```
+
+**JSON File Example:**
+```json
+{
+  "rule_type": "workflow",
+  "description": "All automation (tests, migrations, builds, etc.) must be run via Makefile.ai targets, not by running commands directly.",
+  "diff": "---\ndescription: ...",
+  "submitted_by": "portable-rules-bot",
+  "categories": ["workflow","automation"],
+  "tags": ["makefile","portable"],
+  "project": "shared-rules",
+  "applies_to": ["all"],
+  "applies_to_rationale": "This rule applies to all projects using Makefile.ai for automation.",
+  "examples": "make -f Makefile.ai ai-test"
+}
+```
+
+**Makefile Target:**
+```makefile
+ai-propose-rule:
+	curl -s -X POST http://localhost:$(PORT)/propose-rule-change \
+	  -H "Content-Type: application/json" \
+	  -d @$(RULE_FILE)
+```
+
+**Submission Script Example:**
+```bash
+#!/bin/bash
+for rulefile in ai_ide_rules/*.json; do
+  echo "Proposing: $rulefile"
+  make -f Makefile.ai ai-propose-rule RULE_FILE="$rulefile"
+done
+echo "All AI-IDE rule proposals submitted."
+```
+
+**Best Practices:**
+- Use one JSON file per rule for clarity and version control.
+- Use the `-d @$(RULE_FILE)` syntax to avoid shell escaping issues.
+- Review and update rules in the `ai_ide_rules/` directory as needed.
+- Use a Makefile target (e.g., `ai-propose-rules`) to batch submit all rules for review.
+- Document this process in your onboarding or contribution guides.
+
+**Rationale:**
+- Keeps rule proposals maintainable, reviewable, and portable across projects.
+- Avoids issues with shell escaping and multiline fields in Makefile variables.
+- Enables easy automation and integration with CI/CD or review workflows.

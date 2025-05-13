@@ -3,7 +3,6 @@ description: Docker related
 globs: 
 alwaysApply: false
 ---
-
 - **Environment Commands**
   - **Status Check:** `make -f Makefile.ai ai-status`
     - Shows running containers
