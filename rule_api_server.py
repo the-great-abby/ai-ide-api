@@ -54,6 +54,8 @@ class RuleProposal(BaseModel):
     categories: List[str] = []
     tags: List[str] = []
     examples: Optional[str] = None
+    applies_to: List[str] = []
+    applies_to_rationale: Optional[str] = None
 
 class Rule(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -67,6 +69,8 @@ class Rule(BaseModel):
     categories: List[str] = []
     tags: List[str] = []
     examples: Optional[str] = None
+    applies_to: List[str] = []
+    applies_to_rationale: Optional[str] = None
 
 class BugReportModel(BaseModel):
     description: str
@@ -84,6 +88,19 @@ class EnhancementModel(BaseModel):
     status: Optional[str] = "open"
     proposal_id: Optional[str] = None
     project: Optional[str] = None  # Project association
+    examples: Optional[str] = None  # New field for examples
+
+# Add this Pydantic model for partial updates
+class RuleUpdate(BaseModel):
+    rule_type: Optional[str] = None
+    description: Optional[str] = None
+    diff: Optional[str] = None
+    project: Optional[str] = None
+    examples: Optional[str] = None
+    applies_to: Optional[List[str]] = None
+    applies_to_rationale: Optional[str] = None
+    categories: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
 
 # Utility functions to load/save JSON
 def load_json(path):
@@ -133,6 +150,8 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
         categories=list_to_str(proposal.categories),
         tags=list_to_str(proposal.tags),
         examples=proposal.examples,
+        applies_to=list_to_str(proposal.applies_to),
+        applies_to_rationale=proposal.applies_to_rationale,
     )
     db.add(db_proposal)
     db.commit()
@@ -143,12 +162,15 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
     data.pop('timestamp', None)
     data.pop('categories', None)
     data.pop('tags', None)
+    data.pop('applies_to', None)
+    data.pop('applies_to_rationale', None)
     return RuleProposal(
         **data,
         timestamp=db_proposal.timestamp.isoformat() if isinstance(db_proposal.timestamp, datetime) else db_proposal.timestamp,
         categories=str_to_list(db_proposal.categories),
         tags=str_to_list(db_proposal.tags),
-        examples=db_proposal.examples,
+        applies_to=str_to_list(db_proposal.applies_to),
+        applies_to_rationale=db_proposal.applies_to_rationale,
     )
 
 # Endpoint: List all pending proposals
@@ -162,6 +184,8 @@ def list_pending_proposals(db: Session = Depends(get_db)):
             data["timestamp"] = data["timestamp"].isoformat()
         data["categories"] = str_to_list(data.get("categories", ""))
         data["tags"] = str_to_list(data.get("tags", ""))
+        data["applies_to"] = str_to_list(data.get("applies_to", ""))
+        data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         result.append(RuleProposal(**data))
     return result
 
@@ -218,6 +242,8 @@ def approve_rule_change(proposal_id: str = Path(..., description="Proposal ID"),
         categories=proposal.categories,
         tags=proposal.tags,
         examples=proposal.examples,
+        applies_to=list_to_str(proposal.applies_to),
+        applies_to_rationale=proposal.applies_to_rationale,
     )
     db.add(db_rule)
     db.commit()
@@ -244,14 +270,18 @@ def list_rules(project: Optional[str] = None, category: Optional[str] = None, ta
         query = query.filter(DBRule.project == project)
     rules = query.all()
     result = []
+    # Support multi-category filtering
+    category_list = [c.strip() for c in category.split(",")] if category else []
     for r in rules:
         data = r.__dict__.copy()
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
         data["categories"] = str_to_list(data.get("categories", ""))
         data["tags"] = str_to_list(data.get("tags", ""))
+        data["applies_to"] = str_to_list(data.get("applies_to", ""))
+        data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         # Filtering by category/tag
-        if category and category not in data["categories"]:
+        if category_list and not any(cat in data["categories"] for cat in category_list):
             continue
         if tag and tag not in data["tags"]:
             continue
@@ -317,6 +347,8 @@ def get_rule_history(rule_id: str, db: Session = Depends(get_db)):
             data["timestamp"] = data["timestamp"].isoformat()
         data["categories"] = str_to_list(data.get("categories", ""))
         data["tags"] = str_to_list(data.get("tags", ""))
+        data["applies_to"] = str_to_list(data.get("applies_to", ""))
+        data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         result.append(data)
     return result
 
@@ -350,7 +382,10 @@ def suggest_enhancement(enh: EnhancementModel, db: Session = Depends(get_db)):
         tags=",".join(enh.tags) if enh.tags else "",
         categories=",".join(enh.categories) if enh.categories else "",
         timestamp=ts,
-        project=enh.project
+        project=enh.project,
+        examples=enh.examples,  # New field
+        applies_to=list_to_str(enh.applies_to),
+        applies_to_rationale=enh.applies_to_rationale,
     )
     db.add(db_enh)
     db.commit()
@@ -369,6 +404,8 @@ def list_enhancements(db: Session = Depends(get_db)):
             data["timestamp"] = data["timestamp"].isoformat()
         data["tags"] = str_to_list(data.get("tags", ""))
         data["categories"] = str_to_list(data.get("categories", ""))
+        data["applies_to"] = str_to_list(data.get("applies_to", ""))
+        data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         result.append(data)
     return result
 
@@ -396,6 +433,8 @@ def enhancement_to_proposal(enhancement_id: str, db: Session = Depends(get_db)):
         version=1,
         categories=enh.categories,
         tags=enh.tags,
+        applies_to=list_to_str(enh.applies_to),
+        applies_to_rationale=enh.applies_to_rationale,
     )
     db.add(proposal)
     enh.status = "transferred"
@@ -435,7 +474,9 @@ def proposal_to_enhancement(proposal_id: str, db: Session = Depends(get_db)):
         categories=proposal.categories,
         timestamp=proposal.timestamp,
         status="open",
-        proposal_id=proposal.id
+        proposal_id=proposal.id,
+        applies_to=str_to_list(proposal.applies_to),
+        applies_to_rationale=proposal.applies_to_rationale,
     )
     db.add(enh)
     proposal.status = StatusEnum.reverted_to_enhancement
@@ -513,5 +554,33 @@ def get_changelog_json():
         return changelog
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not parse changelog: {e}")
+
+# Endpoint: Update a rule
+@app.patch("/rules/{rule_id}", response_model=Rule)
+def update_rule(
+    rule_id: str,
+    update: RuleUpdate,
+    db: Session = Depends(get_db)
+):
+    rule = db.query(DBRule).filter(DBRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    data = update.dict(exclude_unset=True)
+    for field, value in data.items():
+        if field in ["categories", "tags", "applies_to"] and value is not None:
+            setattr(rule, field, list_to_str(value))
+        elif value is not None:
+            setattr(rule, field, value)
+    db.commit()
+    db.refresh(rule)
+    # Convert DBRule to Pydantic Rule for response
+    result = rule.__dict__.copy()
+    result["categories"] = str_to_list(result.get("categories", ""))
+    result["tags"] = str_to_list(result.get("tags", ""))
+    result["applies_to"] = str_to_list(result.get("applies_to", ""))
+    result["applies_to_rationale"] = result.get("applies_to_rationale", "")
+    if isinstance(result.get("timestamp"), datetime):
+        result["timestamp"] = result["timestamp"].isoformat()
+    return Rule(**result)
 
 # Run with: uvicorn rule_api_server:app --reload 

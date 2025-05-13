@@ -82,7 +82,18 @@ ai-db-autorevision:
 ai-propose-makefile-rule:
 	curl -s -X POST http://localhost:$(PORT)/propose-rule-change \
 	  -H "Content-Type: application/json" \
-	  -d '{"content": "---\\ndescription: All automation (tests, migrations, builds, etc.) must be run via Makefile.ai targets, not by running commands directly.\\nglobs: \\\"**/*\\\"\\n---\\n# Makefile.ai Required for Automation\\n\\n**Rule:**  \\nAll test, migration, build, and environment setup commands must be executed using \\`Makefile.ai\\` targets. Do **not** run scripts or commands directly (e.g., \\`pytest\\`, \\`alembic\\`, \\`docker compose\\`, etc.).\\n\\n**Rationale:**  \\n- Ensures consistent, reproducible automation for both humans and AI agents.\\n- Centralizes workflow changes in one place (\\`Makefile.ai\\`).\\n- Prevents environment drift and hard-to-debug issues.\\n- Aligns with project onboarding and integration best practices.\\n\\n**How to comply:**  \\n- Use \\`make -f Makefile.ai <target>\\` for all automation tasks.\\n- See [ONBOARDING.md](../ONBOARDING.md) for a full list of targets and usage examples.\\n\\n**Examples:**\\n\\`\\`\\`sh\\nmake -f Makefile.ai ai-test\\nmake -f Makefile.ai ai-db-migrate\\nmake -f Makefile.ai ai-up\\n\\`\\`\\`\\n\\n**Do NOT:**\\n- Run \\`pytest\\` or \\`alembic\\` directly\\n- Use \\`docker compose\\` commands directly\\n- Bypass Makefile.ai for any automation\\n"}'
+	  -d '{ \
+	    "rule_type": "$(RULE_TYPE)", \
+	    "description": "$(DESCRIPTION)", \
+	    "diff": "$(DIFF)", \
+	    "submitted_by": "$(SUBMITTED_BY)", \
+	    "categories": [$(CATEGORIES)], \
+	    "tags": [$(TAGS)], \
+	    "project": "$(PROJECT)", \
+	    "applies_to": [$(APPLIES_TO)], \
+	    "applies_to_rationale": "$(APPLIES_TO_RATIONALE)", \
+	    "examples": "$(EXAMPLES)" \
+	  }'
 
 # Open or fetch the FastAPI docs endpoint
 ai-docs:
@@ -258,7 +269,6 @@ ai-db-drop-statusenum:
 ai-db-nuke:
 	docker compose down -v
 	docker compose up -d db-test
-	$(MAKE) -f Makefile.ai ai-db-migrate
 
 # Restore the rulesdb database from a SQL backup file
 # Usage: make -f Makefile.ai ai-db-restore BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
@@ -279,4 +289,49 @@ ai-db-backup-data-only:
 # Merge Alembic heads automatically (use with caution!)
 ai-db-merge-heads:
 	docker compose exec api alembic heads
-	docker compose exec api alembic merge -m "auto-merge heads" $(shell docker compose exec api alembic heads | awk '{print $$1}' | xargs)
+
+ai-db-heads:
+	docker compose exec api alembic heads
+
+ai-db-history:
+	docker compose exec api alembic history --verbose
+
+ai-api-wait:
+	@echo "Waiting for API to be ready..."
+	@until curl -sf http://localhost:$(API_PORT)/env > /dev/null; do sleep 2; done
+	@echo "API is up!"
+
+ai-db-nuke-and-restore-data:
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+	$(MAKE) -f Makefile.ai ai-db-nuke
+	$(MAKE) -f Makefile.ai ai-up
+	$(MAKE) -f Makefile.ai ai-api-wait
+	$(MAKE) -f Makefile.ai ai-db-migrate
+	BACKUP=$$(ls -t backups/rulesdb-data-*.sql | head -1) $(MAKE) -f Makefile.ai ai-db-restore-data
+
+ai-misc-install:
+	docker compose exec misc-scripts pip install -r requirements.txt
+
+ai-misc-up:
+	docker compose up -d misc-scripts
+
+ai-misc-update-rules:
+	$(MAKE) -f Makefile.ai ai-misc-up
+	docker compose exec misc-scripts pip install -r requirements.txt
+	docker compose exec misc-scripts python update_rules.py
+
+ai-misc-generate-update-template:
+	docker compose exec misc-scripts python generate_rules_update_template.py
+
+ai-api-restart-wait:
+	docker compose restart api
+	$(MAKE) -f Makefile.ai ai-api-wait
+
+ai-propose-rules:
+	bash misc_scripts/propose_rules.sh
+
+ai-misc-mdc-to-json: ai-misc-install
+	docker compose exec misc-scripts python mdc_to_json_rule_proposals.py
+
+ai-misc-enrich-rules:
+	docker compose exec misc-scripts python enrich_rule_proposals.py
