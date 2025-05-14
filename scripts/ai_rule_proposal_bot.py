@@ -3,9 +3,15 @@ import glob
 import requests
 import json
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+# Helper for Docker/host detection
+def get_default_url():
+    if os.environ.get("RUNNING_IN_DOCKER") == "1":
+        return "http://host.docker.internal:11434/api/generate"
+    return "http://localhost:11434/api/generate"
+
+OLLAMA_URL = os.environ.get("OLLAMA_URL", get_default_url())
 API_URL = "http://localhost:9103/propose-rule-change"
-MODEL = "llama3"
+MODEL = os.environ.get("OLLAMA_MODEL", "llama3")
 
 # 1. Scan codebase for repeated patterns (simple example: direct SQL queries)
 def scan_codebase_for_patterns():

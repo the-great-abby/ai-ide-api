@@ -6,13 +6,13 @@ API_PORT ?= 9103
 # This will help users resolve migration graph conflicts more safely and with better UX.
 
 ai-up:
-	docker-compose up -d api frontend
+	docker-compose up -d api frontend ollama-functions
 
 ai-down:
 	docker-compose down
 
 api-up:
-	docker compose up -d api db-test
+	docker compose up -d api db-test ollama-functions
 
 ai-test:
 	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
@@ -28,6 +28,12 @@ ai-export-rules:
 
 ai-lint-rules:
 	python scripts/lint_rules.py
+
+ai-lint-rule-files:
+	docker compose run --rm misc-scripts python lint_rule.py /app/ai_ide_rules
+
+ai-fix-rule-files:
+	docker compose run --rm misc-scripts python fix_rule_files.py
 
 ai-env:
 	curl -s http://localhost:$(PORT)/env || echo '{"error": "API not running"}'
@@ -384,6 +390,8 @@ OLLAMA_FUNCTIONS_IMAGE ?= ollama-functions:latest
 
 # Default Ollama URL for LLM rule suggester service (can be overridden)
 OLLAMA_URL ?= http://host.docker.internal:11434/api/generate
+# Default Ollama model for LLM rule suggester service (can be overridden)
+OLLAMA_MODEL ?= llama3:8b
 
 ai-build-ollama-functions-service:
 	docker build -f Dockerfile.ollama_functions -t $(OLLAMA_FUNCTIONS_IMAGE) .
@@ -433,3 +441,17 @@ ai-ollama-serve-docker-gateway-bg:
 # Usage: make -f Makefile.ai ai-ollama-logs
 ai-ollama-logs:
 	tail -n 100 ollama.log
+
+ai-test-suggest-llm-rules:
+	curl -s -X POST http://localhost:$(PORT)/suggest-llm-rules \
+	  -H "Content-Type: application/json" \
+	  -d '{"target": ".", "dry_run": true}' | jq '.'
+
+ai-rebuild-ollama-functions:
+	docker compose build ollama-functions
+
+ai-restart-ollama-functions:
+	docker compose restart ollama-functions
+
+ai-auto-feedback: ai-misc-install
+	docker compose exec misc-scripts python /scripts/auto_feedback.py

@@ -8,11 +8,12 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
-                     UploadFile)
+                     UploadFile, Request)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+import requests
 
 import scripts.suggest_rules as suggest_rules
 from db import BugReport as DBBugReport
@@ -777,6 +778,23 @@ def list_rule_proposal_feedback(
         )
         for f in feedbacks
     ]
+
+
+# Pass-through endpoint to Ollama LLM functions service
+OLLAMA_FUNCTIONS_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000")
+
+@app.post("/suggest-llm-rules")
+async def passthrough_suggest_llm_rules(request: Request):
+    """
+    Pass-through endpoint to the Ollama LLM functions service.
+    """
+    try:
+        payload = await request.json()
+        resp = requests.post(f"{OLLAMA_FUNCTIONS_URL}/suggest-llm-rules", json=payload, timeout=120)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # Run with: uvicorn rule_api_server:app --reload

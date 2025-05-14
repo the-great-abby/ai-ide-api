@@ -65,7 +65,21 @@ services:
     working_dir: /scripts
     depends_on:
       - api
+    environment:
+      - RUNNING_IN_DOCKER=1
     command: tail -f /dev/null
+
+  ollama-functions:
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama_functions
+    ports:
+      - "9104:8000"
+    environment:
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}
+    depends_on:
+      - api
 
 volumes:
   rules_postgres_data: 
