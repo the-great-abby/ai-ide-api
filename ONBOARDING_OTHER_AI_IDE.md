@@ -45,7 +45,7 @@ Welcome! This document is your comprehensive onboarding guide for integrating an
 >    - Use Docker service names and internal ports for all connections.
 >
 > 4. **If you need more details, refer to:**
->    - [ONBOARDING_OTHER_AI_IDE.md](./ONBOARDING_OTHER_AI_IDE.md)
+>    - [ONBOARDING_OTHER_AI_IDE.md](https://github.com/the-great-abby/ai-ide-api/blob/main/ONBOARDING_OTHER_AI_IDE.md)
 >    - [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc)
 >
 > **If anything is unclear, ask clarifying questions before proceeding.**
