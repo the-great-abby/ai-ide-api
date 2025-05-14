@@ -1,8 +1,9 @@
-import os
-import sys
 import json
+import os
 import re
+import sys
 from pathlib import Path
+
 import yaml
 
 # Use absolute paths for Docker container
@@ -16,6 +17,7 @@ print(f"OUTPUT_DIR: {OUTPUT_DIR}")
 # Helper to extract YAML frontmatter and body
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 
+
 def parse_mdc_file(path):
     text = path.read_text()
     m = FRONTMATTER_RE.match(text)
@@ -25,25 +27,29 @@ def parse_mdc_file(path):
     body = m.group(2).strip()
     return frontmatter, body
 
+
 def mdc_to_json(mdc_path):
     front, body = parse_mdc_file(mdc_path)
     # Sensible defaults
-    rule_type = front.get('categories', ['general'])[0] if 'categories' in front else 'general'
-    description = front.get('description', '')
+    rule_type = (
+        front.get("categories", ["general"])[0] if "categories" in front else "general"
+    )
+    description = front.get("description", "")
     diff = f"---\n{yaml.dump(front)}---\n\n{body}"
     out = {
         "rule_type": rule_type,
         "description": description,
         "diff": diff,
         "submitted_by": "portable-rules-bot",
-        "categories": front.get('categories', []),
-        "tags": front.get('tags', []),
+        "categories": front.get("categories", []),
+        "tags": front.get("tags", []),
         "project": "shared-rules",
         "applies_to": [],
         "applies_to_rationale": "",
-        "examples": ""
+        "examples": "",
     }
     return out
+
 
 def main():
     mdc_files = list(MDC_DIR.glob("*.mdc"))
@@ -61,5 +67,6 @@ def main():
             json.dump(json_obj, f, indent=2)
         print(f"Wrote: {out_path}")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

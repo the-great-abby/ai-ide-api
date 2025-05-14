@@ -1,11 +1,13 @@
-from sqlalchemy import create_engine, Column, String, Text, DateTime, Enum, Integer
+import enum
+import os
+import uuid
+from datetime import datetime
+
+from sqlalchemy import (Column, DateTime, Enum, Integer, String, Text,
+                        create_engine)
+from sqlalchemy.dialects.sqlite import BLOB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.dialects.sqlite import BLOB
-from datetime import datetime
-import enum
-import uuid
-import os
 
 # SQLite database URL
 POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
@@ -20,12 +22,14 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+
 # Enum for rule/proposal/feedback status
 class StatusEnum(str, enum.Enum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
     reverted_to_enhancement = "reverted_to_enhancement"  # New status
+
 
 # Rule model
 class Rule(Base):
@@ -41,10 +45,11 @@ class Rule(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     version = Column(Integer, default=1)
     categories = Column(String, default="")  # Comma-separated
-    tags = Column(String, default="")        # Comma-separated
+    tags = Column(String, default="")  # Comma-separated
     examples = Column(Text, nullable=True, default=None)
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
+
 
 # Proposal model
 class Proposal(Base):
@@ -60,10 +65,15 @@ class Proposal(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     version = Column(Integer, default=1)
     categories = Column(String, default="")  # Comma-separated
-    tags = Column(String, default="")        # Comma-separated
+    tags = Column(String, default="")  # Comma-separated
     examples = Column(Text, nullable=True, default=None)
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
+    reason_for_change = Column(Text, nullable=True, default=None)
+    references = Column(Text, nullable=True, default=None)
+    current_rule = Column(Text, nullable=True, default=None)
+    # Fields below support the full rule proposal template
+
 
 # Feedback model
 class Feedback(Base):
@@ -75,6 +85,7 @@ class Feedback(Base):
     comment = Column(Text, nullable=True)
     submitted_by = Column(String, index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
 
 # RuleVersion model for version history
 class RuleVersion(Base):
@@ -96,6 +107,7 @@ class RuleVersion(Base):
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
 
+
 # BugReport model for bug reporting
 class BugReport(Base):
     __tablename__ = "bug_reports"
@@ -104,6 +116,7 @@ class BugReport(Base):
     reporter = Column(String, nullable=True)
     page = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
 
 # Enhancement model for suggested improvements
 class Enhancement(Base):
@@ -116,14 +129,18 @@ class Enhancement(Base):
     categories = Column(String, default="")
     timestamp = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="open")
-    proposal_id = Column(String, nullable=True, default=None)  # New: reference to original proposal
+    proposal_id = Column(
+        String, nullable=True, default=None
+    )  # New: reference to original proposal
     project = Column(String, index=True, nullable=True)  # Project association
     examples = Column(Text, nullable=True, default=None)  # New field for examples
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
 
+
 # Initialize the database and create tables
 def init_db():
     Base.metadata.create_all(bind=engine)
 
-# Usage: from db import SessionLocal, init_db 
+
+# Usage: from db import SessionLocal, init_db

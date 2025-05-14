@@ -1,26 +1,35 @@
-import uuid
 import json
-from datetime import datetime
-from fastapi import FastAPI, HTTPException, Path, UploadFile, File, Form, Body
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
-import os
-import tempfile
-import shutil
-import scripts.suggest_rules as suggest_rules
-from fastapi.responses import JSONResponse
-from db import SessionLocal, Rule as DBRule, Proposal as DBProposal, StatusEnum, init_db, BugReport as DBBugReport, Enhancement as DBEnhancement
-from sqlalchemy.orm import Session
-from fastapi import Depends
-from fastapi.middleware.cors import CORSMiddleware
 import logging
+import os
+import shutil
+import tempfile
+import uuid
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
+                     UploadFile)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+import scripts.suggest_rules as suggest_rules
+from db import BugReport as DBBugReport
+from db import Enhancement as DBEnhancement
+from db import Proposal as DBProposal
+from db import Rule as DBRule
+from db import SessionLocal, StatusEnum, init_db
+from rule_proposal_feedback import FeedbackType, RuleProposalFeedback
 
 app = FastAPI(title="Rule Proposal API")
 
 # CORS middleware for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev, allow all. For prod, restrict to ["http://localhost:3000"] or your domain.
+    allow_origins=[
+        "*"
+    ],  # For dev, allow all. For prod, restrict to ["http://localhost:3000"] or your domain.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,14 +39,17 @@ app.add_middleware(
 RULES_FILE = "rules.json"
 PROPOSALS_FILE = "proposals.json"
 
+
 # Ensure files exist
 def ensure_file(path, default):
     if not os.path.exists(path):
         with open(path, "w") as f:
             json.dump(default, f)
 
+
 ensure_file(RULES_FILE, [])
 ensure_file(PROPOSALS_FILE, [])
+
 
 # Pydantic models
 class RuleProposal(BaseModel):
@@ -56,6 +68,10 @@ class RuleProposal(BaseModel):
     examples: Optional[str] = None
     applies_to: List[str] = []
     applies_to_rationale: Optional[str] = None
+    reason_for_change: Optional[str] = None
+    references: Optional[str] = None
+    current_rule: Optional[str] = None
+
 
 class Rule(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -72,11 +88,15 @@ class Rule(BaseModel):
     applies_to: List[str] = []
     applies_to_rationale: Optional[str] = None
 
+
 class BugReportModel(BaseModel):
     description: str
     reporter: Optional[str] = None
     page: Optional[str] = None
-    timestamp: Optional[str] = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: Optional[str] = Field(
+        default_factory=lambda: datetime.utcnow().isoformat()
+    )
+
 
 class EnhancementModel(BaseModel):
     description: str
@@ -90,6 +110,7 @@ class EnhancementModel(BaseModel):
     project: Optional[str] = None  # Project association
     examples: Optional[str] = None  # New field for examples
 
+
 # Add this Pydantic model for partial updates
 class RuleUpdate(BaseModel):
     rule_type: Optional[str] = None
@@ -101,15 +122,34 @@ class RuleUpdate(BaseModel):
     applies_to_rationale: Optional[str] = None
     categories: Optional[List[str]] = None
     tags: Optional[List[str]] = None
+    reason_for_change: Optional[str] = None
+    references: Optional[str] = None
+    current_rule: Optional[str] = None
+
+
+class RuleProposalFeedbackCreate(BaseModel):
+    feedback_type: FeedbackType
+    comments: Optional[str] = None
+
+
+class RuleProposalFeedbackResponse(BaseModel):
+    id: str
+    rule_proposal_id: str
+    feedback_type: FeedbackType
+    comments: Optional[str] = None
+    created_at: datetime
+
 
 # Utility functions to load/save JSON
 def load_json(path):
     with open(path, "r") as f:
         return json.load(f)
 
+
 def save_json(path, data):
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
+
 
 # Utility functions for categories/tags
 # Hardened: If applies_to is a list of single characters spelling 'all', treat as ['all']
@@ -117,14 +157,16 @@ def list_to_str(lst):
     if lst and isinstance(lst, list):
         # Fix: If applies_to is ['a','l','l'], treat as ['all']
         if len(lst) > 1 and all(isinstance(x, str) and len(x) == 1 for x in lst):
-            joined = ''.join(lst)
-            if joined == 'all':
-                return 'all'
+            joined = "".join(lst)
+            if joined == "all":
+                return "all"
         return ",".join(lst)
     return ""
 
+
 def str_to_list(s):
     return [x for x in (s or "").split(",") if x]
+
 
 # Dependency to get DB session
 def get_db():
@@ -134,9 +176,11 @@ def get_db():
     finally:
         db.close()
 
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 # Endpoint: Propose a rule change
 @app.post("/propose-rule-change", response_model=RuleProposal)
@@ -160,31 +204,39 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
         examples=proposal.examples,
         applies_to=list_to_str(proposal.applies_to),
         applies_to_rationale=proposal.applies_to_rationale,
+        reason_for_change=proposal.reason_for_change,
+        references=proposal.references,
+        current_rule=proposal.current_rule,
     )
     db.add(db_proposal)
     db.commit()
     db.refresh(db_proposal)
     # Remove keys that will be overridden
     data = db_proposal.__dict__.copy()
-    data.pop('_sa_instance_state', None)
-    data.pop('timestamp', None)
-    data.pop('categories', None)
-    data.pop('tags', None)
-    data.pop('applies_to', None)
-    data.pop('applies_to_rationale', None)
-    return RuleProposal(
-        **data,
-        timestamp=db_proposal.timestamp.isoformat() if isinstance(db_proposal.timestamp, datetime) else db_proposal.timestamp,
-        categories=str_to_list(db_proposal.categories),
-        tags=str_to_list(db_proposal.tags),
-        applies_to=str_to_list(db_proposal.applies_to),
-        applies_to_rationale=db_proposal.applies_to_rationale,
+    data.pop("_sa_instance_state", None)
+    data.pop("timestamp", None)
+    data.pop("categories", None)
+    data.pop("tags", None)
+    data.pop("applies_to", None)
+    data.pop("applies_to_rationale", None)
+    data["timestamp"] = (
+        db_proposal.timestamp.isoformat()
+        if isinstance(db_proposal.timestamp, datetime)
+        else db_proposal.timestamp
     )
+    data["categories"] = str_to_list(db_proposal.categories)
+    data["tags"] = str_to_list(db_proposal.tags)
+    data["applies_to"] = str_to_list(db_proposal.applies_to)
+    data["applies_to_rationale"] = db_proposal.applies_to_rationale
+    return RuleProposal(**data)
+
 
 # Endpoint: List all pending proposals
 @app.get("/pending-rule-changes", response_model=List[RuleProposal])
 def list_pending_proposals(db: Session = Depends(get_db)):
-    proposals = db.query(DBProposal).filter(DBProposal.status == StatusEnum.pending).all()
+    proposals = (
+        db.query(DBProposal).filter(DBProposal.status == StatusEnum.pending).all()
+    )
     result = []
     for p in proposals:
         data = p.__dict__.copy()
@@ -194,42 +246,58 @@ def list_pending_proposals(db: Session = Depends(get_db)):
         data["tags"] = str_to_list(data.get("tags", ""))
         data["applies_to"] = str_to_list(data.get("applies_to", ""))
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
+        data["reason_for_change"] = data.get("reason_for_change", None)
+        data["references"] = data.get("references", None)
+        data["current_rule"] = data.get("current_rule", None)
         result.append(RuleProposal(**data))
     return result
 
+
 # Endpoint: Approve a proposal (with versioning)
 @app.post("/approve-rule-change/{proposal_id}")
-def approve_rule_change(proposal_id: str = Path(..., description="Proposal ID"), db: Session = Depends(get_db)):
+def approve_rule_change(
+    proposal_id: str = Path(..., description="Proposal ID"),
+    db: Session = Depends(get_db),
+):
     from db import RuleVersion
+
     proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
-    logger.info(f"APPROVE: proposal.id={proposal.id}, proposal.rule_id={getattr(proposal, 'rule_id', None)}, payload={proposal.__dict__}")
+    logger.info(
+        f"APPROVE: proposal.id={proposal.id}, proposal.rule_id={getattr(proposal, 'rule_id', None)}, payload={proposal.__dict__}"
+    )
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found.")
     if proposal.status != StatusEnum.pending:
         raise HTTPException(status_code=400, detail="Proposal already processed.")
     proposal.status = StatusEnum.approved
     # Use rule_id for versioning if present
-    target_rule_id = proposal.rule_id if getattr(proposal, 'rule_id', None) else proposal.id
+    target_rule_id = (
+        proposal.rule_id if getattr(proposal, "rule_id", None) else proposal.id
+    )
     existing_rule = db.query(DBRule).filter(DBRule.id == target_rule_id).first()
-    logger.info(f"APPROVE: existing_rule for id={target_rule_id}: {existing_rule.__dict__ if existing_rule else None}")
+    logger.info(
+        f"APPROVE: existing_rule for id={target_rule_id}: {existing_rule.__dict__ if existing_rule else None}"
+    )
     new_version = 1
     if existing_rule:
         # Save previous version
-        db.add(RuleVersion(
-            rule_id=existing_rule.id,
-            version=existing_rule.version,
-            rule_type=existing_rule.rule_type,
-            description=existing_rule.description,
-            diff=existing_rule.diff,
-            status=existing_rule.status,
-            submitted_by=existing_rule.submitted_by,
-            added_by=existing_rule.added_by,
-            project=existing_rule.project,
-            timestamp=existing_rule.timestamp,
-            categories=existing_rule.categories,
-            tags=existing_rule.tags,
-            examples=existing_rule.examples,
-        ))
+        db.add(
+            RuleVersion(
+                rule_id=existing_rule.id,
+                version=existing_rule.version,
+                rule_type=existing_rule.rule_type,
+                description=existing_rule.description,
+                diff=existing_rule.diff,
+                status=existing_rule.status,
+                submitted_by=existing_rule.submitted_by,
+                added_by=existing_rule.added_by,
+                project=existing_rule.project,
+                timestamp=existing_rule.timestamp,
+                categories=existing_rule.categories,
+                tags=existing_rule.tags,
+                examples=existing_rule.examples,
+            )
+        )
         new_version = existing_rule.version + 1
         db.delete(existing_rule)
     # Add to rules
@@ -252,15 +320,20 @@ def approve_rule_change(proposal_id: str = Path(..., description="Proposal ID"),
         examples=proposal.examples,
         applies_to=list_to_str(proposal.applies_to),
         applies_to_rationale=proposal.applies_to_rationale,
+        # Optionally store reason_for_change, references, current_rule in Rule if desired
     )
     db.add(db_rule)
     db.commit()
     logger.info(f"APPROVE: new rule version for id={target_rule_id}: {new_version}")
     return {"message": "Proposal approved and rule added.", "version": new_version}
 
+
 # Endpoint: Reject a proposal
 @app.post("/reject-rule-change/{proposal_id}")
-def reject_rule_change(proposal_id: str = Path(..., description="Proposal ID"), db: Session = Depends(get_db)):
+def reject_rule_change(
+    proposal_id: str = Path(..., description="Proposal ID"),
+    db: Session = Depends(get_db),
+):
     proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found.")
@@ -270,9 +343,15 @@ def reject_rule_change(proposal_id: str = Path(..., description="Proposal ID"), 
     db.commit()
     return {"message": "Proposal rejected."}
 
+
 # Endpoint: List all rules (for reference)
 @app.get("/rules", response_model=List[Rule])
-def list_rules(project: Optional[str] = None, category: Optional[str] = None, tag: Optional[str] = None, db: Session = Depends(get_db)):
+def list_rules(
+    project: Optional[str] = None,
+    category: Optional[str] = None,
+    tag: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
     query = db.query(DBRule)
     if project:
         query = query.filter(DBRule.project == project)
@@ -289,12 +368,15 @@ def list_rules(project: Optional[str] = None, category: Optional[str] = None, ta
         data["applies_to"] = str_to_list(data.get("applies_to", ""))
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         # Filtering by category/tag
-        if category_list and not any(cat in data["categories"] for cat in category_list):
+        if category_list and not any(
+            cat in data["categories"] for cat in category_list
+        ):
             continue
         if tag and tag not in data["tags"]:
             continue
         result.append(Rule(**data))
     return result
+
 
 # Endpoint: List all rules in MDC format (as a list of strings)
 @app.get("/rules-mdc", response_model=List[str])
@@ -304,6 +386,7 @@ def list_rules_mdc(project: Optional[str] = None, db: Session = Depends(get_db))
         query = query.filter(DBRule.project == project)
     rules = query.all()
     return [r.diff for r in rules if r.diff]
+
 
 # Endpoint: Review multiple code files (file upload)
 @app.post("/review-code-files")
@@ -320,34 +403,41 @@ def review_code_files(files: list[UploadFile] = File(...)):
         results[upload.filename] = suggestions
     return JSONResponse(content=results)
 
+
 # Endpoint: Review a code snippet (raw code, for AI/IDE integration)
 @app.post("/review-code-snippet")
-def review_code_snippet(
-    filename: str = Body(...),
-    code: str = Body(...)
-):
+def review_code_snippet(filename: str = Body(...), code: str = Body(...)):
     """
     Accepts a filename and code string, runs rule suggestion/linting, returns suggestions.
     """
     import tempfile
+
     suggestions = []
     # Write code to a temp file and use scan_file
-    with tempfile.NamedTemporaryFile(suffix='.py', mode='w+', delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as tmp:
         tmp.write(code)
         tmp.flush()
         suggestions = suggest_rules.scan_file(tmp.name)
     return JSONResponse(content=suggestions)
+
 
 # Endpoint: Get environment
 @app.get("/env")
 def get_env():
     return {"environment": os.environ.get("ENVIRONMENT", "production")}
 
+
 # Endpoint: Get rule version history
 @app.get("/rules/{rule_id}/history")
 def get_rule_history(rule_id: str, db: Session = Depends(get_db)):
     from db import RuleVersion
-    versions = db.query(RuleVersion).filter(RuleVersion.rule_id == rule_id).order_by(RuleVersion.version.desc()).all()
+
+    versions = (
+        db.query(RuleVersion)
+        .filter(RuleVersion.rule_id == rule_id)
+        .order_by(RuleVersion.version.desc())
+        .all()
+    )
     result = []
     for v in versions:
         data = v.__dict__.copy()
@@ -359,6 +449,7 @@ def get_rule_history(rule_id: str, db: Session = Depends(get_db)):
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         result.append(data)
     return result
+
 
 # Endpoint: Submit a bug report
 @app.post("/bug-report")
@@ -377,6 +468,7 @@ def submit_bug_report(report: BugReportModel, db: Session = Depends(get_db)):
     db.refresh(db_bug)
     return {"status": "received", "id": db_bug.id}
 
+
 # Endpoint: List all bug reports
 @app.get("/bug-reports")
 def list_bug_reports(db: Session = Depends(get_db)):
@@ -384,17 +476,20 @@ def list_bug_reports(db: Session = Depends(get_db)):
     result = []
     for b in bugs:
         data = b.__dict__.copy()
-        data.pop('_sa_instance_state', None)
+        data.pop("_sa_instance_state", None)
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
-        result.append({
-            "id": data["id"],
-            "description": data["description"],
-            "reporter": data["reporter"],
-            "page": data["page"],
-            "timestamp": data["timestamp"]
-        })
+        result.append(
+            {
+                "id": data["id"],
+                "description": data["description"],
+                "reporter": data["reporter"],
+                "page": data["page"],
+                "timestamp": data["timestamp"],
+            }
+        )
     return result
+
 
 # Endpoint: Suggest an enhancement
 @app.post("/suggest-enhancement")
@@ -419,14 +514,17 @@ def suggest_enhancement(enh: EnhancementModel, db: Session = Depends(get_db)):
     db.refresh(db_enh)
     return {"status": "received", "id": db_enh.id}
 
+
 # Endpoint: List all enhancements
 @app.get("/enhancements")
 def list_enhancements(db: Session = Depends(get_db)):
-    enhancements = db.query(DBEnhancement).order_by(DBEnhancement.timestamp.desc()).all()
+    enhancements = (
+        db.query(DBEnhancement).order_by(DBEnhancement.timestamp.desc()).all()
+    )
     result = []
     for e in enhancements:
         data = e.__dict__.copy()
-        data.pop('_sa_instance_state', None)
+        data.pop("_sa_instance_state", None)
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
         data["tags"] = str_to_list(data.get("tags", ""))
@@ -435,6 +533,7 @@ def list_enhancements(db: Session = Depends(get_db)):
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         result.append(data)
     return result
+
 
 # Endpoint: Transfer an enhancement to a proposal
 @app.post("/enhancement-to-proposal/{enhancement_id}")
@@ -445,8 +544,10 @@ def enhancement_to_proposal(enhancement_id: str, db: Session = Depends(get_db)):
     if enh.status == "transferred":
         raise HTTPException(status_code=400, detail="Enhancement already transferred.")
     # Create a new proposal from enhancement fields
-    from db import Proposal, StatusEnum
     import uuid
+
+    from db import Proposal, StatusEnum
+
     now = datetime.utcnow()
     proposal = Proposal(
         id=str(uuid.uuid4()),
@@ -469,6 +570,7 @@ def enhancement_to_proposal(enhancement_id: str, db: Session = Depends(get_db)):
     db.refresh(proposal)
     return {"status": "transferred", "proposal_id": proposal.id}
 
+
 # Endpoint: Reject an enhancement
 @app.post("/reject-enhancement/{enhancement_id}")
 def reject_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
@@ -483,6 +585,7 @@ def reject_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "rejected", "id": enh.id}
 
+
 # Endpoint: Revert a proposal to enhancement
 @app.post("/proposal-to-enhancement/{proposal_id}")
 def proposal_to_enhancement(proposal_id: str, db: Session = Depends(get_db)):
@@ -490,9 +593,13 @@ def proposal_to_enhancement(proposal_id: str, db: Session = Depends(get_db)):
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found.")
     if proposal.status not in [StatusEnum.pending, StatusEnum.rejected]:
-        raise HTTPException(status_code=400, detail="Only pending or rejected proposals can be reverted to enhancement.")
+        raise HTTPException(
+            status_code=400,
+            detail="Only pending or rejected proposals can be reverted to enhancement.",
+        )
     # Create enhancement from proposal
     from db import Enhancement
+
     enh = Enhancement(
         description=proposal.description,
         suggested_by=proposal.submitted_by,
@@ -511,6 +618,7 @@ def proposal_to_enhancement(proposal_id: str, db: Session = Depends(get_db)):
     db.refresh(enh)
     return {"status": "reverted", "enhancement_id": enh.id}
 
+
 # Endpoint: Accept an enhancement
 @app.post("/accept-enhancement/{enhancement_id}")
 def accept_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
@@ -518,10 +626,13 @@ def accept_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
     if not enh:
         raise HTTPException(status_code=404, detail="Enhancement not found.")
     if enh.status != "open":
-        raise HTTPException(status_code=400, detail="Only open enhancements can be accepted.")
+        raise HTTPException(
+            status_code=400, detail="Only open enhancements can be accepted."
+        )
     enh.status = "accepted"
     db.commit()
     return {"status": "accepted", "id": enh.id}
+
 
 # Endpoint: Complete an enhancement
 @app.post("/complete-enhancement/{enhancement_id}")
@@ -530,10 +641,13 @@ def complete_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
     if not enh:
         raise HTTPException(status_code=404, detail="Enhancement not found.")
     if enh.status != "accepted":
-        raise HTTPException(status_code=400, detail="Only accepted enhancements can be completed.")
+        raise HTTPException(
+            status_code=400, detail="Only accepted enhancements can be completed."
+        )
     enh.status = "completed"
     db.commit()
     return {"status": "completed", "id": enh.id}
+
 
 # Endpoint: Get changelog as Markdown
 @app.get("/changelog", response_class=JSONResponse)
@@ -543,9 +657,11 @@ def get_changelog_markdown():
             content = f.read()
         # Return as Markdown content type
         from fastapi.responses import Response
+
         return Response(content, media_type="text/markdown")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not read changelog: {e}")
+
 
 # Endpoint: Get changelog as JSON
 @app.get("/changelog.json")
@@ -555,6 +671,7 @@ def get_changelog_json():
             content = f.read()
         # Simple parser: split by headings and bullet points
         import re
+
         changelog = []
         current_section = None
         current_subsection = None
@@ -582,13 +699,10 @@ def get_changelog_json():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not parse changelog: {e}")
 
+
 # Endpoint: Update a rule
 @app.patch("/rules/{rule_id}", response_model=Rule)
-def update_rule(
-    rule_id: str,
-    update: RuleUpdate,
-    db: Session = Depends(get_db)
-):
+def update_rule(rule_id: str, update: RuleUpdate, db: Session = Depends(get_db)):
     rule = db.query(DBRule).filter(DBRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
@@ -610,4 +724,59 @@ def update_rule(
         result["timestamp"] = result["timestamp"].isoformat()
     return Rule(**result)
 
-# Run with: uvicorn rule_api_server:app --reload 
+
+# Endpoint: Submit rule proposal feedback
+@app.post(
+    "/api/rule_proposals/{proposal_id}/feedback",
+    response_model=RuleProposalFeedbackResponse,
+)
+def submit_rule_proposal_feedback(
+    proposal_id: str,
+    feedback: RuleProposalFeedbackCreate,
+    db: Session = Depends(get_db),
+):
+    db_feedback = RuleProposalFeedback(
+        id=str(uuid.uuid4()),
+        rule_proposal_id=proposal_id,
+        feedback_type=feedback.feedback_type,
+        comments=feedback.comments,
+    )
+    db.add(db_feedback)
+    db.commit()
+    db.refresh(db_feedback)
+    return RuleProposalFeedbackResponse(
+        id=db_feedback.id,
+        rule_proposal_id=db_feedback.rule_proposal_id,
+        feedback_type=db_feedback.feedback_type,
+        comments=db_feedback.comments,
+        created_at=db_feedback.created_at,
+    )
+
+
+# Endpoint: List rule proposal feedback
+@app.get(
+    "/api/rule_proposals/{proposal_id}/feedback",
+    response_model=List[RuleProposalFeedbackResponse],
+)
+def list_rule_proposal_feedback(
+    proposal_id: str,
+    db: Session = Depends(get_db),
+):
+    feedbacks = (
+        db.query(RuleProposalFeedback)
+        .filter(RuleProposalFeedback.rule_proposal_id == proposal_id)
+        .all()
+    )
+    return [
+        RuleProposalFeedbackResponse(
+            id=f.id,
+            rule_proposal_id=f.rule_proposal_id,
+            feedback_type=f.feedback_type,
+            comments=f.comments,
+            created_at=f.created_at,
+        )
+        for f in feedbacks
+    ]
+
+
+# Run with: uvicorn rule_api_server:app --reload

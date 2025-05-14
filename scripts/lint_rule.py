@@ -1,6 +1,6 @@
-import sys
 import json
 import re
+import sys
 
 REQUIRED_FIELDS = ["rule_type", "description", "diff", "submitted_by"]
 
@@ -13,6 +13,7 @@ def load_rule():
     else:
         # Load from stdin
         return json.load(sys.stdin)
+
 
 def validate_rule(rule):
     errors = []
@@ -32,6 +33,7 @@ def validate_rule(rule):
         errors.append("'diff' should contain '## Enforcement' section (MDC format)")
     return errors
 
+
 if __name__ == "__main__":
     rule = load_rule()
     errors = validate_rule(rule)
@@ -41,4 +43,4 @@ if __name__ == "__main__":
             print(f"  - {err}")
         sys.exit(1)
     else:
-        print("Rule is valid.") 
+        print("Rule is valid.")

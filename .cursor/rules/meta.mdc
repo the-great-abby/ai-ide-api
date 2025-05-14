@@ -159,4 +159,41 @@ alwaysApply: true
 ## Example
 ```
 Last updated: 2024-05-08
-``` 
+```
+
+---
+
+description: AI-IDE Makefile.ai Convention
+---
+
+# AI-IDE Makefile.ai Convention
+
+- **Overview**
+  - All AI-IDE and automation tools are encouraged to provide a `Makefile.ai` in the project root.
+  - This file should contain explicit, machine-friendly targets for common operations (e.g., up, down, test, export, lint, env, status).
+  - Targets should be non-interactive, idempotent, and output in a format easy for AI or scripts to parse.
+
+- **Guidelines**
+  - Use clear, single-purpose targets (e.g., `ai-up`, `ai-down`, `ai-test`, `ai-test-json`, `ai-env`).
+  - Avoid prompts, ambiguous output, or side effects.
+  - Use variables (e.g., `PORT`) for flexibility.
+  - Document all targets in onboarding or project docs.
+  - Prefer `Makefile.ai` for all AI/automation workflows.
+
+- **Examples**
+  ```makefile
+  ai-up:
+  	docker-compose up -d api
+
+  ai-test:
+  	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
+  ```
+
+- **Rationale**
+  - Ensures consistent, reliable automation across projects and tools.
+  - Makes it easy for AI agents to discover and execute project operations.
+  - Reduces friction for onboarding new AI-IDEs or automation systems.
+
+- **References**
+  - [Makefile.ai in this repo](Makefile.ai)
+  - [onboarding_sync.mdc](mdc:.cursor/rules/onboarding_sync.mdc) 

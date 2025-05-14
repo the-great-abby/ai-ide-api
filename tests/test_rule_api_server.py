@@ -1,11 +1,14 @@
-import os
 import json
-import pytest
-from fastapi.testclient import TestClient
-from rule_api_server import app, PROPOSALS_FILE, RULES_FILE
+import os
 import tempfile
 
+import pytest
+from fastapi.testclient import TestClient
+
+from rule_api_server import PROPOSALS_FILE, RULES_FILE, app
+
 client = TestClient(app)
+
 
 @pytest.fixture(autouse=True)
 def clean_files():
@@ -26,7 +29,7 @@ def test_propose_rule_change():
         "rule_type": "pytest_execution",
         "description": "Enforce Makefile.ai for pytest.",
         "diff": "Add rule: All pytest commands must use Makefile.ai targets.",
-        "submitted_by": "ai-agent"
+        "submitted_by": "ai-agent",
     }
     response = client.post("/propose-rule-change", json=payload)
     assert response.status_code == 200
@@ -41,7 +44,7 @@ def test_list_pending_rule_changes():
         "rule_type": "pytest_execution",
         "description": "Enforce Makefile.ai for pytest.",
         "diff": "Add rule: All pytest commands must use Makefile.ai targets.",
-        "submitted_by": "ai-agent"
+        "submitted_by": "ai-agent",
     }
     client.post("/propose-rule-change", json=payload)
     response = client.get("/pending-rule-changes")
@@ -58,7 +61,7 @@ def test_approve_and_reject_rule_change():
         "rule_type": "pytest_execution",
         "description": "Test approval flow.",
         "diff": "Test diff.",
-        "submitted_by": "ai-agent"
+        "submitted_by": "ai-agent",
     }
     response = client.post("/propose-rule-change", json=payload)
     proposal_id = response.json()["id"]
@@ -79,7 +82,7 @@ def test_reject_rule_change():
         "rule_type": "pytest_execution",
         "description": "Test rejection flow.",
         "diff": "Test diff.",
-        "submitted_by": "ai-agent"
+        "submitted_by": "ai-agent",
     }
     response = client.post("/propose-rule-change", json=payload)
     proposal_id = response.json()["id"]
@@ -100,7 +103,7 @@ def test_list_rules():
         "rule_type": "pytest_execution",
         "description": "Test rule listing.",
         "diff": "Test diff.",
-        "submitted_by": "ai-agent"
+        "submitted_by": "ai-agent",
     }
     response = client.post("/propose-rule-change", json=payload)
     proposal_id = response.json()["id"]
@@ -126,7 +129,7 @@ def test_rules_mdc_endpoint():
         "rule_type": "pytest_execution",
         "description": "Test MDC export.",
         "diff": "# Rule in MDC format\n- Example diff content.",
-        "submitted_by": "ai-agent"
+        "submitted_by": "ai-agent",
     }
     response = client.post("/propose-rule-change", json=payload)
     proposal_id = response.json()["id"]
@@ -140,23 +143,20 @@ def test_rules_mdc_endpoint():
 
 def test_review_code_files_endpoint():
     # Create a temporary Python file
-    with tempfile.NamedTemporaryFile(suffix='.py', mode='w+', delete=False) as tmp:
-        tmp.write('def foo():\n    return 42\n')
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as tmp:
+        tmp.write("def foo():\n    return 42\n")
         tmp.flush()
         tmp.seek(0)
-        with open(tmp.name, 'rb') as f:
-            files = {'files': (tmp.name, f, 'text/x-python')}
+        with open(tmp.name, "rb") as f:
+            files = {"files": (tmp.name, f, "text/x-python")}
             response = client.post("/review-code-files", files=files)
     assert response.status_code == 200
     data = response.json()
-    assert any(tmp.name in k or k.endswith('.py') for k in data.keys())
+    assert any(tmp.name in k or k.endswith(".py") for k in data.keys())
 
 
 def test_review_code_snippet_endpoint():
-    payload = {
-        "filename": "example.py",
-        "code": "def bar():\n    return 99\n"
-    }
+    payload = {"filename": "example.py", "code": "def bar():\n    return 99\n"}
     response = client.post("/review-code-snippet", json=payload)
     assert response.status_code == 200
     data = response.json()
@@ -169,7 +169,7 @@ def test_rule_versioning_and_history():
         "rule_type": "versioning_test",
         "description": "Initial version.",
         "diff": "Initial diff.",
-        "submitted_by": "tester"
+        "submitted_by": "tester",
     }
     response = client.post("/propose-rule-change", json=payload)
     proposal_id = response.json()["id"]
@@ -189,7 +189,7 @@ def test_rule_versioning_and_history():
         "rule_type": "versioning_test",
         "description": "Updated version.",
         "diff": "Updated diff.",
-        "submitted_by": "tester"
+        "submitted_by": "tester",
     }
     update_response = client.post("/propose-rule-change", json=update_payload)
     update_proposal_id = update_response.json()["id"]
@@ -227,7 +227,7 @@ def test_suggest_enhancement_and_list():
         "page": "test-page.md",
         "tags": ["test"],
         "categories": ["testing"],
-        "project": "test-project"
+        "project": "test-project",
     }
     response = client.post("/suggest-enhancement", json=enh_payload)
     assert response.status_code == 200
@@ -236,12 +236,20 @@ def test_suggest_enhancement_and_list():
     list_response = client.get("/enhancements")
     assert list_response.status_code == 200
     enhancements = list_response.json()
-    assert any(e["id"] == enh_id and e.get("project") == "test-project" for e in enhancements)
+    assert any(
+        e["id"] == enh_id and e.get("project") == "test-project" for e in enhancements
+    )
 
 
 def test_enhancement_to_proposal_and_reject():
     # Suggest enhancement
-    enh_payload = {"description": "Add export button", "suggested_by": "tester", "page": "/admin", "tags": ["ui"], "categories": ["feature"]}
+    enh_payload = {
+        "description": "Add export button",
+        "suggested_by": "tester",
+        "page": "/admin",
+        "tags": ["ui"],
+        "categories": ["feature"],
+    }
     enh_res = client.post("/suggest-enhancement", json=enh_payload)
     enh_id = enh_res.json()["id"]
     # Transfer to proposal
@@ -257,7 +265,13 @@ def test_enhancement_to_proposal_and_reject():
 
 def test_reject_enhancement():
     # Suggest enhancement
-    enh_payload = {"description": "Add import button", "suggested_by": "tester", "page": "/admin", "tags": ["ui"], "categories": ["feature"]}
+    enh_payload = {
+        "description": "Add import button",
+        "suggested_by": "tester",
+        "page": "/admin",
+        "tags": ["ui"],
+        "categories": ["feature"],
+    }
     enh_res = client.post("/suggest-enhancement", json=enh_payload)
     enh_id = enh_res.json()["id"]
     # Reject enhancement
@@ -273,7 +287,12 @@ def test_reject_enhancement():
 
 def test_proposal_to_enhancement():
     # Propose a rule
-    payload = {"rule_type": "test", "description": "Test revert", "diff": "diff", "submitted_by": "tester"}
+    payload = {
+        "rule_type": "test",
+        "description": "Test revert",
+        "diff": "diff",
+        "submitted_by": "tester",
+    }
     prop_res = client.post("/propose-rule-change", json=payload)
     prop_id = prop_res.json()["id"]
     # Revert to enhancement
@@ -286,7 +305,13 @@ def test_proposal_to_enhancement():
 
 def test_accept_and_complete_enhancement():
     # Suggest enhancement
-    enh_payload = {"description": "Add search", "suggested_by": "tester", "page": "/admin", "tags": ["ui"], "categories": ["feature"]}
+    enh_payload = {
+        "description": "Add search",
+        "suggested_by": "tester",
+        "page": "/admin",
+        "tags": ["ui"],
+        "categories": ["feature"],
+    }
     enh_res = client.post("/suggest-enhancement", json=enh_payload)
     enh_id = enh_res.json()["id"]
     # Accept enhancement
@@ -318,14 +343,14 @@ def test_changelog_json_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
-    assert any(
-        section.get("title", "").lower() == "changelog" for section in data
-    )
+    assert any(section.get("title", "").lower() == "changelog" for section in data)
     # Check for at least one subsection and entry
-    changelog_section = next((s for s in data if s.get("title", "").lower() == "changelog"), None)
+    changelog_section = next(
+        (s for s in data if s.get("title", "").lower() == "changelog"), None
+    )
     assert changelog_section is not None
     assert "subsections" in changelog_section
     assert len(changelog_section["subsections"]) > 0
     unreleased = changelog_section["subsections"][0]
     assert "entries" in unreleased
-    assert len(unreleased["entries"]) > 0 
+    assert len(unreleased["entries"]) > 0

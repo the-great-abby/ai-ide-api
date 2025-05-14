@@ -17,9 +17,12 @@ KEYWORD_TO_APPLIES = {
     "mock": ["python", "pytest"],
 }
 
-DEFAULT_RATIONALE = "This rule applies to projects using the listed technologies or practices."
+DEFAULT_RATIONALE = (
+    "This rule applies to projects using the listed technologies or practices."
+)
 DEFAULT_PROJECT = "shared-rules"
 DEFAULT_SUBMITTED_BY = "portable-rules-bot"
+
 
 # Helper to guess rule_type from filename or categories
 def guess_rule_type(filename, categories):
@@ -37,14 +40,17 @@ def guess_rule_type(filename, categories):
         return "portability"
     return "general"
 
+
 # Helper to extract code examples from diff
 CODE_BLOCK_RE = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.DOTALL)
+
 
 def extract_examples(diff):
     matches = CODE_BLOCK_RE.findall(diff)
     if matches:
         return "\n---\n" + "\n---\n".join(matches)
     return ""
+
 
 def enrich_rule(rule, filename):
     changed = False
@@ -88,6 +94,7 @@ def enrich_rule(rule, filename):
         changed = True
     return changed, rule
 
+
 def main():
     for json_file in RULES_DIR.glob("*.json"):
         with json_file.open() as f:
@@ -100,5 +107,6 @@ def main():
         else:
             print(f"No change: {json_file}")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

@@ -1,5 +1,5 @@
-import os
 import json
+import os
 
 RULES_FILE = "rules.json"
 EXPORT_DIR = "exported_rules"
@@ -21,9 +21,11 @@ with open(approved_json_path, "w") as out:
     json.dump(approved_rules, out, indent=2)
 print(f"Exported {len(approved_rules)} approved rules to {approved_json_path}")
 
+
 # Write each approved rule's MDC to a separate file, organized by project
 def get_project(rule):
     return rule.get("project") or "global"
+
 
 for rule in approved_rules:
     rule_type = rule.get("rule_type", "rule")
@@ -38,4 +40,4 @@ for rule in approved_rules:
     filepath = os.path.join(project_dir, filename)
     with open(filepath, "w") as out:
         out.write(mdc_content)
-    print(f"Wrote {filepath}") 
+    print(f"Wrote {filepath}")

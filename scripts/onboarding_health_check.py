@@ -1,23 +1,38 @@
 import os
-import sys
 import re
-yaml_pattern = re.compile(r'^---\s*([\s\S]+?)---', re.MULTILINE)
+import sys
+
+yaml_pattern = re.compile(r"^---\s*([\s\S]+?)---", re.MULTILINE)
 
 REQUIRED_FILES = [
-    'ONBOARDING.md',
-    'ONBOARDING_OTHER_AI_IDE.md',
-    'INTEGRATING_AI_IDE.md',
+    "ONBOARDING.md",
+    "ONBOARDING_OTHER_AI_IDE.md",
+    "INTEGRATING_AI_IDE.md",
 ]
 REQUIRED_ENV_VARS = [
-    'ENVIRONMENT', 'POSTGRES_HOST', 'POSTGRES_PORT', 'REDIS_HOST', 'REDIS_PORT'
+    "ENVIRONMENT",
+    "POSTGRES_HOST",
+    "POSTGRES_PORT",
+    "REDIS_HOST",
+    "REDIS_PORT",
 ]
 REQUIRED_MAKE_TARGETS = [
-    'ai-test', 'ai-test-one', 'ai-test-json', 'ai-accept-enhancement', 'ai-complete-enhancement',
-    'ai-list-enhancements', 'ai-proposal-to-enhancement', 'ai-db-autorevision', 'ai-db-migrate',
-    'ai-bug-report', 'ai-suggest-enhancement', 'ai-onboarding-health'
+    "ai-test",
+    "ai-test-one",
+    "ai-test-json",
+    "ai-accept-enhancement",
+    "ai-complete-enhancement",
+    "ai-list-enhancements",
+    "ai-proposal-to-enhancement",
+    "ai-db-autorevision",
+    "ai-db-migrate",
+    "ai-bug-report",
+    "ai-suggest-enhancement",
+    "ai-onboarding-health",
 ]
 
 ok = True
+
 
 def check_file_exists(path):
     global ok
@@ -27,19 +42,20 @@ def check_file_exists(path):
         print(f"[ERROR] {path} not found")
         ok = False
 
+
 def check_rules_dir():
     global ok
-    if not os.path.isdir('.cursor/rules'):
+    if not os.path.isdir(".cursor/rules"):
         print("[ERROR] .cursor/rules/ directory not found")
         ok = False
         return
     print("[OK] .cursor/rules/ directory exists")
-    for fname in os.listdir('.cursor/rules'):
-        path = os.path.join('.cursor/rules', fname)
-        if fname.endswith('.txt'):
+    for fname in os.listdir(".cursor/rules"):
+        path = os.path.join(".cursor/rules", fname)
+        if fname.endswith(".txt"):
             print(f"[ERROR] .txt file found: {fname} (should be .mdc)")
             ok = False
-        if fname.endswith('.mdc'):
+        if fname.endswith(".mdc"):
             with open(path) as f:
                 content = f.read()
             m = yaml_pattern.search(content)
@@ -48,47 +64,52 @@ def check_rules_dir():
                 ok = False
                 continue
             yaml_block = m.group(1)
-            if 'description:' not in yaml_block or 'globs:' not in yaml_block:
-                print(f"[ERROR] {fname} missing required frontmatter fields (description, globs)")
+            if "description:" not in yaml_block or "globs:" not in yaml_block:
+                print(
+                    f"[ERROR] {fname} missing required frontmatter fields (description, globs)"
+                )
                 ok = False
             else:
                 print(f"[OK] {fname} has valid frontmatter")
 
+
 def check_env():
     global ok
-    if not os.path.exists('.env'):
+    if not os.path.exists(".env"):
         print("[ERROR] .env file not found")
         ok = False
         return
     print("[OK] .env file found")
-    with open('.env') as f:
+    with open(".env") as f:
         env = f.read()
     for var in REQUIRED_ENV_VARS:
-        if f'{var}=' not in env:
+        if f"{var}=" not in env:
             print(f"[ERROR] .env missing required variable: {var}")
             ok = False
         else:
             print(f"[OK] .env has {var}")
 
+
 def check_makefile():
     global ok
-    if not os.path.exists('Makefile.ai'):
+    if not os.path.exists("Makefile.ai"):
         print("[ERROR] Makefile.ai not found")
         ok = False
         return
     print("[OK] Makefile.ai found")
-    with open('Makefile.ai') as f:
+    with open("Makefile.ai") as f:
         make = f.read()
     for target in REQUIRED_MAKE_TARGETS:
-        if f'{target}:' not in make:
+        if f"{target}:" not in make:
             print(f"[ERROR] Makefile.ai missing target: {target}")
             ok = False
         else:
             print(f"[OK] Makefile.ai has target: {target}")
 
+
 def check_whats_new():
     global ok
-    path = 'ONBOARDING.md'
+    path = "ONBOARDING.md"
     if not os.path.exists(path):
         return
     with open(path) as f:
@@ -99,6 +120,7 @@ def check_whats_new():
     else:
         print("[ERROR] 'What's New' section missing or empty in ONBOARDING.md")
         ok = False
+
 
 def main():
     for f in REQUIRED_FILES:
@@ -114,5 +136,6 @@ def main():
         print("[FAIL] Onboarding health check failed!")
         sys.exit(1)
 
+
 if __name__ == "__main__":
-    main() 
+    main()

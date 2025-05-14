@@ -11,6 +11,9 @@ ai-up:
 ai-down:
 	docker-compose down
 
+api-up:
+	docker compose up -d api db-test
+
 ai-test:
 	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
 
@@ -70,6 +73,7 @@ ai-approve-all-pending:
 	python scripts/approve_all_pending.py 
 
 ai-db-migrate:
+	$(MAKE) -f Makefile.ai ai-api-wait
 	docker compose exec api alembic upgrade head
 
 ai-db-revision:
@@ -92,7 +96,10 @@ ai-propose-makefile-rule:
 	    "project": "$(PROJECT)", \
 	    "applies_to": [$(APPLIES_TO)], \
 	    "applies_to_rationale": "$(APPLIES_TO_RATIONALE)", \
-	    "examples": "$(EXAMPLES)" \
+	    "examples": "$(EXAMPLES)", \
+	    "reason_for_change": "$(REASON_FOR_CHANGE)", \
+	    "references": "$(REFERENCES)", \
+	    "current_rule": "$(CURRENT_RULE)" \
 	  }'
 
 # Open or fetch the FastAPI docs endpoint
@@ -223,7 +230,10 @@ ai-propose-portable-rule:
 	    "submitted_by": "$(SUBMITTED_BY)", \
 	    "categories": [$(CATEGORIES)], \
 	    "tags": [$(TAGS)], \
-	    "project": "$(PROJECT)" \
+	    "project": "$(PROJECT)", \
+	    "reason_for_change": "$(REASON_FOR_CHANGE)", \
+	    "references": "$(REFERENCES)", \
+	    "current_rule": "$(CURRENT_RULE)" \
 	  }'
 
 # Rollback any failed transaction in the Postgres database (useful for clearing migration errors)
@@ -338,3 +348,88 @@ ai-misc-enrich-rules:
 
 ai-list-bug-reports:
 	curl -s http://localhost:$(PORT)/bug-reports | jq '.'
+
+ai-db-stamp-head:
+	docker compose exec api alembic stamp head
+
+schema-proposals:
+	docker compose exec db-test psql -U postgres -d rulesdb -c '\d+ proposals' | cat
+
+docker-pre-commit:
+	docker run --rm -v $(PWD):/code -w /code local/pre-commit:latest run --all-files
+
+docker-build-pre-commit:
+	docker build -f Dockerfile.pre-commit -t local/pre-commit:latest .
+
+ai-review-multiple-files:
+	python scripts/review_multiple_files.py $(FILES)
+
+ai-suggest-llm-rules:
+	OLLAMA_URL=$(OLLAMA_URL) RULE_API_URL=$(RULE_API_URL) \
+	python scripts/suggest_and_propose_rules.py $${TARGET-.}
+
+# Run the LLM-powered rule suggestion pipeline inside Docker
+# Usage: make -f Makefile.ai ai-suggest-llm-rules-docker TARGET=your/dir/or/file
+ai-suggest-llm-rules-docker:
+	docker run --rm -e RUNNING_IN_DOCKER=1 \
+	  -e OLLAMA_URL=$(OLLAMA_URL) -e RULE_API_URL=$(RULE_API_URL) \
+	  -v $(PWD):/code -w /code \
+	  $(PYTHON_IMAGE) python scripts/suggest_and_propose_rules.py $${TARGET-.}
+
+# Build and run the LLM rule suggester FastAPI service
+# Usage:
+#   make -f Makefile.ai ai-build-ollama-functions-service
+#   make -f Makefile.ai ai-run-ollama-functions-service
+OLLAMA_FUNCTIONS_IMAGE ?= ollama-functions:latest
+
+# Default Ollama URL for LLM rule suggester service (can be overridden)
+OLLAMA_URL ?= http://host.docker.internal:11434/api/generate
+
+ai-build-ollama-functions-service:
+	docker build -f Dockerfile.ollama_functions -t $(OLLAMA_FUNCTIONS_IMAGE) .
+
+ai-run-ollama-functions-service: ai-build-ollama-functions-service
+	docker run --rm -e RUNNING_IN_DOCKER=1 \
+	  --add-host=host.docker.internal:host-gateway \
+	  -e OLLAMA_URL=$(OLLAMA_URL) \
+	  -e OLLAMA_MODEL=$(OLLAMA_MODEL) \
+	  -v $(PWD):/code -w /code \
+	  -p 8000:8000 \
+	  $(OLLAMA_FUNCTIONS_IMAGE)
+
+# Find the Docker bridge gateway IP
+ai-docker-gateway-ip:
+	@docker network inspect bridge | grep Gateway | head -1 | awk -F '"' '{print $$4}'
+
+# Start Ollama on the Docker gateway IP
+# Usage: make -f Makefile.ai ai-ollama-serve-docker-gateway
+# (You may want to run this in a separate terminal)
+ai-ollama-serve-docker-gateway:
+	@echo "Starting Ollama on 0.0.0.0:11434..."
+	OLLAMA_HOST=0.0.0.0 ollama serve
+
+# Note: If you use the gateway IP, set OLLAMA_URL to http://<gateway-ip>:11434/api/generate for ai-run-ollama-functions-service
+
+# Kill all running Ollama processes
+ai-ollama-kill:
+	pkill -f 'ollama serve' || true
+
+# Restart Ollama on the Docker gateway IP
+# Usage: make -f Makefile.ai ai-ollama-restart-docker-gateway
+ai-ollama-restart-docker-gateway: ai-ollama-kill
+	$(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway
+
+# Note: The following targets run Ollama in the foreground. For automation, run in the background:
+#   make -f Makefile.ai ai-ollama-serve-docker-gateway &
+# or
+#   nohup make -f Makefile.ai ai-ollama-serve-docker-gateway > ollama.log 2>&1 &
+# Or use the provided background target:
+#   make -f Makefile.ai ai-ollama-serve-docker-gateway-bg
+
+ai-ollama-serve-docker-gateway-bg:
+	nohup $(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway > ollama.log 2>&1 &
+
+# View the last 100 lines of the Ollama log file from the background run
+# Usage: make -f Makefile.ai ai-ollama-logs
+ai-ollama-logs:
+	tail -n 100 ollama.log
