@@ -807,4 +807,28 @@ async def passthrough_suggest_llm_rules(request: Request):
         return {"error": str(e)}
 
 
+@app.post("/review-code-files-llm")
+def review_code_files_llm(files: list[UploadFile] = File(...)):
+    """
+    Accepts multiple files, sends each file to the ollama-functions service for LLM review, and returns feedback per file.
+    """
+    import requests
+    import os
+    import json
+
+    OLLAMA_FUNCTIONS_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000")
+    results = {}
+    for upload in files:
+        upload.file.seek(0)
+        files_payload = {"file": (upload.filename, upload.file.read(), upload.content_type or "text/plain")}
+        try:
+            resp = requests.post(f"{OLLAMA_FUNCTIONS_URL}/review-code-file", files=files_payload, timeout=120)
+            resp.raise_for_status()
+            feedback = resp.json()
+        except Exception as e:
+            feedback = [f"[ERROR] ollama-functions call failed: {e}"]
+        results[upload.filename] = feedback
+    return JSONResponse(content=results)
+
+
 # Run with: uvicorn rule_api_server:app --reload

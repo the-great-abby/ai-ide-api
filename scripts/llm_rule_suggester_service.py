@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile, File
 from pydantic import BaseModel
 import os
 import subprocess
@@ -112,4 +112,29 @@ def suggest_llm_rules(req: SuggestRequest):
         except Exception as e:
             return {"error": f"Failed to parse LLM output: {e}", "raw_output": llm_output}
     except Exception as e:
-        return {"error": str(e)} 
+        return {"error": str(e)}
+
+@app.post("/review-code-file")
+async def review_code_file(file: UploadFile = File(...)):
+    """
+    Accepts a single code file, sends its content to the LLM for review, and returns feedback as JSON.
+    """
+    content = (await file.read()).decode("utf-8", errors="ignore")
+    prompt = (
+        "You are an expert code reviewer. "
+        "Given the following file, provide actionable feedback, suggestions, and highlight any issues or improvements. "
+        "Respond ONLY with a valid JSON array of suggestions, each with: rule_type, description, and (optionally) diff. "
+        "Do NOT include any text, markdown, or explanations before or after the JSON array. "
+        "Your response MUST start with '[' and end with ']'. "
+        "If you cannot comply, output []. "
+        f"\nFilename: {file.filename}\n\nCode:\n{content}\n"
+    )
+    try:
+        llm_output = call_ollama(prompt)
+        try:
+            feedback = json.loads(llm_output)
+        except Exception:
+            feedback = [llm_output.strip()]
+    except Exception as e:
+        feedback = [f"[ERROR] LLM call failed: {e}"]
+    return feedback 

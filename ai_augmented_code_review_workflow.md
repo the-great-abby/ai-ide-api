@@ -15,6 +15,24 @@ This user story describes how a developer (human or AI) can leverage the Ollama-
 
 ## End-to-End Workflow
 
+### 0. LLM Model Setup (Ollama)
+- **Download the Ollama model:**
+  ```bash
+  make -f Makefile.ai ai-ollama-pull-model
+  # Or specify a different model:
+  make -f Makefile.ai ai-ollama-pull-model OLLAMA_MODEL=llama3:70b-instruct-q5_K_M
+  ```
+- **Start the Ollama service:**
+  ```bash
+  make -f Makefile.ai ai-ollama-serve-docker-gateway
+  # Or run in the background:
+  make -f Makefile.ai ai-ollama-serve-docker-gateway-bg
+  ```
+- **View Ollama logs:**
+  ```bash
+  make -f Makefile.ai ai-ollama-logs
+  ```
+
 ### 1. Code Authoring & Static Analysis
 - Developer writes or updates code.
 - Run static checkers:
@@ -86,4 +104,12 @@ By following this workflow, the team (human and AI) can:
 - Continuously improve coding standards
 - Share best practices
 - Automate and scale code review
-- Keep the rule set living and relevant 
+- Keep the rule set living and relevant
+
+> **Note:** The `ollama-functions` container (required for LLM-powered endpoints like `/review-code-files-llm`) does **not** start by default for speed. You must start it manually when you want LLM-assisted code review:
+> 
+> ```bash
+> docker-compose up -d ollama-functions
+> # or
+> make -f Makefile.ai ai-up-ollama-functions
+> ``` 

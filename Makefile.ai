@@ -509,3 +509,24 @@ ai-misc-build:
 
 ai-misc-update-missing-user-stories:
 	docker compose exec misc-scripts python /scripts/update_missing_user_stories.py
+
+# Build the ollama-functions service
+ai-build-ollama-functions:
+	docker-compose build ollama-functions
+
+# Start the ollama-functions service
+ai-up-ollama-functions:
+	docker-compose up -d ollama-functions
+
+# Rebuild and restart the ollama-functions service
+ai-restart-ollama-functions:
+	docker-compose build ollama-functions
+	docker-compose up -d ollama-functions
+
+# Health check for ollama-functions
+ai-ollama-functions-health:
+	curl -s http://localhost:9104/healthz || echo '{"error": "ollama-functions not running"}'
+
+# View the last 100 lines of logs for the ollama-functions container
+ai-ollama-functions-logs:
+	docker-compose logs --tail=100 ollama-functions
