@@ -445,3 +445,20 @@ ai-admin-frontend-nocache-restart:
 # Usage: make -f Makefile.ai ai-ollama-pull-model [OLLAMA_MODEL=modelname]
 ai-ollama-pull-model:
 	ollama pull $(OLLAMA_MODEL)
+
+# Onboarding: One-command setup for LLM/Ollama integration
+ai-llm-setup:
+	@echo "[LLM Setup] Downloading Ollama model if not present..."
+	$(MAKE) -f Makefile.ai ai-ollama-pull-model
+	@echo "[LLM Setup] Starting Ollama service (docker gateway)..."
+	$(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway &
+	@echo "[LLM Setup] Waiting for Ollama service to be ready..."
+	@sleep 5
+	@echo "[LLM Setup] Verifying Ollama service is running..."
+	@if curl -sf http://localhost:11434 | grep -q 'Ollama'; then \
+		echo '[LLM Setup] Ollama service is running!'; \
+		echo '[LLM Setup] You can now use LLM-powered features.'; \
+	else \
+		echo '[LLM Setup] ERROR: Ollama service did not start. Please check logs with: make -f Makefile.ai ai-ollama-logs'; \
+		exit 1; \
+	fi
