@@ -6,7 +6,8 @@ API_PORT ?= 9103
 # This will help users resolve migration graph conflicts more safely and with better UX.
 
 # Add this near the top with other variable definitions
-OLLAMA_MODEL ?= llama3.1:70b-instruct-q5_K_M
+# OLLAMA_MODEL ?= llama3.1:70b-instruct-q5_K_M
+OLLAMA_MODEL ?= llama3.1:8b-instruct-q6_K
 
 ai-up:
 	docker-compose up -d api frontend
@@ -462,3 +463,22 @@ ai-llm-setup:
 		echo '[LLM Setup] ERROR: Ollama service did not start. Please check logs with: make -f Makefile.ai ai-ollama-logs'; \
 		exit 1; \
 	fi
+
+# --- Dockerized Code Review & Linting Targets ---
+# Usage:
+#   make -f Makefile.ai ai-lint-rule-docker [RULE_FILE=path/to/file]
+#   make -f Makefile.ai ai-auto-feedback-docker [RULE_FILE=path/to/file]
+#   make -f Makefile.ai ai-batch-suggest-rules-docker
+#
+# These run the scripts inside the misc-scripts Docker Compose service for reproducibility.
+
+RULE_FILE ?= .cursor/rules/ai_augmented_code_review_workflow.mdc
+
+ai-lint-rule-docker:
+	docker compose exec misc-scripts python /scripts/lint_rule.py $(RULE_FILE)
+
+ai-auto-feedback-docker:
+	docker compose exec misc-scripts python /scripts/auto_feedback.py $(RULE_FILE)
+
+ai-batch-suggest-rules-docker:
+	docker compose exec misc-scripts python /scripts/batch_suggest_rules.py
