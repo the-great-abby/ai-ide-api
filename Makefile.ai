@@ -11,6 +11,7 @@ OLLAMA_MODEL ?= llama3.1:8b-instruct-q6_K
 
 ai-up:
 	docker-compose up -d api frontend
+	$(MAKE) -f Makefile.ai ai-api-wait
 
 ai-down:
 	docker-compose down
@@ -530,3 +531,12 @@ ai-ollama-functions-health:
 # View the last 100 lines of logs for the ollama-functions container
 ai-ollama-functions-logs:
 	docker-compose logs --tail=100 ollama-functions
+
+# Create a new Alembic migration with autogeneration
+# Usage: make -f Makefile.ai ai-db-migration-new NAME=add_some_feature
+ai-db-migration-new:
+	alembic revision --autogenerate -m "$(NAME)"
+
+# Restart the frontend container without rebuilding
+ai-admin-frontend-restart:
+	docker compose restart frontend

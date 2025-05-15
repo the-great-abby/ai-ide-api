@@ -13,6 +13,7 @@ services:
       - POSTGRES_DB=rulesdb
       - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/rulesdb
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
+      - CORS_ORIGINS=*  # Allow all origins for debugging; restrict in production!
     depends_on:
       - db-test
     command: ["uvicorn", "rule_api_server:app", "--host", "0.0.0.0", "--reload"]

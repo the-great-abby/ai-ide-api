@@ -25,15 +25,34 @@ from rule_proposal_feedback import FeedbackType, RuleProposalFeedback
 
 app = FastAPI(title="Rule Proposal API")
 
-# CORS middleware for frontend integration
+"""
+CORS Configuration via Environment Variables:
+- CORS_ORIGINS: Comma-separated list of allowed origins (default: '*')
+- CORS_METHODS: Comma-separated list of allowed methods (default: '*')
+- CORS_HEADERS: Comma-separated list of allowed headers (default: '*')
+- CORS_ALLOW_CREDENTIALS: 'true' or 'false' (default: 'true')
+"""
+
+# CORS middleware for frontend integration (configurable via env)
+def parse_env_list(var, default):
+    val = os.environ.get(var)
+    if val is None:
+        return default
+    if val.strip() == '*':
+        return ["*"]
+    return [v.strip() for v in val.split(",") if v.strip()]
+
+allow_origins = parse_env_list("CORS_ORIGINS", ["*"])
+allow_methods = parse_env_list("CORS_METHODS", ["*"])
+allow_headers = parse_env_list("CORS_HEADERS", ["*"])
+allow_credentials = os.environ.get("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "*"
-    ],  # For dev, allow all. For prod, restrict to ["http://localhost:3000"] or your domain.
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=allow_origins,
+    allow_credentials=allow_credentials,
+    allow_methods=allow_methods,
+    allow_headers=allow_headers,
 )
 
 # File paths for storing rules and proposals
@@ -113,6 +132,7 @@ class EnhancementModel(BaseModel):
     project: Optional[str] = None  # Project association
     examples: Optional[str] = None  # New field for examples
     user_story: Optional[str] = None
+    diff: Optional[str] = None  # New: diff for enhancements
 
 
 # Add this Pydantic model for partial updates
@@ -517,6 +537,7 @@ def suggest_enhancement(enh: EnhancementModel, db: Session = Depends(get_db)):
         project=enh.project,
         examples=enh.examples,  # New field
         user_story=enh.user_story,
+        diff=enh.diff,  # New: diff for enhancements
         # applies_to and applies_to_rationale are not present in EnhancementModel
     )
     db.add(db_enh)
@@ -542,6 +563,7 @@ def list_enhancements(db: Session = Depends(get_db)):
         data["applies_to"] = str_to_list(data.get("applies_to", ""))
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         data["user_story"] = e.user_story
+        data["diff"] = e.diff  # New: include diff in API response
         result.append(data)
     return result
 
@@ -832,3 +854,43 @@ def review_code_files_llm(files: list[UploadFile] = File(...)):
 
 
 # Run with: uvicorn rule_api_server:app --reload
+
+class EnhancementUpdate(BaseModel):
+    description: Optional[str] = None
+    suggested_by: Optional[str] = None
+    page: Optional[str] = None
+    tags: Optional[List[str]] = None
+    categories: Optional[List[str]] = None
+    timestamp: Optional[datetime] = None
+    status: Optional[str] = None
+    proposal_id: Optional[str] = None
+    project: Optional[str] = None
+    examples: Optional[str] = None
+    user_story: Optional[str] = None
+    diff: Optional[str] = None  # New: diff for enhancements
+
+@app.patch("/enhancements/{enhancement_id}")
+def update_enhancement(enhancement_id: str, update: EnhancementUpdate, db: Session = Depends(get_db)):
+    enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
+    if not enh:
+        raise HTTPException(status_code=404, detail="Enhancement not found")
+    data = update.dict(exclude_unset=True)
+    for field, value in data.items():
+        if field in ["categories", "tags"] and value is not None:
+            setattr(enh, field, list_to_str(value))
+        elif value is not None:
+            setattr(enh, field, value)
+    db.commit()
+    db.refresh(enh)
+    # Return as dict to match list_enhancements
+    result = enh.__dict__.copy()
+    result.pop("_sa_instance_state", None)
+    if isinstance(result.get("timestamp"), datetime):
+        result["timestamp"] = result["timestamp"].isoformat()
+    result["tags"] = str_to_list(result.get("tags", ""))
+    result["categories"] = str_to_list(result.get("categories", ""))
+    result["applies_to"] = str_to_list(result.get("applies_to", ""))
+    result["applies_to_rationale"] = result.get("applies_to_rationale", "")
+    result["user_story"] = enh.user_story
+    result["diff"] = enh.diff  # New: include diff in PATCH response
+    return result

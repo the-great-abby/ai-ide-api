@@ -140,6 +140,7 @@ class Enhancement(Base):
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
+    diff = Column(Text, nullable=True, default=None)  # New: diff for enhancements
 
 
 # Initialize the database and create tables

@@ -449,3 +449,71 @@ with open(OUTPUT_PATH) as f:
 - Never leave a placeholder in the final `.mdc` file.
 - Always check that the code block contains valid JSON.
 - Reference this script as the standard for rule syncing in all IDEs/agents. 
+
+---
+
+## 🗂️ Centralized Rule Index for AI-IDE Agents
+
+### Quick Start for AI-IDE Agents
+
+> **Copy and use this as your initial onboarding prompt:**
+>
+> 1. Fetch all rules from `http://<your-api-host>:9103/rules`
+> 2. Parse and group by category/tag.
+> 3. Generate a Markdown index file (`cursor_rules.md` or `index.md`) listing all rules, grouped and described.
+> 4. Always include this index in your context for code review and onboarding.
+> 5. Regenerate the index whenever rules change.
+
+### Sample Python Script: Generate a Centralized Rule Index
+
+```python
+import requests
+from collections import defaultdict
+
+API_URL = 'http://<your-api-host>:9103/rules'  # Update as needed
+OUTPUT = 'cursor_rules.md'
+
+# Fetch rules from the API
+rules = requests.get(API_URL).json()
+
+# Group rules by category
+categories = defaultdict(list)
+for rule in rules:
+    cats = rule.get('categories') or ['Uncategorized']
+    if isinstance(cats, str):
+        cats = [cats]
+    for cat in cats:
+        categories[cat].append(rule)
+
+# Write the Markdown index
+with open(OUTPUT, 'w') as f:
+    f.write('# Centralized Rule Index\n\n')
+    f.write('This file is auto-generated from the API.\n\n')
+    # Table of contents
+    f.write('## Table of Contents\n')
+    for cat in sorted(categories):
+        f.write(f'- [{cat}](#{cat.lower().replace(" ", "-")})\n')
+    f.write('\n')
+    # Rules by category
+    for cat in sorted(categories):
+        f.write(f'\n## {cat}\n')
+        for rule in categories[cat]:
+            f.write(f'\n### {rule.get("description", "(No description)")}\n')
+            f.write(f'- **ID:** `{rule.get("id", "")}`\n')
+            f.write(f'- **Categories:** {", ".join(rule.get("categories", []))}\n')
+            f.write(f'- **Tags:** {", ".join(rule.get("tags", []))}\n')
+            if rule.get('user_story'):
+                f.write(f'- **User Story:** {rule["user_story"]}\n')
+            if rule.get('examples'):
+                f.write(f'- **Example:**\n\n    {rule["examples"]}\n')
+            f.write('\n')
+print(f'Wrote {OUTPUT} with {len(rules)} rules grouped by {len(categories)} categories.')
+```
+
+This script will:
+- Fetch all rules from your API
+- Group them by category
+- Write a Markdown file with a table of contents, category sections, and details for each rule
+- Include description, categories, tags, user story, and example usage if present
+
+---
