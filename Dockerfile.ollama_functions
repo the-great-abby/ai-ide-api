@@ -9,5 +9,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir fastapi uvicorn
 
 COPY scripts/ ./scripts/
+COPY misc_scripts/ ./misc_scripts/
 
 CMD ["uvicorn", "scripts.llm_rule_suggester_service:app", "--host", "0.0.0.0", "--port", "8000"] 

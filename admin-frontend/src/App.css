@@ -40,3 +40,12 @@
 .read-the-docs {
   color: #888;
 }
+
+.rule-details-pre {
+  background: #f5f5f5;
+  color: #222;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 1em;
+  overflow-x: auto;
+}

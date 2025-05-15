@@ -225,10 +225,10 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
         if isinstance(db_proposal.timestamp, datetime)
         else db_proposal.timestamp
     )
-    data["categories"] = str_to_list(db_proposal.categories)
-    data["tags"] = str_to_list(db_proposal.tags)
-    data["applies_to"] = str_to_list(db_proposal.applies_to)
-    data["applies_to_rationale"] = db_proposal.applies_to_rationale
+    data["categories"] = str_to_list(data.get("categories", ""))
+    data["tags"] = str_to_list(data.get("tags", ""))
+    data["applies_to"] = str_to_list(data.get("applies_to", ""))
+    data["applies_to_rationale"] = data.get("applies_to_rationale", "")
     return RuleProposal(**data)
 
 
@@ -507,8 +507,7 @@ def suggest_enhancement(enh: EnhancementModel, db: Session = Depends(get_db)):
         timestamp=ts,
         project=enh.project,
         examples=enh.examples,  # New field
-        applies_to=list_to_str(enh.applies_to),
-        applies_to_rationale=enh.applies_to_rationale,
+        # applies_to and applies_to_rationale are not present in EnhancementModel
     )
     db.add(db_enh)
     db.commit()
