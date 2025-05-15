@@ -292,7 +292,7 @@ ai-db-restore:
 # Restore only the data (not schema) from a SQL backup file
 # Usage: make -f Makefile.ai ai-db-restore-data BACKUP=backups/rulesdb-YYYYMMDD-HHMMSS.sql
 ai-db-restore-data:
-	cat $(BACKUP) | grep -vE '^CREATE |^ALTER |^DROP |^--' | docker compose exec -T db-test psql -U postgres -d rulesdb
+	cat $(BACKUP) | grep -vE '^CREATE |^ALTER |^DROP |^--' | grep -v 'COPY alembic_version' | docker compose exec -T db-test psql -U postgres -d rulesdb
 
 # Backup only the data (no schema) from the rulesdb database
 # Usage: make -f Makefile.ai ai-db-backup-data-only
@@ -466,13 +466,13 @@ ai-llm-setup:
 
 # --- Dockerized Code Review & Linting Targets ---
 # Usage:
-#   make -f Makefile.ai ai-lint-rule-docker [RULE_FILE=path/to/file]
-#   make -f Makefile.ai ai-auto-feedback-docker [RULE_FILE=path/to/file]
+#   make -f Makefile.ai ai-lint-rule-docker [RULE_FILE=/app/.cursor/rules/yourfile.mdc]
+#   make -f Makefile.ai ai-auto-feedback-docker [RULE_FILE=/app/.cursor/rules/yourfile.mdc]
 #   make -f Makefile.ai ai-batch-suggest-rules-docker
 #
 # These run the scripts inside the misc-scripts Docker Compose service for reproducibility.
 
-RULE_FILE ?= .cursor/rules/ai_augmented_code_review_workflow.mdc
+RULE_FILE ?= /app/.cursor/rules/ai_augmented_code_review_workflow.mdc
 
 ai-lint-rule-docker:
 	docker compose exec misc-scripts python /scripts/lint_rule.py $(RULE_FILE)
@@ -482,3 +482,30 @@ ai-auto-feedback-docker:
 
 ai-batch-suggest-rules-docker:
 	docker compose exec misc-scripts python /scripts/batch_suggest_rules.py
+
+# Lint all .mdc rule files in Docker Compose using the new YAML frontmatter linter
+# Usage:
+#   make -f Makefile.ai ai-lint-mdc-docker [MDC_PATH=/app/.cursor/rules/]
+#
+# By default, lints all .mdc files in /app/.cursor/rules/
+MDC_PATH ?= /app/.cursor/rules/
+
+ai-lint-mdc-docker:
+	docker compose exec misc-scripts python /scripts/lint_mdc.py $(MDC_PATH)
+
+# Backup both schema+data and data-only for maximum flexibility
+ai-db-backup-all:
+	$(MAKE) -f Makefile.ai ai-db-backup
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+
+schema-table:
+	docker compose exec db-test psql -U postgres -d rulesdb -c '\d+ $(TABLE)' | cat
+
+db-query:
+	docker compose exec db-test psql -U postgres -d rulesdb -c "$(QUERY)" | cat
+
+ai-misc-build:
+	docker compose build misc-scripts
+
+ai-misc-update-missing-user-stories:
+	docker compose exec misc-scripts python /scripts/update_missing_user_stories.py

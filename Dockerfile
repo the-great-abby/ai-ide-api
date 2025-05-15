@@ -10,6 +10,7 @@ RUN pip install --upgrade pip && \
 # EXPOSE 8000 is for internal container use; 9103 is mapped as the standard dev port in docker-compose
 EXPOSE 8000
 
+# RUN pip 
 # Copy the AI rule proposal bot script into the container
 COPY auto_code_review.py /app/auto_code_review.py
 

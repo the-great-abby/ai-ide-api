@@ -11,7 +11,7 @@ def get_default_api_base():
 
 API_BASE = os.environ.get("API_BASE", get_default_api_base())
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
-MODEL = os.environ.get("OLLAMA_MODEL", "llama3")
+MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
 
 
 def get_pending_proposals():
@@ -32,28 +32,51 @@ def rule_based_feedback(proposal):
 
 
 def llm_feedback(proposal):
+    import io
+    import json
+
     prompt = (
         """
 Given the following rule proposal, suggest feedback (accept, reject, needs_changes) and a brief comment as JSON: {"feedback_type": "accept|reject|needs_changes", "comments": "..."}
 """
         + json.dumps(proposal, indent=2)
     )
-    resp = requests.post(OLLAMA_URL, json={"model": MODEL, "prompt": prompt, "stream": False}, timeout=120)
+    payload = json.dumps({"model": MODEL, "prompt": prompt})
+    resp = requests.post(
+        OLLAMA_URL,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        timeout=120,
+        stream=True,
+    )
     resp.raise_for_status()
-    result = resp.json().get("response", "")
+
+    # Collect all 'response' fields from the stream
+    response_text = ""
+    for line in resp.iter_lines():
+        if not line:
+            continue
+        try:
+            data = json.loads(line.decode("utf-8"))
+            response_text += data.get("response", "")
+            if data.get("done", False):
+                break
+        except Exception as e:
+            continue
+
     # Try to parse JSON from LLM output
     try:
-        feedback = json.loads(result[result.find("{"):result.rfind("}")+1])
-        return feedback.get("feedback_type", "needs_changes"), feedback.get("comments", result)
+        feedback = json.loads(response_text[response_text.find("{"):response_text.rfind("}")+1])
+        return feedback.get("feedback_type", "needs_changes"), feedback.get("comments", response_text)
     except Exception:
         # Fallback: look for keywords
-        if "accept" in result.lower():
-            return "accept", result
-        elif "reject" in result.lower():
-            return "reject", result
-        elif "needs_changes" in result.lower():
-            return "needs_changes", result
-        return "needs_changes", "Unclear, needs human review: " + result
+        if "accept" in response_text.lower():
+            return "accept", response_text
+        elif "reject" in response_text.lower():
+            return "reject", response_text
+        elif "needs_changes" in response_text.lower():
+            return "needs_changes", response_text
+        return "needs_changes", "Unclear, needs human review: " + response_text
 
 
 def submit_feedback(proposal_id, feedback_type, comments):

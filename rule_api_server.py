@@ -72,6 +72,7 @@ class RuleProposal(BaseModel):
     reason_for_change: Optional[str] = None
     references: Optional[str] = None
     current_rule: Optional[str] = None
+    user_story: Optional[str] = None
 
 
 class Rule(BaseModel):
@@ -88,6 +89,7 @@ class Rule(BaseModel):
     examples: Optional[str] = None
     applies_to: List[str] = []
     applies_to_rationale: Optional[str] = None
+    user_story: Optional[str] = None
 
 
 class BugReportModel(BaseModel):
@@ -110,6 +112,7 @@ class EnhancementModel(BaseModel):
     proposal_id: Optional[str] = None
     project: Optional[str] = None  # Project association
     examples: Optional[str] = None  # New field for examples
+    user_story: Optional[str] = None
 
 
 # Add this Pydantic model for partial updates
@@ -126,6 +129,7 @@ class RuleUpdate(BaseModel):
     reason_for_change: Optional[str] = None
     references: Optional[str] = None
     current_rule: Optional[str] = None
+    user_story: Optional[str] = None
 
 
 class RuleProposalFeedbackCreate(BaseModel):
@@ -208,6 +212,7 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
         reason_for_change=proposal.reason_for_change,
         references=proposal.references,
         current_rule=proposal.current_rule,
+        user_story=proposal.user_story,
     )
     db.add(db_proposal)
     db.commit()
@@ -229,6 +234,7 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
     data["tags"] = str_to_list(data.get("tags", ""))
     data["applies_to"] = str_to_list(data.get("applies_to", ""))
     data["applies_to_rationale"] = data.get("applies_to_rationale", "")
+    data["user_story"] = db_proposal.user_story
     return RuleProposal(**data)
 
 
@@ -250,6 +256,7 @@ def list_pending_proposals(db: Session = Depends(get_db)):
         data["reason_for_change"] = data.get("reason_for_change", None)
         data["references"] = data.get("references", None)
         data["current_rule"] = data.get("current_rule", None)
+        data["user_story"] = data.get("user_story", None)
         result.append(RuleProposal(**data))
     return result
 
@@ -321,6 +328,7 @@ def approve_rule_change(
         examples=proposal.examples,
         applies_to=list_to_str(proposal.applies_to),
         applies_to_rationale=proposal.applies_to_rationale,
+        user_story=proposal.user_story,
         # Optionally store reason_for_change, references, current_rule in Rule if desired
     )
     db.add(db_rule)
@@ -375,6 +383,7 @@ def list_rules(
             continue
         if tag and tag not in data["tags"]:
             continue
+        data["user_story"] = r.user_story
         result.append(Rule(**data))
     return result
 
@@ -507,6 +516,7 @@ def suggest_enhancement(enh: EnhancementModel, db: Session = Depends(get_db)):
         timestamp=ts,
         project=enh.project,
         examples=enh.examples,  # New field
+        user_story=enh.user_story,
         # applies_to and applies_to_rationale are not present in EnhancementModel
     )
     db.add(db_enh)
@@ -531,6 +541,7 @@ def list_enhancements(db: Session = Depends(get_db)):
         data["categories"] = str_to_list(data.get("categories", ""))
         data["applies_to"] = str_to_list(data.get("applies_to", ""))
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
+        data["user_story"] = e.user_story
         result.append(data)
     return result
 

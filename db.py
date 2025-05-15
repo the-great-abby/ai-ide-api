@@ -49,6 +49,7 @@ class Rule(Base):
     examples = Column(Text, nullable=True, default=None)
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
+    user_story = Column(Text, nullable=True, default=None)
 
 
 # Proposal model
@@ -73,6 +74,7 @@ class Proposal(Base):
     references = Column(Text, nullable=True, default=None)
     current_rule = Column(Text, nullable=True, default=None)
     # Fields below support the full rule proposal template
+    user_story = Column(Text, nullable=True, default=None)
 
 
 # Feedback model
@@ -106,6 +108,7 @@ class RuleVersion(Base):
     examples = Column(Text, nullable=True, default=None)
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
+    user_story = Column(Text, nullable=True, default=None)
 
 
 # BugReport model for bug reporting
@@ -136,6 +139,7 @@ class Enhancement(Base):
     examples = Column(Text, nullable=True, default=None)  # New field for examples
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
+    user_story = Column(Text, nullable=True, default=None)
 
 
 # Initialize the database and create tables

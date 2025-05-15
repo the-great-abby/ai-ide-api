@@ -30,12 +30,14 @@ def test_propose_rule_change():
         "description": "Enforce Makefile.ai for pytest.",
         "diff": "Add rule: All pytest commands must use Makefile.ai targets.",
         "submitted_by": "ai-agent",
+        "user_story": "As a developer, I want to enforce Makefile.ai for pytest."
     }
     response = client.post("/propose-rule-change", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert data["rule_type"] == payload["rule_type"]
     assert data["status"] == "pending"
+    assert data["user_story"] == payload["user_story"]
 
 
 def test_list_pending_rule_changes():
@@ -45,6 +47,7 @@ def test_list_pending_rule_changes():
         "description": "Enforce Makefile.ai for pytest.",
         "diff": "Add rule: All pytest commands must use Makefile.ai targets.",
         "submitted_by": "ai-agent",
+        "user_story": "As a developer, I want to enforce Makefile.ai for pytest."
     }
     client.post("/propose-rule-change", json=payload)
     response = client.get("/pending-rule-changes")
@@ -53,6 +56,7 @@ def test_list_pending_rule_changes():
     assert isinstance(proposals, list)
     assert len(proposals) == 1
     assert proposals[0]["status"] == "pending"
+    assert proposals[0]["user_story"] == payload["user_story"]
 
 
 def test_approve_and_reject_rule_change():
@@ -104,6 +108,7 @@ def test_list_rules():
         "description": "Test rule listing.",
         "diff": "Test diff.",
         "submitted_by": "ai-agent",
+        "user_story": "As a developer, I want to list rules."
     }
     response = client.post("/propose-rule-change", json=payload)
     proposal_id = response.json()["id"]
@@ -113,7 +118,7 @@ def test_list_rules():
     assert response.status_code == 200
     rules = response.json()
     assert isinstance(rules, list)
-    assert any(r["description"] == "Test rule listing." for r in rules)
+    assert any(r["description"] == "Test rule listing." and r["user_story"] == payload["user_story"] for r in rules)
 
 
 def test_env_endpoint():
@@ -228,6 +233,7 @@ def test_suggest_enhancement_and_list():
         "tags": ["test"],
         "categories": ["testing"],
         "project": "test-project",
+        "user_story": "As a user, I want to suggest enhancements."
     }
     response = client.post("/suggest-enhancement", json=enh_payload)
     assert response.status_code == 200
@@ -237,7 +243,7 @@ def test_suggest_enhancement_and_list():
     assert list_response.status_code == 200
     enhancements = list_response.json()
     assert any(
-        e["id"] == enh_id and e.get("project") == "test-project" for e in enhancements
+        e["id"] == enh_id and e.get("project") == "test-project" and e.get("user_story") == enh_payload["user_story"] for e in enhancements
     )
 
 

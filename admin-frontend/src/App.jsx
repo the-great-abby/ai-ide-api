@@ -400,6 +400,7 @@ function App() {
                   <th>ID</th>
                   <th>Type</th>
                   <th>Description</th>
+                  <th>User Story</th>
                   <th>Added By</th>
                   <th>Actions</th>
                 </tr>
@@ -411,6 +412,7 @@ function App() {
                     <td>{r.id}</td>
                     <td>{r.rule_type}</td>
                     <td>{r.description}</td>
+                    <td>{r.user_story || <span style={{color:'#aaa'}}>—</span>}</td>
                     <td>{r.added_by}</td>
                     <td>
                       <button onClick={() => toggleRuleDetails(r.id)}>
@@ -420,7 +422,7 @@ function App() {
                   </tr>
                   {showRuleDetails[r.id] && (
                     <tr>
-                      <td colSpan={5} style={{ background: '#f0f0f0', textAlign: 'left' }}>
+                      <td colSpan={6} style={{ background: '#f0f0f0', textAlign: 'left' }}>
                         <strong>Full Rule:</strong>
                         <pre style={{
                           background: '#f5f5f5',
