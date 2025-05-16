@@ -123,6 +123,10 @@ logs-api:
 logs-db:
 	docker compose logs --tail=100 db-test || docker-compose logs --tail=100 db-test
 
+# Show logs for just the frontend container
+logs-frontend:
+	docker compose logs --tail=100 frontend || docker-compose logs --tail=100 frontend
+
 # Open the FastAPI docs in the default browser (macOS)
 open-docs:
 	open http://localhost:$(PORT)/docs 
@@ -133,7 +137,25 @@ open-admin:
 ai-build:
 	docker-compose build 
 
-ai-rebuild-all:
+# Unified preflight check for VPNs and Zscaler
+preflight-check:
+	@if ifconfig | grep -E 'utun|tun0|ppp0' > /dev/null || \
+	   ps aux | grep -E 'openvpn|nordvpn|expressvpn|protonvpn' | grep -v grep > /dev/null; then \
+		echo '⚠️  VPN detected! Docker builds may fail, but continuing...'; \
+	fi; \
+	if ps aux | grep -i zscaler | grep -v grep > /dev/null || systemextensionsctl list | grep -i zscaler > /dev/null; then \
+		echo '⚠️  Zscaler detected! Docker builds may fail.'; \
+		echo 'Please turn off Zscaler Internet Security (ZIA) or pause it if possible.'; \
+		echo 'If you cannot fully quit Zscaler, try pausing web/internet security in the Zscaler app.'; \
+		echo 'Press Enter to continue (or Ctrl+C to abort)...'; \
+		read; \
+	else \
+		echo 'No Zscaler detected. Proceeding...'; \
+	fi
+
+# Make ai-rebuild-all depend on preflight-check
+ai-rebuild-all: preflight-check
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
 	docker-compose down
 	docker system prune -af
 	docker-compose build 
@@ -587,3 +609,7 @@ ai-playwright-test:
 
 ai-playwright-build-nocache:
 	docker compose build --no-cache playwright
+
+# Start only the db-test (database) service
+ai-db-up:
+	docker compose up -d db-test
