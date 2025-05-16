@@ -19,15 +19,16 @@ so that I can quickly get the system back to a working state after migration or 
 
 ## Example Workflow
 
-1. **Backup data only:**
+1. **Backup data only (ALWAYS do this before running `docker compose down -v` or any destructive operation):**
    ```bash
    make -f Makefile.ai ai-db-backup-data-only
    # Backup is saved in backups/rulesdb-data-YYYYMMDD-HHMMSS.sql
    ```
 
-2. **Nuke the database (delete all data and volumes):**
+2. **Nuke the database and all volumes (e.g., for frontend rebuild troubleshooting):**
    ```bash
-   make -f Makefile.ai ai-db-nuke
+   docker compose down -v
+   # This will stop all containers and remove all volumes, including the database!
    ```
 
 3. **Start up services and wait for API:**

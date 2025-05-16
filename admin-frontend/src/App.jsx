@@ -34,6 +34,7 @@ function App() {
   const [completingEnh, setCompletingEnh] = useState({});
   const [completeStatus, setCompleteStatus] = useState({});
   const [warning, setWarning] = useState(null);
+  const [showEnhancementDetails, setShowEnhancementDetails] = useState({});
 
   // Extract unique categories and tags from rules
   const uniqueCategories = Array.from(new Set(rules.flatMap(r => r.categories || []))).filter(Boolean);
@@ -243,6 +244,10 @@ function App() {
       setCompleteStatus((prev) => ({ ...prev, [id]: { success: false, error: err?.response?.data?.detail || 'Failed to complete' } }));
     }
     setCompletingEnh((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const toggleEnhancementDetails = (id) => {
+    setShowEnhancementDetails((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
@@ -513,6 +518,7 @@ function App() {
                 </thead>
                 <tbody>
                   {enhancements.map(e => (
+                    <>
                     <tr key={e.id}>
                       <td style={{ maxWidth: 120, wordBreak: 'break-all' }}>{e.id}</td>
                       <td>{e.description}</td>
@@ -564,6 +570,9 @@ function App() {
                         ) : (
                           <span style={{ color: 'red' }}>Rejected</span>
                         )}
+                        <button onClick={() => toggleEnhancementDetails(e.id)} style={{ marginLeft: 8 }}>
+                          {showEnhancementDetails[e.id] ? 'Hide Details' : 'Details'}
+                        </button>
                         {transferStatus[e.id] && transferStatus[e.id].success && (
                           <div style={{ color: 'green', fontSize: 12 }}>Transferred! Proposal ID: {transferStatus[e.id].proposal_id}</div>
                         )}
@@ -590,6 +599,56 @@ function App() {
                         )}
                       </td>
                     </tr>
+                    {showEnhancementDetails[e.id] && (
+                      <tr>
+                        <td colSpan={8} style={{ background: '#f9f9f9', textAlign: 'left' }}>
+                          <strong>Full Enhancement:</strong>
+                          <pre style={{
+                            background: '#f5f5f5',
+                            color: '#222',
+                            padding: 8,
+                            borderRadius: 4,
+                            fontSize: '1em',
+                            overflowX: 'auto',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word'
+                          }}>{JSON.stringify(e, null, 2)}</pre>
+                          {e.user_story && (
+                            <>
+                              <strong>User Story:</strong>
+                              <pre style={{
+                                background: '#f5f5f5',
+                                color: '#222',
+                                padding: 8,
+                                borderRadius: 4,
+                                fontSize: '1em',
+                                overflowX: 'auto',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                marginTop: 8
+                              }}>{e.user_story}</pre>
+                            </>
+                          )}
+                          {e.diff && (
+                            <>
+                              <strong>Diff:</strong>
+                              <pre style={{
+                                background: '#f5f5f5',
+                                color: '#222',
+                                padding: 8,
+                                borderRadius: 4,
+                                fontSize: '1em',
+                                overflowX: 'auto',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                marginTop: 8
+                              }}>{e.diff}</pre>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </>
                   ))}
                 </tbody>
               </table>

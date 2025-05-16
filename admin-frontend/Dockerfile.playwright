@@ -1,0 +1,16 @@
+FROM node:20
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Install Playwright and its browsers
+RUN npm install --save-dev @playwright/test
+RUN npx playwright install --with-deps
+
+# Copy the rest of the code, including tests
+COPY . .
+
+CMD ["npx", "playwright", "test"] 

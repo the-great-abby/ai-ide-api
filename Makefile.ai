@@ -549,3 +549,41 @@ git-log-recent:
 		SINCE='$(SINCE)'; \
 	fi; \
 	git log --since="$$SINCE" --stat --oneline | cat
+
+ai-onboarding-help:
+	@echo "\n==== AI-IDE Onboarding Quick Start ===="
+	@echo "1. Fetch the latest OpenAPI docs (API reference):"
+	@echo "   make -f Makefile.ai ai-docs"
+	@echo "   (or visit http://localhost:9103/docs in your browser)"
+	@echo "2. Start all services if needed:"
+	@echo "   make -f Makefile.ai ai-up"
+	@echo "3. For more onboarding info, see ONBOARDING_OTHER_AI_IDE.md"
+	@echo "4. All automation (tests, builds, migrations) MUST run through Makefile.ai targets."
+	@echo "5. Use Docker service names and internal ports for all connections."
+	@echo "\n==== End Onboarding Quick Start ===="
+
+ai-docker-ps:
+	docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+
+ai-port-3000-procs:
+	@echo "Processes using port 3000:"
+	lsof -i :3000 || echo "No process found on port 3000."
+
+ai-docker-stop-all:
+	@echo "Stopping all running Docker containers..."
+	docker stop $(shell docker ps -q) || echo "No running containers to stop."
+
+ai-kill-port-3000:
+	@echo "Killing any process using port 3000..."
+	PID=$$(lsof -ti :3000); if [ -n "$$PID" ]; then kill -9 $$PID && echo "Killed process $$PID on port 3000."; else echo "No process found on port 3000."; fi
+
+ai-frontend-volumes:
+	@echo "Checking for volume mounts in docker-compose.yml (frontend service):"
+	@awk '/frontend:/, /^[^ ]/' docker-compose.yml | grep -A 5 'volumes:' || echo "No volumes found for frontend."
+
+ai-playwright-test:
+	docker compose build frontend
+	docker compose run --rm playwright
+
+ai-playwright-build-nocache:
+	docker compose build --no-cache playwright

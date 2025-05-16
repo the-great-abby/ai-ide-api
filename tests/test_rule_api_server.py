@@ -360,3 +360,47 @@ def test_changelog_json_endpoint():
     unreleased = changelog_section["subsections"][0]
     assert "entries" in unreleased
     assert len(unreleased["entries"]) > 0
+
+
+def test_rules_multi_category_filter(client):
+    # Add rules with different categories
+    rule1 = {
+        "rule_type": "automation",
+        "description": "Rule for automation category",
+        "diff": "# Rule: Automation\n## Description\nAutomation rule\n## Enforcement\n...",
+        "status": "approved",
+        "submitted_by": "tester",
+        "categories": "automation",
+        "tags": "test"
+    }
+    rule2 = {
+        "rule_type": "search",
+        "description": "Rule for search category",
+        "diff": "# Rule: Search\n## Description\nSearch rule\n## Enforcement\n...",
+        "status": "approved",
+        "submitted_by": "tester",
+        "categories": "search",
+        "tags": "test"
+    }
+    rule3 = {
+        "rule_type": "other",
+        "description": "Rule for other category",
+        "diff": "# Rule: Other\n## Description\nOther rule\n## Enforcement\n...",
+        "status": "approved",
+        "submitted_by": "tester",
+        "categories": "other",
+        "tags": "test"
+    }
+    # Add rules via direct DB or API (assuming test client can do so)
+    client.post("/rules", json=rule1)
+    client.post("/rules", json=rule2)
+    client.post("/rules", json=rule3)
+
+    # Test multi-category filter
+    response = client.get("/rules?category=automation,search")
+    assert response.status_code == 200
+    rules = response.json()
+    rule_types = {r["rule_type"] for r in rules}
+    assert "automation" in rule_types
+    assert "search" in rule_types
+    assert "other" not in rule_types

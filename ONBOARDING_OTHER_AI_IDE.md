@@ -517,3 +517,30 @@ This script will:
 - Include description, categories, tags, user story, and example usage if present
 
 ---
+
+## 🚀 Quick Start: Accessing API Documentation (OpenAPI)
+
+To help you get started quickly with the API, you can fetch the latest OpenAPI documentation using the provided Makefile target. This is the recommended way for both humans and AI IDEs to discover and interact with the API.
+
+**Fetch the OpenAPI docs with one command:**
+
+```bash
+make -f Makefile.ai ai-docs
+```
+
+- This will print the OpenAPI documentation endpoint or return the docs directly if the API is running.
+- Alternatively, you can visit the interactive docs in your browser:
+  - [http://localhost:9103/docs](http://localhost:9103/docs)
+
+**Why is this important?**
+- The OpenAPI docs describe all available API endpoints, request/response formats, and authentication details.
+- Many tools (including AI IDEs) can use this to auto-generate clients, test endpoints, or explore the API interactively.
+
+**Troubleshooting:**
+- If the API is not running, start it with:
+  ```bash
+  make -f Makefile.ai ai-up
+  ```
+- If you need more help, see the full user story in `docs/user_stories/openapi_docs_onboarding.md` (if available).
+
+---
