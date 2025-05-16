@@ -95,3 +95,30 @@ Follow [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc) for proper rule fo
   - Document breaking changes
 
 Follow [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc) for proper rule formatting and structure.
+
+# Rule: User Story Creation for New Workflows and Features
+
+## Motivation
+To ensure documentation and onboarding stay in sync with system capabilities, every new workflow, automation, or major feature (such as a Makefile target, script, or API endpoint) must have a corresponding user story in `docs/user_stories/`.
+
+## Enforcement
+- When adding a new Makefile target, script, or API endpoint, create or update a user story.
+- The user story should describe:
+  - Motivation
+  - Actors
+  - Preconditions
+  - Step-by-step actions
+  - Expected outcomes
+  - Best practices (if relevant)
+- Place the user story in `docs/user_stories/` with a descriptive filename.
+- Reference the user story in code reviews and onboarding docs as needed.
+
+## Example
+If you add a new Makefile target for batch rule suggestion:
+- Create `docs/user_stories/batch_rule_suggestion.md` describing how and why to use it.
+
+## Rationale
+This practice ensures that:
+- New features are discoverable and usable by all team members.
+- Onboarding and documentation remain up to date.
+- The system is easier to maintain and extend.

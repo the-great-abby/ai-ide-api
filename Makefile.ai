@@ -540,3 +540,12 @@ ai-db-migration-new:
 # Restart the frontend container without rebuilding
 ai-admin-frontend-restart:
 	docker compose restart frontend
+
+# Show a summary of commits since a given time (default: 24 hours ago)
+git-log-recent:
+	@if [ -z "$(SINCE)" ]; then \
+		SINCE='24 hours ago'; \
+	else \
+		SINCE='$(SINCE)'; \
+	fi; \
+	git log --since="$$SINCE" --stat --oneline | cat
