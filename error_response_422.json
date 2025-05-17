@@ -1,0 +1,1 @@
+{"detail":[{"type":"list_type","loc":["body","embedding"],"msg":"Input should be a valid list","input":null}],"body":{"namespace":"test","content":"Should fail","embedding":null,"metadata":null},"path":"/memory/nodes","message":"Validation failed. Please check your input and try again.","error_id":"7a3bc136-cc51-40e0-bc85-1636b4e5e1b7"}

@@ -156,6 +156,30 @@ class Enhancement(Base):
     diff = Column(Text, nullable=True, default=None)  # New: diff for enhancements
 
 
+# --- New: API Error Log model ---
+class ApiErrorLog(Base):
+    __tablename__ = "api_error_logs"
+    id = Column(String, primary_key=True)  # error_id (UUID)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    path = Column(String)
+    method = Column(String)
+    status_code = Column(Integer)
+    message = Column(Text)
+    stack_trace = Column(Text)
+    user_id = Column(String, nullable=True)  # If available
+
+
+# --- New: API Access Token model ---
+class ApiAccessToken(Base):
+    __tablename__ = "api_access_tokens"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    token = Column(String, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    active = Column(Integer, default=1)  # 1 = active, 0 = revoked
+
+
 # Vector store model
 class MemoryVector(Base):
     __tablename__ = "memory_vectors"

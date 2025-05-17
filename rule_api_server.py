@@ -8,12 +8,15 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
-                     UploadFile, Request)
+                     UploadFile, Request, Header)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 import requests
+import secrets
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import RequestValidationError as FastAPIRequestValidationError
 
 import scripts.suggest_rules as suggest_rules
 from db import BugReport as DBBugReport
@@ -23,6 +26,7 @@ from db import Rule as DBRule
 from db import SessionLocal, StatusEnum, init_db
 from rule_proposal_feedback import FeedbackType, RuleProposalFeedback
 from db import MemorySessionLocal, MemoryVector, MemoryEdge, init_memorydb
+from db import ApiErrorLog, ApiAccessToken
 
 app = FastAPI(title="Rule Proposal API")
 
@@ -932,6 +936,10 @@ def startup_memorydb():
 
 @app.post("/memory/nodes", response_model=MemoryNodeOut)
 def create_memory_node(node: MemoryNodeCreate):
+    # --- Input validation for embedding length ---
+    if not isinstance(node.embedding, list) or len(node.embedding) != 1536:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Embedding must be a list of exactly 1536 floats (got {len(node.embedding)}).")
     session = MemorySessionLocal()
     db_node = MemoryVector(
         namespace=node.namespace,
@@ -942,8 +950,21 @@ def create_memory_node(node: MemoryNodeCreate):
     session.add(db_node)
     session.commit()
     session.refresh(db_node)
+    # --- Patch: ensure embedding is a list ---
+    embedding = db_node.embedding
+    if isinstance(embedding, str):
+        import ast
+        embedding = ast.literal_eval(embedding)
+    result = {
+        "id": db_node.id,
+        "namespace": db_node.namespace,
+        "content": db_node.content,
+        "embedding": embedding,
+        "meta": db_node.meta,
+        "created_at": db_node.created_at,
+    }
     session.close()
-    return db_node
+    return result
 
 @app.get("/memory/nodes", response_model=List[MemoryNodeOut])
 def list_memory_nodes(namespace: Optional[str] = None):
@@ -952,8 +973,22 @@ def list_memory_nodes(namespace: Optional[str] = None):
     if namespace:
         q = q.filter(MemoryVector.namespace == namespace)
     nodes = q.all()
+    result = []
+    for db_node in nodes:
+        embedding = db_node.embedding
+        if isinstance(embedding, str):
+            import ast
+            embedding = ast.literal_eval(embedding)
+        result.append({
+            "id": db_node.id,
+            "namespace": db_node.namespace,
+            "content": db_node.content,
+            "embedding": embedding,
+            "meta": db_node.meta,
+            "created_at": db_node.created_at,
+        })
     session.close()
-    return nodes
+    return result
 
 @app.post("/memory/edges", response_model=MemoryEdgeOut)
 def create_memory_edge(edge: MemoryEdgeCreate):
@@ -1001,3 +1036,108 @@ def search_memory_nodes(embedding: List[float], namespace: Optional[str] = None,
     nodes = session.query(MemoryVector).filter(MemoryVector.id.in_(ids)).all()
     session.close()
     return nodes
+
+# --- Error logging middleware ---
+@app.middleware("http")
+async def error_logging_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        import traceback
+        error_id = str(uuid.uuid4())
+        stack = traceback.format_exc()
+        # Log to DB
+        db = SessionLocal()
+        try:
+            log = ApiErrorLog(
+                id=error_id,
+                timestamp=datetime.utcnow(),
+                path=str(request.url.path),
+                method=request.method,
+                status_code=500,
+                message=str(exc),
+                stack_trace=stack,
+                user_id=None,  # Optionally extract from request if available
+            )
+            db.add(log)
+            db.commit()
+        except Exception as log_exc:
+            db.rollback()
+        finally:
+            db.close()
+        # Return error ID to client
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal server error. Reference ID: {error_id}"}
+        )
+
+# --- API Token Auth Dependency ---
+def require_api_token(authorization: str = Header(...), db: Session = Depends(get_db)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid auth header")
+    token = authorization.split(" ", 1)[1]
+    db_token = db.query(ApiAccessToken).filter_by(token=token, active=1).first()
+    if not db_token:
+        raise HTTPException(status_code=401, detail="Invalid or inactive token")
+    return db_token
+
+# --- Endpoint: Generate API Token ---
+@app.post("/admin/generate-token")
+def generate_token(description: str = "", created_by: str = None, db: Session = Depends(get_db)):
+    token = secrets.token_urlsafe(32)
+    db_token = ApiAccessToken(token=token, description=description, created_by=created_by, active=1)
+    db.add(db_token)
+    db.commit()
+    return {"token": token, "description": description}
+
+# --- Endpoint: Lookup Error Log by ID (token protected) ---
+@app.get("/admin/errors/{error_id}")
+def get_error_log(error_id: str, db: Session = Depends(get_db), auth=Depends(require_api_token)):
+    log = db.query(ApiErrorLog).filter(ApiErrorLog.id == error_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Error not found")
+    return {
+        "id": log.id,
+        "timestamp": log.timestamp,
+        "path": log.path,
+        "method": log.method,
+        "status_code": log.status_code,
+        "message": log.message,
+        "stack_trace": log.stack_trace,
+        "user_id": log.user_id,
+    }
+
+@app.exception_handler(RequestValidationError)
+async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):
+    import uuid
+    from db import SessionLocal, ApiErrorLog
+    import traceback
+    error_id = str(uuid.uuid4())
+    db = SessionLocal()
+    try:
+        log = ApiErrorLog(
+            id=error_id,
+            timestamp=datetime.utcnow(),
+            path=str(request.url.path),
+            method=request.method,
+            status_code=422,
+            message=f"Validation error: {exc.errors()}",
+            stack_trace=traceback.format_exc(),
+            user_id=None,
+        )
+        db.add(log)
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "body": exc.body,
+            "path": str(request.url.path),
+            "message": "Validation failed. Please check your input and try again.",
+            "error_id": error_id
+        },
+    )

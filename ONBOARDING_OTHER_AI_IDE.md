@@ -1,6 +1,92 @@
 # Onboarding Another AI-IDE
 
+## 🔑 API Token Onboarding & Error Log Lookup
+
+**New!** You can now generate your own API access token for secure integration and troubleshooting.
+
+- **Generate a token:**  
+  `POST /admin/generate-token`  
+  Include a description and (optionally) your agent name. The API will return a new token—store it securely!
+
+- **Use your token:**  
+  For any protected endpoint (such as error log lookup), include:  
+  `Authorization: Bearer <your-token>`
+
+- **Look up error details:**  
+  When the API returns an error with a reference ID (for both 500 and 422 errors), you can fetch details:  
+  `GET /admin/errors/{error_id}` (requires your token)
+
+- **Step-by-step example:**
+  1. **Trigger a 422 validation error** (e.g., by submitting an invalid payload):
+     ```bash
+     curl -X POST http://localhost:9103/memory/nodes \
+       -H "Content-Type: application/json" \
+       -d '{"namespace": "test", "content": "Should fail", "embedding": null, "metadata": null}'
+     # Response:
+     # {
+     #   "detail": [...],
+     #   "body": {...},
+     #   "path": "/memory/nodes",
+     #   "message": "Validation failed. Please check your input and try again.",
+     #   "error_id": "<error_id>"
+     # }
+     ```
+  2. **Look up the error details** using your onboarding token:
+     ```bash
+     curl -H "Authorization: Bearer <your-token>" http://localhost:9103/admin/errors/<error_id>
+     # Response includes timestamp, path, message, and stack trace
+     ```
+  3. **You can also look up 500 errors** in the same way (see example above).
+
+- **Best practices:**  
+  - Treat tokens like passwords—never share or commit them.  
+  - Revoke tokens if compromised or no longer needed.  
+  - See the full user story: [`docs/user_stories/api_token_onboarding.md`](docs/user_stories/api_token_onboarding.md)
+
+This enables self-service onboarding, secure access, and easier debugging for all AI IDEs and agents.
+
 Welcome! This document is your comprehensive onboarding guide for integrating another AI IDE or agent into the AI-IDE API project. Please follow these steps to ensure seamless collaboration, automation, and rule management.
+
+# 🧠 AI Memory Graph API: Semantic Memory for Your AI IDE
+
+> **Integration Note (2025-05-17):**
+> 
+> The memory graph API now guarantees that all `embedding` fields are returned as proper lists (not strings), regardless of how they are stored in the database. This resolves previous FastAPI validation errors and ensures compatibility with all AI IDE clients. If you previously encountered issues with embedding serialization, update your client to expect a list. See the user story [`docs/user_stories/ai_memory_vector_sqlalchemy_limitations.md`](docs/user_stories/ai_memory_vector_sqlalchemy_limitations.md) for background and [`rule_api_server.py`](rule_api_server.py) for the backend patch.
+
+**New Feature!** The AI-IDE API now supports a powerful memory graph API for storing, relating, and searching ideas, notes, and code snippets using semantic embeddings and explicit relationships.
+
+- **What is it?**
+  - A set of API endpoints for storing and relating knowledge as a graph (nodes and edges), with support for vector search (semantic similarity).
+  - Enables your AI IDE to remember, relate, and retrieve information across sessions, projects, and users.
+
+- **Why use it?**
+  - Build context-aware assistants, code reviewers, or knowledge explorers.
+  - Store and traverse ideas, notes, and code with semantic search and explicit relationships.
+  - Share and query knowledge across multiple AI IDEs or agents.
+
+- **How to use it?**
+  - See the user story: [`docs/user_stories/ai_memory_graph_api.md`](docs/user_stories/ai_memory_graph_api.md)
+  - Try the endpoints: `/memory/nodes`, `/memory/edges`, `/memory/nodes/search`
+  - Example curl command to add a node:
+    ```bash
+    curl -X POST http://localhost:9103/memory/nodes \
+      -H "Content-Type: application/json" \
+      -d '{
+        "namespace": "notes",
+        "content": "This is an idea about AI memory.",
+        "embedding": [0.1, 0.2, 0.3, 0.4, 0.5],
+        "metadata": "{\"tags\": [\"ai\", \"memory\"]}"
+      }'
+    ```
+  - List all nodes:
+    ```bash
+    curl http://localhost:9103/memory/nodes
+    ```
+  - Full details and best practices: [`docs/user_stories/ai_memory_graph_api.md`](docs/user_stories/ai_memory_graph_api.md)
+
+> **Tip:** You can discover all available endpoints (including memory features) by fetching the OpenAPI schema:
+> - Visit [http://localhost:9103/docs](http://localhost:9103/docs) in your browser
+> - Or run: `make -f Makefile.ai ai-docs`
 
 ---
 
