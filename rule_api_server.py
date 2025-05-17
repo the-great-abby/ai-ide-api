@@ -22,6 +22,7 @@ from db import Proposal as DBProposal
 from db import Rule as DBRule
 from db import SessionLocal, StatusEnum, init_db
 from rule_proposal_feedback import FeedbackType, RuleProposalFeedback
+from db import MemorySessionLocal, MemoryVector, MemoryEdge, init_memorydb
 
 app = FastAPI(title="Rule Proposal API")
 
@@ -894,3 +895,109 @@ def update_enhancement(enhancement_id: str, update: EnhancementUpdate, db: Sessi
     result["user_story"] = enh.user_story
     result["diff"] = enh.diff  # New: include diff in PATCH response
     return result
+
+# --- Memory Graph API ---
+
+class MemoryNodeCreate(BaseModel):
+    namespace: str
+    content: str
+    embedding: List[float]
+    meta: Optional[str] = None
+
+class MemoryNodeOut(BaseModel):
+    id: str
+    namespace: str
+    content: str
+    embedding: Optional[List[float]] = None
+    meta: Optional[str] = None
+    created_at: datetime
+
+class MemoryEdgeCreate(BaseModel):
+    from_id: str
+    to_id: str
+    relation_type: str
+    meta: Optional[str] = None
+
+class MemoryEdgeOut(BaseModel):
+    id: str
+    from_id: str
+    to_id: str
+    relation_type: str
+    meta: Optional[str] = None
+    created_at: datetime
+
+@app.on_event("startup")
+def startup_memorydb():
+    init_memorydb()
+
+@app.post("/memory/nodes", response_model=MemoryNodeOut)
+def create_memory_node(node: MemoryNodeCreate):
+    session = MemorySessionLocal()
+    db_node = MemoryVector(
+        namespace=node.namespace,
+        content=node.content,
+        embedding=node.embedding,
+        meta=node.meta,
+    )
+    session.add(db_node)
+    session.commit()
+    session.refresh(db_node)
+    session.close()
+    return db_node
+
+@app.get("/memory/nodes", response_model=List[MemoryNodeOut])
+def list_memory_nodes(namespace: Optional[str] = None):
+    session = MemorySessionLocal()
+    q = session.query(MemoryVector)
+    if namespace:
+        q = q.filter(MemoryVector.namespace == namespace)
+    nodes = q.all()
+    session.close()
+    return nodes
+
+@app.post("/memory/edges", response_model=MemoryEdgeOut)
+def create_memory_edge(edge: MemoryEdgeCreate):
+    session = MemorySessionLocal()
+    db_edge = MemoryEdge(
+        from_id=edge.from_id,
+        to_id=edge.to_id,
+        relation_type=edge.relation_type,
+        meta=edge.meta,
+    )
+    session.add(db_edge)
+    session.commit()
+    session.refresh(db_edge)
+    session.close()
+    return db_edge
+
+@app.get("/memory/edges", response_model=List[MemoryEdgeOut])
+def list_memory_edges(from_id: Optional[str] = None, to_id: Optional[str] = None, relation_type: Optional[str] = None):
+    session = MemorySessionLocal()
+    q = session.query(MemoryEdge)
+    if from_id:
+        q = q.filter(MemoryEdge.from_id == from_id)
+    if to_id:
+        q = q.filter(MemoryEdge.to_id == to_id)
+    if relation_type:
+        q = q.filter(MemoryEdge.relation_type == relation_type)
+    edges = q.all()
+    session.close()
+    return edges
+
+from sqlalchemy import text
+@app.post("/memory/nodes/search", response_model=List[MemoryNodeOut])
+def search_memory_nodes(embedding: List[float], namespace: Optional[str] = None, limit: int = 5):
+    session = MemorySessionLocal()
+    sql = "SELECT * FROM memory_vectors"
+    if namespace:
+        sql += " WHERE namespace = :namespace"
+    sql += " ORDER BY embedding <=> :query_vec LIMIT :limit"
+    params = {"query_vec": embedding, "limit": limit}
+    if namespace:
+        params["namespace"] = namespace
+    results = session.execute(text(sql), params)
+    ids = [row[0] for row in results]
+    # Fetch full objects
+    nodes = session.query(MemoryVector).filter(MemoryVector.id.in_(ids)).all()
+    session.close()
+    return nodes

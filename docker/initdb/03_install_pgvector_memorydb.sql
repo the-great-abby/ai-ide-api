@@ -1,0 +1,3 @@
+-- 03_install_pgvector_memorydb.sql
+-- This script must be run manually after container startup:
+-- psql -U postgres -d memorydb -h db-test -c "CREATE EXTENSION IF NOT EXISTS vector;" 

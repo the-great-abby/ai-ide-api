@@ -63,13 +63,16 @@ services:
     # No volume mount: tests the built image, not local code
 
   db-test:
-    image: postgres:15
+    build:
+      context: .
+      dockerfile: Dockerfile.pgvector
     environment:
       POSTGRES_DB: rulesdb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
       - rules_postgres_data:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d
 
   misc-scripts:
     image: python:3.11

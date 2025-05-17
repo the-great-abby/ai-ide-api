@@ -8,6 +8,10 @@ from sqlalchemy import (Column, DateTime, Enum, Integer, String, Text,
 from sqlalchemy.dialects.sqlite import BLOB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import Float
+from sqlalchemy import text
+from sqlalchemy.types import UserDefinedType
 
 # SQLite database URL
 POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
@@ -22,6 +26,15 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# Add support for pgvector
+class Vector(UserDefinedType):
+    def get_col_spec(self, **kw):
+        return "vector(1536)"  # Adjust dimension as needed
+
+# MemoryDB connection (for vector store)
+MEMORYDB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/memorydb"
+memory_engine = create_engine(MEMORYDB_URL)
+MemorySessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=memory_engine)
 
 # Enum for rule/proposal/feedback status
 class StatusEnum(str, enum.Enum):
@@ -143,9 +156,56 @@ class Enhancement(Base):
     diff = Column(Text, nullable=True, default=None)  # New: diff for enhancements
 
 
+# Vector store model
+class MemoryVector(Base):
+    __tablename__ = "memory_vectors"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    namespace = Column(String, index=True)
+    reference_id = Column(String, index=True)
+    content = Column(Text, nullable=False)
+    embedding = Column(Vector)
+    meta = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# Edge/relationship model for memory graph
+class MemoryEdge(Base):
+    __tablename__ = "memory_edges"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    from_id = Column(String, index=True)
+    to_id = Column(String, index=True)
+    relation_type = Column(String, index=True)
+    meta = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # Initialize the database and create tables
 def init_db():
     Base.metadata.create_all(bind=engine)
 
+
+# Initialize the memorydb and create tables
+def init_memorydb():
+    Base.metadata.create_all(bind=memory_engine)
+
+
+# Example usage:
+# from db import MemorySessionLocal, MemoryVector, init_memorydb
+# session = MemorySessionLocal()
+# vector = MemoryVector(namespace="test", reference_id="abc123", embedding=[0.1]*1536, metadata="{}")
+# session.add(vector)
+# session.commit()
+# session.close()
+
+# Example vector search (cosine distance):
+# session.execute(text("SELECT *, embedding <=> :query_vec AS distance FROM memory_vectors ORDER BY distance LIMIT 5"), {"query_vec": [0.1]*1536})
+
+# Example usage for edges:
+# from db import MemorySessionLocal, MemoryEdge
+# session = MemorySessionLocal()
+# edge = MemoryEdge(from_id="uuid1", to_id="uuid2", relation_type="inspired_by", metadata="{}")
+# session.add(edge)
+# session.commit()
+# session.close()
 
 # Usage: from db import SessionLocal, init_db
