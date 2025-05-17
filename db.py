@@ -132,6 +132,7 @@ class BugReport(Base):
     reporter = Column(String, nullable=True)
     page = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    user_story = Column(String, nullable=True)
 
 
 # Enhancement model for suggested improvements
@@ -201,6 +202,25 @@ class MemoryEdge(Base):
     relation_type = Column(String, index=True)
     meta = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# --- New: Project model ---
+class Project(Base):
+    __tablename__ = "projects"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# --- New: ProjectMembership model ---
+class ProjectMembership(Base):
+    __tablename__ = "project_memberships"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False)
+    project_id = Column(String, nullable=False)
+    role = Column(String, default="admin")  # For now, everyone is admin
+    # Optionally, add unique constraint on (user_id, project_id) in migration
 
 
 # Initialize the database and create tables

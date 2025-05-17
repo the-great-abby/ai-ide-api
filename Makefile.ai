@@ -1,6 +1,9 @@
 PORT ?= 9103
 ADMIN_FRONTEND_PORT ?= 3000
 API_PORT ?= 9103
+MEMORYDB_FILE ?= not_provided
+RULESDB_FILE ?= not_provided
+BACKUP_FILE ?= not_provided
 
 # TODO: Implement a script for interactive Alembic head-checking and prompting for merges.
 # This will help users resolve migration graph conflicts more safely and with better UX.
@@ -72,17 +75,16 @@ ai-review-code-snippet:
 ai-scan-db:
 	echo '--- Proposals ---'; sqlite3 rules.db 'SELECT * FROM proposals;'; \
 	echo '\n--- Rules ---'; sqlite3 rules.db 'SELECT * FROM rules;'; \
-	echo '\n--- Feedback ---'; sqlite3 rules.db 'SELECT * FROM feedback;' 
+	echo '\n--- Feedback ---'; sqlite3 rules.db 'SELECT * FROM feedback;'
 
 ai-approve-all-pending:
-	python scripts/approve_all_pending.py 
+	python scripts/approve_all_pending.py
 
 ai-db-migrate:
-	$(MAKE) -f Makefile.ai ai-api-wait
 	docker compose exec api alembic upgrade head
 
 ai-db-revision:
-	docker compose exec api alembic revision --autogenerate -m "$(MSG)" 
+	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
 
 ai-db-autorevision:
 	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
@@ -109,7 +111,7 @@ ai-propose-makefile-rule:
 
 # Open or fetch the FastAPI docs endpoint
 ai-docs:
-	curl -s http://localhost:$(PORT)/docs || echo 'Could not fetch docs. Is the API running?' 
+	curl -s http://localhost:$(PORT)/docs || echo 'Could not fetch docs. Is the API running?'
 
 # Show logs for all main containers (api, db-test, frontend)
 logs:
@@ -129,13 +131,13 @@ logs-frontend:
 
 # Open the FastAPI docs in the default browser (macOS)
 open-docs:
-	open http://localhost:$(PORT)/docs 
+	open http://localhost:$(PORT)/docs
 
 open-admin:
 	open http://localhost:$(ADMIN_FRONTEND_PORT)
 
 ai-build:
-	docker-compose build 
+	docker-compose build
 
 # Unified preflight check for VPNs and Zscaler
 preflight-check:
@@ -158,7 +160,7 @@ ai-rebuild-all: preflight-check
 	$(MAKE) -f Makefile.ai ai-db-backup-data-only
 	docker-compose down
 	docker system prune -af
-	docker-compose build 
+	docker-compose build
 
 ai-import-backup:
 	docker compose exec api python import_from_backup.py
@@ -518,8 +520,8 @@ ai-lint-mdc-docker:
 
 # Backup both schema+data and data-only for maximum flexibility
 ai-db-backup-all:
-	$(MAKE) -f Makefile.ai ai-db-backup
-	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+	docker compose exec db-test pg_dump -U postgres -d rulesdb > backups/rulesdb-$(shell date +%Y%m%d-%H%M%S).sql
+	docker compose exec db-test pg_dump -U postgres -d memorydb > backups/memorydb-$(shell date +%Y%m%d-%H%M%S).sql
 
 schema-table:
 	docker compose exec db-test psql -U postgres -d rulesdb -c '\d+ $(TABLE)' | cat
@@ -613,3 +615,78 @@ ai-playwright-build-nocache:
 # Start only the db-test (database) service
 ai-db-up:
 	docker compose up -d db-test
+
+# --- MemoryDB backup/restore targets ---
+
+# Backup memorydb schema and data
+ai-memorydb-backup:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump -U postgres -d memorydb > backups/memorydb-`date +"%Y%m%d-%H%M%S"`.sql
+
+# Restore memorydb from a backup file
+# Usage: make -f Makefile.ai ai-memorydb-restore BACKUP_FILE=backups/memorydb-latest.sql
+ai-memorydb-restore:
+	docker compose exec -T db-test psql -U postgres -d memorydb < $(BACKUP_FILE)
+
+# Schema-only backup for memorydb
+ai-memorydb-schema-backup:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump -U postgres -d memorydb --schema-only > backups/memorydb-schema-`date +"%Y%m%d-%H%M%S"`.sql
+
+# Backup only the data (no schema) from the memorydb database
+ai-memorydb-backup-data-only:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump --data-only -U postgres -d memorydb > backups/memorydb-data-`date +"%Y%m%d-%H%M%S"`.sql
+
+# Restore only the data (not schema) from a SQL backup file to memorydb
+# Usage: make -f Makefile.ai ai-memorydb-restore-data BACKUP_FILE=backups/memorydb-data-YYYYMMDD-HHMMSS.sql
+ai-memorydb-restore-data:
+	docker compose exec -T db-test psql -U postgres -d memorydb < $(BACKUP_FILE)
+
+# --- End of MemoryDB backup/restore targets ---
+
+# --- Combined all-db backup/restore targets ---
+
+# Restore both (edit to use correct backup files)
+ai-db-restore-all:
+	docker compose exec -T db-test psql -U postgres -d rulesdb < $(RULESDB_FILE)
+	docker compose exec -T db-test psql -U postgres -d memorydb < $(MEMORYDB_FILE)
+
+# --- Memory Graph Utility Targets ---
+
+ai-memory-utils-build:
+	docker build -f Dockerfile.memory-utils -t memory-utils .
+
+ai-memory-add-node:
+	docker run --rm --network=host -v $(PWD)/scripts:/scripts memory-utils /scripts/memory_add_node.sh $(NAMESPACE) $(CONTENT) $(EMBEDDING) $(META)
+
+ai-memory-add-edge:
+	docker run --rm --network=host -v $(PWD)/scripts:/scripts memory-utils /scripts/memory_add_edge.sh $(FROM_ID) $(TO_ID) $(REL_TYPE) $(META)
+
+ai-memory-list-nodes:
+	docker run --rm --network=host -v $(PWD)/scripts:/scripts memory-utils /scripts/memory_list_nodes.sh
+
+ai-memory-list-edges:
+	docker run --rm --network=host -v $(PWD)/scripts:/scripts memory-utils /scripts/memory_list_edges.sh
+
+ai-memory-traverse-single-hop:
+	docker run --rm --network=host -v $(PWD)/scripts:/scripts memory-utils /scripts/memory_traverse_single_hop.sh $(NODE_ID)
+
+ai-memory-traverse-multi-hop:
+	docker run --rm --network=host -v $(PWD)/scripts:/scripts memory-utils /scripts/memory_traverse_multi_hop.sh $(NODE_ID)
+
+ai-memory-traverse-by-relation:
+	docker run --rm --network=host -v $(PWD)/scripts:/scripts memory-utils /scripts/memory_traverse_by_relation.sh $(NODE_ID) $(REL_TYPE)
+
+ai-memory-export-dot:
+	docker run --rm --network=host -v $(PWD)/scripts:/scripts memory-utils /scripts/memory_export_dot.sh > graph.dot
+
+# Usage:
+# make -f Makefile.ai ai-memory-add-node NAMESPACE=notes CONTENT="My note" EMBEDDING="[0.1,0.2,...]" META='{"tags":["example"]}'
+# make -f Makefile.ai ai-memory-add-edge FROM_ID=... TO_ID=... REL_TYPE=related_to META='{"note":"Example edge"}'
+# make -f Makefile.ai ai-memory-list-nodes
+# make -f Makefile.ai ai-memory-list-edges
+# make -f Makefile.ai ai-memory-traverse-single-hop NODE_ID=...
+# make -f Makefile.ai ai-memory-traverse-multi-hop NODE_ID=...
+# make -f Makefile.ai ai-memory-traverse-by-relation NODE_ID=... REL_TYPE=...
+# make -f Makefile.ai ai-memory-export-dot

@@ -630,3 +630,83 @@ make -f Makefile.ai ai-docs
 - If you need more help, see the full user story in `docs/user_stories/openapi_docs_onboarding.md` (if available).
 
 ---
+
+## 🧠 Memory Graph Quickstart: Ready-to-Run Scripts
+
+The following scripts help you interact with the memory graph API for onboarding, testing, and automation.
+
+### Add a memory node
+```bash
+curl -X POST http://localhost:9103/memory/nodes \
+  -H "Content-Type: application/json" \
+  -d '{"namespace": "notes", "content": "Example node", "embedding": [0.0, ...], "meta": "{\"tags\": [\"example\"]}"}'
+```
+
+### Add an edge
+```bash
+curl -X POST http://localhost:9103/memory/edges \
+  -H "Content-Type: application/json" \
+  -d '{"from_id": "NODE1_ID", "to_id": "NODE2_ID", "relation_type": "related_to", "meta": "{\"note\": \"Example edge\"}"}'
+```
+
+### List all nodes
+```bash
+curl http://localhost:9103/memory/nodes | jq .
+```
+
+### List all edges
+```bash
+curl http://localhost:9103/memory/edges | jq .
+```
+
+### Single-hop traversal (direct neighbors)
+```bash
+NODE_ID="YOUR_NODE_ID"
+for to_id in $(curl -s "http://localhost:9103/memory/edges?from_id=$NODE_ID" | jq -r '.[].to_id'); do
+  curl -s http://localhost:9103/memory/nodes | jq --arg id "$to_id" '.[] | select(.id == $id)'
+done
+```
+
+### Multi-hop (recursive) traversal
+```bash
+#!/bin/bash
+START_NODE="YOUR_NODE_ID"
+declare -A visited
+traverse() {
+  local node_id="$1"
+  if [[ -n "${visited[$node_id]}" ]]; then return; fi
+  visited[$node_id]=1
+  echo "Node: $node_id"
+  curl -s http://localhost:9103/memory/nodes | jq --arg id "$node_id" '.[] | select(.id == $id)'
+  for to_id in $(curl -s "http://localhost:9103/memory/edges?from_id=$node_id" | jq -r '.[].to_id'); do
+    traverse "$to_id"
+  done
+}
+traverse "$START_NODE"
+```
+
+### Filter by relation type
+```bash
+REL_TYPE="related_to"
+NODE_ID="YOUR_NODE_ID"
+for to_id in $(curl -s "http://localhost:9103/memory/edges?from_id=$NODE_ID&relation_type=$REL_TYPE" | jq -r '.[].to_id'); do
+  curl -s http://localhost:9103/memory/nodes | jq --arg id "$to_id" '.[] | select(.id == $id)'
+done
+```
+
+### Export to DOT/Graphviz
+```bash
+echo "digraph MemoryGraph {"
+curl -s http://localhost:9103/memory/edges | jq -r '.[] | "\"\(.from_id)\" -> \"\(.to_id)\" [label=\"\(.relation_type)\"] ;"'
+echo "}"
+```
+Then render with:
+```bash
+dot -Tpng graph.dot -o graph.png
+```
+
+---
+
+**See [`docs/user_stories/ai_memory_graph_api.md`](docs/user_stories/ai_memory_graph_api.md) for full details and best practices.**
+
+---

@@ -120,6 +120,7 @@ class BugReportModel(BaseModel):
     description: str
     reporter: Optional[str] = None
     page: Optional[str] = None
+    user_story: Optional[str] = None
     timestamp: Optional[str] = Field(
         default_factory=lambda: datetime.utcnow().isoformat()
     )
@@ -496,6 +497,7 @@ def submit_bug_report(report: BugReportModel, db: Session = Depends(get_db)):
         description=report.description,
         reporter=report.reporter,
         page=report.page,
+        user_story=report.user_story,
         timestamp=ts,
     )
     db.add(db_bug)
@@ -520,6 +522,7 @@ def list_bug_reports(db: Session = Depends(get_db)):
                 "description": data["description"],
                 "reporter": data["reporter"],
                 "page": data["page"],
+                "user_story": data.get("user_story"),
                 "timestamp": data["timestamp"],
             }
         )
@@ -1026,7 +1029,7 @@ def search_memory_nodes(embedding: List[float], namespace: Optional[str] = None,
     sql = "SELECT * FROM memory_vectors"
     if namespace:
         sql += " WHERE namespace = :namespace"
-    sql += " ORDER BY embedding <=> :query_vec LIMIT :limit"
+    sql += " ORDER BY embedding <=> CAST(:query_vec AS vector) LIMIT :limit"
     params = {"query_vec": embedding, "limit": limit}
     if namespace:
         params["namespace"] = namespace
@@ -1035,7 +1038,22 @@ def search_memory_nodes(embedding: List[float], namespace: Optional[str] = None,
     # Fetch full objects
     nodes = session.query(MemoryVector).filter(MemoryVector.id.in_(ids)).all()
     session.close()
-    return nodes
+    # Patch: ensure embedding is a list for each node
+    result = []
+    for db_node in nodes:
+        embedding = db_node.embedding
+        if isinstance(embedding, str):
+            import ast
+            embedding = ast.literal_eval(embedding)
+        result.append({
+            "id": db_node.id,
+            "namespace": db_node.namespace,
+            "content": db_node.content,
+            "embedding": embedding,
+            "meta": db_node.meta,
+            "created_at": db_node.created_at,
+        })
+    return result
 
 # --- Error logging middleware ---
 @app.middleware("http")

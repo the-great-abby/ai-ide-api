@@ -48,6 +48,11 @@ Welcome to the Rule Proposal API project! We're excited to have you here. This p
 - [ ] Run the coverage report: `make coverage`
 - [ ] Propose a test rule via the API docs (see below!)
 - [ ] **Stop containers:** `make down`
+- [ ] Review the '🧠 Memory Graph Quickstart' section in ONBOARDING_OTHER_AI_IDE.md for ready-to-run scripts to:
+  - Add/list nodes and edges
+  - Traverse the memory graph (single/multi-hop)
+  - Filter by relation type
+  - Export the graph for visualization
 
 > **Note:** The default API server port for this project is **9103**. Update your client, integration, and rule config URLs accordingly.
 
