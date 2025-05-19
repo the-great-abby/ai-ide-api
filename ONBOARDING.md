@@ -1,3 +1,22 @@
+# Welcome to Project Onboarding!
+
+Welcome to the AI IDE API project! This onboarding guide will help you get started, whether you are a core team member, an external collaborator, or an adventurous power user.
+
+## Choose Your Onboarding Path:
+
+- **[Internal Developer Onboarding →](ONBOARDING_INTERNAL.md)**
+  - For core team members and contributors who need full access to dev tools, advanced Makefile targets, and deep-dive workflows.
+
+- **[External/Partner Onboarding →](ONBOARDING_EXTERNAL.md)**
+  - For external users, partners, or integrators who want a streamlined setup, essential Makefile targets, and extension instructions.
+
+- **[Onboarding Adventures (Advanced/Experimental) →](ONBOARDING_ADVENTURES.md)**
+  - For those interested in advanced, experimental, or power-user onboarding stories and integrations.
+
+---
+
+**Tip:** You can always return to this page to choose a different path or explore more advanced topics as your needs evolve.
+
 # Onboarding Guide
 
 ## 🚨 What's New (June 2024)

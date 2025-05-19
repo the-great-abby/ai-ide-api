@@ -229,12 +229,15 @@ ai-accept-enhancement:
 ai-complete-enhancement:
 	curl -s -X POST http://localhost:$(PORT)/complete-enhancement/$(ENHANCEMENT_ID)
 
+# --- Enhancement Listing Targets ---
+
+# API host for enhancement listing (override with API_HOST=... if needed)
+API_HOST ?= localhost
+
+# List all enhancements via the API (pretty-printed with jq)
+# Usage: make -f Makefile.ai ai-list-enhancements [API_HOST=host.docker.internal]
 ai-list-enhancements:
-	@if [ -z "$(STATUS)" ]; then \
-	  curl -s http://localhost:$(PORT)/enhancements | jq '.'; \
-	else \
-	  curl -s http://localhost:$(PORT)/enhancements | jq '.[] | select(.status == "$(STATUS)")'; \
-	fi
+	curl http://$(API_HOST):9103/enhancements | jq
 
 ai-onboarding-health:
 	python scripts/onboarding_health_check.py

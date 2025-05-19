@@ -105,4 +105,24 @@ As a team member, I want to contribute new user stories, rules, and enhancements
 ## How to Use This Guide
 - Follow each day's adventure to build confidence and mastery.
 - Use the breadcrumbs as checklists or quick references.
-- Add your own user stories and adventures as you discover new workflows! 
+- Add your own user stories and adventures as you discover new workflows!
+
+# Onboarding Adventures (Advanced/Experimental)
+
+Welcome to the Onboarding Adventures! This section is for advanced users, power users, and those interested in experimental workflows or integrations.
+
+## Topics Covered
+- Integrating with new AI IDEs
+- Custom automation scripts
+- Advanced Makefile usage
+- Experimental features and workflows
+- CI/CD integration tips
+- Performance tuning and scaling
+
+## How to Use
+- Browse the topics above or add your own adventure!
+- Use this section to document and share advanced onboarding stories with the team.
+
+---
+
+**See also:** [Universal Onboarding](ONBOARDING.md) | [Internal Onboarding](ONBOARDING_INTERNAL.md) | [External Onboarding](ONBOARDING_EXTERNAL.md) 
