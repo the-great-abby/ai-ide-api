@@ -15,12 +15,20 @@
     "setup_automated_testing"
   ],
   "internal_dev": [
+    "read_onboarding_guide",
     "clone_repo",
     "install_dependencies",
     "setup_env",
+    "run_linting",
     "run_tests",
+    "review_coding_standards",
+    "explore_api_docs_and_user_stories",
+    "review_ci_cd_pipeline",
+    "request_service_access",
     "start_services",
-    "submit_first_rule"
+    "submit_first_rule",
+    "make_first_contribution",
+    "review_changelog"
   ],
   "ai_agent": [
     "fetch_rules",
