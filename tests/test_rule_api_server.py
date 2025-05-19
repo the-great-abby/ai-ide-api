@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -362,40 +363,44 @@ def test_changelog_json_endpoint():
     assert len(unreleased["entries"]) > 0
 
 
-def test_rules_multi_category_filter(client):
-    # Add rules with different categories
+def test_rules_multi_category_filter():
+    # Add rules with different categories using proposal/approval flow
+    def propose_and_approve(rule):
+        resp = client.post("/propose-rule-change", json=rule)
+        assert resp.status_code == 200, resp.text
+        proposal_id = resp.json()["id"]
+        approve = client.post(f"/approve-rule-change/{proposal_id}")
+        assert approve.status_code == 200
     rule1 = {
         "rule_type": "automation",
         "description": "Rule for automation category",
         "diff": "# Rule: Automation\n## Description\nAutomation rule\n## Enforcement\n...",
-        "status": "approved",
         "submitted_by": "tester",
-        "categories": "automation",
-        "tags": "test"
+        "categories": ["automation"],
+        "tags": ["test"],
+        "user_story": "As a user, I want automation rules."
     }
     rule2 = {
         "rule_type": "search",
         "description": "Rule for search category",
         "diff": "# Rule: Search\n## Description\nSearch rule\n## Enforcement\n...",
-        "status": "approved",
         "submitted_by": "tester",
-        "categories": "search",
-        "tags": "test"
+        "categories": ["search"],
+        "tags": ["test"],
+        "user_story": "As a user, I want search rules."
     }
     rule3 = {
         "rule_type": "other",
         "description": "Rule for other category",
         "diff": "# Rule: Other\n## Description\nOther rule\n## Enforcement\n...",
-        "status": "approved",
         "submitted_by": "tester",
-        "categories": "other",
-        "tags": "test"
+        "categories": ["other"],
+        "tags": ["test"],
+        "user_story": "As a user, I want other rules."
     }
-    # Add rules via direct DB or API (assuming test client can do so)
-    client.post("/rules", json=rule1)
-    client.post("/rules", json=rule2)
-    client.post("/rules", json=rule3)
-
+    propose_and_approve(rule1)
+    propose_and_approve(rule2)
+    propose_and_approve(rule3)
     # Test multi-category filter
     response = client.get("/rules?category=automation,search")
     assert response.status_code == 200
@@ -404,3 +409,111 @@ def test_rules_multi_category_filter(client):
     assert "automation" in rule_types
     assert "search" in rule_types
     assert "other" not in rule_types
+
+
+def test_memory_graph_node_crud():
+    # Create a memory node (embedding is now generated server-side)
+    node_payload = {
+        "namespace": "testns",
+        "content": "Test memory node",
+        "meta": "{\"tags\":[\"test\"]}"
+    }
+    node_resp = client.post("/memory/nodes", json=node_payload)
+    assert node_resp.status_code == 200
+    node = node_resp.json()
+    assert node["namespace"] == "testns"
+    assert node["content"] == "Test memory node"
+    assert isinstance(node["embedding"], list)
+    assert node["meta"] == node_payload["meta"]
+
+    # List memory nodes
+    list_resp = client.get("/memory/nodes")
+    assert list_resp.status_code == 200
+    nodes = list_resp.json()
+    assert any(n["id"] == node["id"] for n in nodes)
+
+
+def test_memory_graph_edge_crud_and_traversal():
+    # Create two nodes (embedding is now generated server-side)
+    node1 = client.post("/memory/nodes", json={
+        "namespace": "testns",
+        "content": "Node 1",
+        "meta": "{}"
+    }).json()
+    node2 = client.post("/memory/nodes", json={
+        "namespace": "testns",
+        "content": "Node 2",
+        "meta": "{}"
+    }).json()
+    # Create an edge from node1 to node2
+    edge_payload = {
+        "from_id": node1["id"],
+        "to_id": node2["id"],
+        "relation_type": "test_link",
+        "meta": "{\"note\":\"test edge\"}"
+    }
+    edge_resp = client.post("/memory/edges", json=edge_payload)
+    assert edge_resp.status_code == 200
+    edge = edge_resp.json()
+    assert edge["from_id"] == node1["id"]
+    assert edge["to_id"] == node2["id"]
+    assert edge["relation_type"] == "test_link"
+
+    # List all edges
+    all_edges = client.get("/memory/edges").json()
+    assert any(e["id"] == edge["id"] for e in all_edges)
+
+    # Filter edges by from_id
+    from_edges = client.get(f"/memory/edges?from_id={node1['id']}").json()
+    assert any(e["to_id"] == node2["id"] for e in from_edges)
+
+    # Filter edges by to_id
+    to_edges = client.get(f"/memory/edges?to_id={node2['id']}").json()
+    assert any(e["from_id"] == node1["id"] for e in to_edges)
+
+    # Filter edges by relation_type
+    rel_edges = client.get(f"/memory/edges?relation_type=test_link").json()
+    assert any(e["from_id"] == node1["id"] and e["to_id"] == node2["id"] for e in rel_edges)
+
+    # Traverse: get all nodes reachable from node1 (single hop)
+    to_ids = [e["to_id"] for e in from_edges]
+    assert node2["id"] in to_ids
+
+
+def test_memory_graph_vector_search():
+    # Use a unique namespace for this test run
+    ns = f"searchns-{uuid.uuid4()}"
+    # Clean up: delete all nodes in this namespace if possible
+    del_resp = client.delete("/memory/nodes", params={"namespace": ns})
+    if del_resp.status_code != 200:
+        print(f"[WARN] Could not delete nodes in namespace '{ns}'. Status:", del_resp.status_code)
+    # Print all nodes in this namespace before
+    before_nodes = client.get("/memory/nodes").json()
+    print(f"Nodes in '{ns}' BEFORE:", [n['id'] for n in before_nodes if n['namespace'] == ns])
+    # Create a node (embedding is now generated server-side)
+    node = client.post("/memory/nodes", json={
+        "namespace": ns,
+        "content": "Searchable node",
+        "meta": "{}"
+    }).json()
+    print("Created node:", node)
+    # Print all nodes in this namespace after
+    after_nodes = client.get("/memory/nodes").json()
+    print(f"Nodes in '{ns}' AFTER:", [n['id'] for n in after_nodes if n['namespace'] == ns])
+    # Search for similar nodes: send text in request body
+    search_payload = {"text": "Searchable node", "namespace": ns, "limit": 3}
+    search_resp = client.post("/memory/nodes/search", json=search_payload)
+    print("Search response status:", search_resp.status_code)
+    print("Search response JSON:", search_resp.json())
+    results = search_resp.json()
+    print("Result IDs:", [n.get("id") for n in results])
+    print("Result namespaces:", [n.get("namespace") for n in results])
+    assert any(n["id"] == node["id"] for n in results)
+    # Advanced: search by embedding
+    emb = node["embedding"]
+    search_payload_emb = {"embedding": emb, "namespace": ns, "limit": 3}
+    search_resp_emb = client.post("/memory/nodes/search", json=search_payload_emb)
+    print("Embedding search response status:", search_resp_emb.status_code)
+    print("Embedding search response JSON:", search_resp_emb.json())
+    results_emb = search_resp_emb.json()
+    assert any(n["id"] == node["id"] for n in results_emb)

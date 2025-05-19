@@ -21,12 +21,15 @@ def validate_rule(rule):
             errors.append(f"Field '{field}' must be a non-empty string")
     # Check MDC formatting in 'diff'
     diff = rule.get("diff", "")
-    if not diff.startswith("# Rule:"):
-        errors.append("'diff' should start with '# Rule:' (MDC format)")
-    if "## Description" not in diff:
-        errors.append("'diff' should contain '## Description' section (MDC format)")
-    if "## Enforcement" not in diff:
-        errors.append("'diff' should contain '## Enforcement' section (MDC format)")
+    if not isinstance(diff, str) or not diff.strip():
+        errors.append("'diff' must be a non-empty string")
+    else:
+        if not diff.startswith("# Rule:"):
+            errors.append("'diff' should start with '# Rule:' (MDC format)")
+        if "## Description" not in diff:
+            errors.append("'diff' should contain '## Description' section (MDC format)")
+        if "## Enforcement" not in diff:
+            errors.append("'diff' should contain '## Enforcement' section (MDC format)")
     return errors
 
 

@@ -27,6 +27,7 @@ from db import SessionLocal, StatusEnum, init_db
 from rule_proposal_feedback import FeedbackType, RuleProposalFeedback
 from db import MemorySessionLocal, MemoryVector, MemoryEdge, init_memorydb
 from db import ApiErrorLog, ApiAccessToken
+from db import UseCase
 
 app = FastAPI(title="Rule Proposal API")
 
@@ -196,7 +197,9 @@ def list_to_str(lst):
 
 
 def str_to_list(s):
-    return [x for x in (s or "").split(",") if x]
+    if not s:
+        return []
+    return [x.strip() for x in s.split(",") if x.strip()]
 
 
 # Dependency to get DB session
@@ -906,9 +909,12 @@ def update_enhancement(enhancement_id: str, update: EnhancementUpdate, db: Sessi
 # --- Memory Graph API ---
 
 class MemoryNodeCreate(BaseModel):
+    """
+    Request model for creating a memory node.
+    NOTE: The 'embedding' field is NOT accepted in the request body. Embedding is always generated server-side from the 'content' field.
+    """
     namespace: str
     content: str
-    embedding: List[float]
     meta: Optional[str] = None
 
 class MemoryNodeOut(BaseModel):
@@ -933,41 +939,56 @@ class MemoryEdgeOut(BaseModel):
     meta: Optional[str] = None
     created_at: datetime
 
-@app.on_event("startup")
-def startup_memorydb():
-    init_memorydb()
+# Helper to generate embedding using Ollama
+OLLAMA_EMBEDDING_URL = "http://host.docker.internal:11434/api/embeddings"
+OLLAMA_EMBEDDING_MODEL = "nomic-embed-text:latest"
+
+def get_embedding_ollama(text: str) -> List[float]:
+    response = requests.post(
+        OLLAMA_EMBEDDING_URL,
+        json={"model": OLLAMA_EMBEDDING_MODEL, "prompt": text}
+    )
+    response.raise_for_status()
+    return response.json()["embedding"]
 
 @app.post("/memory/nodes", response_model=MemoryNodeOut)
 def create_memory_node(node: MemoryNodeCreate):
-    # --- Input validation for embedding length ---
-    if not isinstance(node.embedding, list) or len(node.embedding) != 1536:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail=f"Embedding must be a list of exactly 1536 floats (got {len(node.embedding)}).")
-    session = MemorySessionLocal()
-    db_node = MemoryVector(
-        namespace=node.namespace,
-        content=node.content,
-        embedding=node.embedding,
-        meta=node.meta,
-    )
-    session.add(db_node)
-    session.commit()
-    session.refresh(db_node)
-    # --- Patch: ensure embedding is a list ---
-    embedding = db_node.embedding
-    if isinstance(embedding, str):
-        import ast
-        embedding = ast.literal_eval(embedding)
-    result = {
-        "id": db_node.id,
-        "namespace": db_node.namespace,
-        "content": db_node.content,
-        "embedding": embedding,
-        "meta": db_node.meta,
-        "created_at": db_node.created_at,
-    }
-    session.close()
-    return result
+    """
+    Create a new memory node. The 'embedding' is always generated server-side from the 'content' field. Do NOT provide 'embedding' in the request body.
+    """
+    try:
+        # Generate embedding from content
+        embedding = get_embedding_ollama(node.content)
+        session = MemorySessionLocal()
+        db_node = MemoryVector(
+            namespace=node.namespace,
+            content=node.content,
+            embedding=embedding,
+            meta=node.meta,
+        )
+        session.add(db_node)
+        session.commit()
+        session.refresh(db_node)
+        # --- Patch: ensure embedding is a list ---
+        embedding = db_node.embedding
+        if isinstance(embedding, str):
+            import ast
+            embedding = ast.literal_eval(embedding)
+        result = {
+            "id": db_node.id,
+            "namespace": db_node.namespace,
+            "content": db_node.content,
+            "embedding": embedding,
+            "meta": db_node.meta,
+            "created_at": db_node.created_at,
+        }
+        session.close()
+        return result
+    except Exception as exc:
+        import traceback
+        logger.error("[ERROR] Exception in /memory/nodes: %s", exc)
+        logger.error(traceback.format_exc())
+        raise
 
 @app.get("/memory/nodes", response_model=List[MemoryNodeOut])
 def list_memory_nodes(namespace: Optional[str] = None):
@@ -1023,22 +1044,44 @@ def list_memory_edges(from_id: Optional[str] = None, to_id: Optional[str] = None
     return edges
 
 from sqlalchemy import text
+
+class MemoryNodeSearchRequest(BaseModel):
+    """
+    Request model for searching memory nodes by similarity.
+    Provide either 'text' (preferred) or 'embedding'.
+    If 'text' is provided, the server will generate the embedding.
+    If 'embedding' is provided, it will be used directly.
+    """
+    text: Optional[str] = None
+    embedding: Optional[List[float]] = None
+    namespace: Optional[str] = None
+    limit: int = 5
+
 @app.post("/memory/nodes/search", response_model=List[MemoryNodeOut])
-def search_memory_nodes(embedding: List[float], namespace: Optional[str] = None, limit: int = 5):
+def search_memory_nodes(request: MemoryNodeSearchRequest):
+    """
+    Search for similar memory nodes. Provide either 'text' (preferred) or 'embedding'.
+    If 'text' is provided, the server will generate the embedding.
+    If 'embedding' is provided, it will be used directly.
+    """
+    if not request.text and not request.embedding:
+        raise HTTPException(status_code=400, detail="Must provide either 'text' or 'embedding' for search.")
+    if request.text:
+        embedding = get_embedding_ollama(request.text)
+    else:
+        embedding = request.embedding
     session = MemorySessionLocal()
     sql = "SELECT * FROM memory_vectors"
-    if namespace:
+    if request.namespace:
         sql += " WHERE namespace = :namespace"
     sql += " ORDER BY embedding <=> CAST(:query_vec AS vector) LIMIT :limit"
-    params = {"query_vec": embedding, "limit": limit}
-    if namespace:
-        params["namespace"] = namespace
+    params = {"query_vec": embedding, "limit": request.limit}
+    if request.namespace:
+        params["namespace"] = request.namespace
     results = session.execute(text(sql), params)
     ids = [row[0] for row in results]
-    # Fetch full objects
     nodes = session.query(MemoryVector).filter(MemoryVector.id.in_(ids)).all()
     session.close()
-    # Patch: ensure embedding is a list for each node
     result = []
     for db_node in nodes:
         embedding = db_node.embedding
@@ -1055,6 +1098,17 @@ def search_memory_nodes(embedding: List[float], namespace: Optional[str] = None,
         })
     return result
 
+@app.delete("/memory/nodes")
+def delete_memory_nodes(namespace: Optional[str] = None):
+    session = MemorySessionLocal()
+    q = session.query(MemoryVector)
+    if namespace:
+        q = q.filter(MemoryVector.namespace == namespace)
+    count = q.delete(synchronize_session=False)
+    session.commit()
+    session.close()
+    return {"deleted": count, "namespace": namespace}
+
 # --- Error logging middleware ---
 @app.middleware("http")
 async def error_logging_middleware(request: Request, call_next):
@@ -1064,6 +1118,7 @@ async def error_logging_middleware(request: Request, call_next):
         import traceback
         error_id = str(uuid.uuid4())
         stack = traceback.format_exc()
+        logger.error(f"[ERROR] Middleware caught exception: {exc}\n{stack}")
         # Log to DB
         db = SessionLocal()
         try:
@@ -1099,14 +1154,22 @@ def require_api_token(authorization: str = Header(...), db: Session = Depends(ge
         raise HTTPException(status_code=401, detail="Invalid or inactive token")
     return db_token
 
+def require_role(roles):
+    def dependency(authorization: str = Header(...), db: Session = Depends(get_db)):
+        token_obj = require_api_token(authorization, db)
+        if token_obj.role not in roles:
+            raise HTTPException(status_code=403, detail="Insufficient role")
+        return token_obj
+    return dependency
+
 # --- Endpoint: Generate API Token ---
 @app.post("/admin/generate-token")
-def generate_token(description: str = "", created_by: str = None, db: Session = Depends(get_db)):
+def generate_token(description: str = "", created_by: str = None, role: str = "admin", db: Session = Depends(get_db)):
     token = secrets.token_urlsafe(32)
-    db_token = ApiAccessToken(token=token, description=description, created_by=created_by, active=1)
+    db_token = ApiAccessToken(token=token, description=description, created_by=created_by, active=1, role=role)
     db.add(db_token)
     db.commit()
-    return {"token": token, "description": description}
+    return {"token": token, "description": description, "role": role}
 
 # --- Endpoint: Lookup Error Log by ID (token protected) ---
 @app.get("/admin/errors/{error_id}")
@@ -1159,3 +1222,110 @@ async def custom_validation_exception_handler(request: Request, exc: RequestVali
             "error_id": error_id
         },
     )
+
+class ExampleWorkflowItem(BaseModel):
+    endpoint: str
+    method: str
+    payload: Optional[dict] = None
+
+class UseCaseModel(BaseModel):
+    title: str
+    description: str
+    example_workflow: List[ExampleWorkflowItem]
+    tags: Optional[List[str]] = []
+    categories: Optional[List[str]] = []
+    submitted_by: Optional[str] = None
+    source: Optional[str] = None
+
+class UseCaseOut(UseCaseModel):
+    id: str
+    status: str
+    timestamp: str
+
+@app.get("/use-cases", response_model=List[UseCaseOut])
+def list_use_cases(db: Session = Depends(get_db)):
+    use_cases = db.query(UseCase).filter(UseCase.status == "approved").order_by(UseCase.timestamp.desc()).all()
+    result = []
+    for uc in use_cases:
+        data = uc.__dict__.copy()
+        data.pop("_sa_instance_state", None)
+        data["tags"] = str_to_list(data.get("tags", ""))
+        data["categories"] = str_to_list(data.get("categories", ""))
+        if isinstance(data.get("timestamp"), datetime):
+            data["timestamp"] = data["timestamp"].isoformat()
+        result.append(data)
+    return result
+
+@app.post("/use-cases", response_model=UseCaseOut)
+def submit_use_case(use_case: UseCaseModel, db: Session = Depends(get_db)):
+    db_uc = UseCase(
+        id=str(uuid.uuid4()),
+        title=use_case.title,
+        description=use_case.description,
+        example_workflow=[ew.dict() for ew in use_case.example_workflow],
+        tags=list_to_str(use_case.tags),
+        categories=list_to_str(use_case.categories),
+        submitted_by=use_case.submitted_by,
+        status="pending",
+        source=use_case.source,
+    )
+    db.add(db_uc)
+    db.commit()
+    db.refresh(db_uc)
+    data = db_uc.__dict__.copy()
+    data.pop("_sa_instance_state", None)
+    data["tags"] = str_to_list(data.get("tags", ""))
+    data["categories"] = str_to_list(data.get("categories", ""))
+    if isinstance(data.get("timestamp"), datetime):
+        data["timestamp"] = data["timestamp"].isoformat()
+    return data
+
+@app.get("/use-cases/pending", response_model=List[UseCaseOut])
+def list_pending_use_cases(db: Session = Depends(get_db)):
+    use_cases = db.query(UseCase).filter(UseCase.status == "pending").order_by(UseCase.timestamp.desc()).all()
+    result = []
+    for uc in use_cases:
+        data = uc.__dict__.copy()
+        data.pop("_sa_instance_state", None)
+        data["tags"] = str_to_list(data.get("tags", ""))
+        data["categories"] = str_to_list(data.get("categories", ""))
+        if isinstance(data.get("timestamp"), datetime):
+            data["timestamp"] = data["timestamp"].isoformat()
+        result.append(data)
+    return result
+
+@app.post("/use-cases/{use_case_id}/approve", response_model=UseCaseOut)
+def approve_use_case(use_case_id: str, db: Session = Depends(get_db), auth=Depends(require_role(["admin", "moderator"]))):
+    uc = db.query(UseCase).filter(UseCase.id == use_case_id).first()
+    if not uc:
+        raise HTTPException(status_code=404, detail="Use-case not found.")
+    if uc.status == "approved":
+        raise HTTPException(status_code=400, detail="Use-case already approved.")
+    uc.status = "approved"
+    db.commit()
+    db.refresh(uc)
+    data = uc.__dict__.copy()
+    data.pop("_sa_instance_state", None)
+    data["tags"] = str_to_list(data.get("tags", ""))
+    data["categories"] = str_to_list(data.get("categories", ""))
+    if isinstance(data.get("timestamp"), datetime):
+        data["timestamp"] = data["timestamp"].isoformat()
+    return data
+
+@app.post("/use-cases/{use_case_id}/reject", response_model=UseCaseOut)
+def reject_use_case(use_case_id: str, db: Session = Depends(get_db), auth=Depends(require_role(["admin", "moderator"]))):
+    uc = db.query(UseCase).filter(UseCase.id == use_case_id).first()
+    if not uc:
+        raise HTTPException(status_code=404, detail="Use-case not found.")
+    if uc.status == "rejected":
+        raise HTTPException(status_code=400, detail="Use-case already rejected.")
+    uc.status = "rejected"
+    db.commit()
+    db.refresh(uc)
+    data = uc.__dict__.copy()
+    data.pop("_sa_instance_state", None)
+    data["tags"] = str_to_list(data.get("tags", ""))
+    data["categories"] = str_to_list(data.get("categories", ""))
+    if isinstance(data.get("timestamp"), datetime):
+        data["timestamp"] = data["timestamp"].isoformat()
+    return data

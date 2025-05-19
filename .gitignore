@@ -3,3 +3,6 @@ __pycache__
 sqlite_export
 tests/__pycache__
 rules.db*
+backups/*
+scripts/__pycache__
+.ai_assistant_admin_token

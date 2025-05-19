@@ -1,5 +1,7 @@
 # User Story: SQLAlchemy Limitations with AI Memory Vector Store
 
+> **Note (2025-05-18):** Embedding is now always generated server-side. Test code and API clients should NOT provide embedding; the backend handles it automatically.
+
 ## Motivation
 As a developer, I want to understand the limitations and tradeoffs of using SQLAlchemy with custom Postgres types (like pgvector) for AI memory and vector search, so I can make informed decisions about when to use the ORM and when to switch to raw SQL or a lower-level driver.
 

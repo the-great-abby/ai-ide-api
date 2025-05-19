@@ -5,7 +5,8 @@ WORKDIR /app
 COPY . /app
 
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
 
 # EXPOSE 8000 is for internal container use; 9103 is mapped as the standard dev port in docker-compose
 EXPOSE 8000

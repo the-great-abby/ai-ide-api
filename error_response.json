@@ -1,1 +1,1 @@
-{"detail":"Embedding must be a list of exactly 1536 floats (got 3)."}
+{"detail":"Embedding must be a list of exactly 768 floats (got 3)."}

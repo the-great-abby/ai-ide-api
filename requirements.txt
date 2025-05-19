@@ -10,3 +10,4 @@ alembic
 python-dateutil 
 psycopg2-binary 
 requests 
+numpy 

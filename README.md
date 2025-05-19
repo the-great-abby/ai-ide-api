@@ -1,3 +1,15 @@
+# Backup Merge Automation
+
+For robust, repeatable merging of multiple Postgres backup SQL files into your live database, this project provides:
+- A smart merge script (`smart_merge_backup.py`)
+- Makefile.ai targets for single and batch merges (with Docker Compose integration)
+- A documented workflow and best practices
+
+**See the full user story and step-by-step guide:**
+[docs/user_stories/merge_backups_with_smart_script.md](docs/user_stories/merge_backups_with_smart_script.md)
+
+---
+
 ## Recent Enhancements
 
 ### Rule Proposal Feedback Loop

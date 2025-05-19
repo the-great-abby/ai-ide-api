@@ -75,16 +75,23 @@ services:
       - ./docker/initdb:/docker-entrypoint-initdb.d
 
   misc-scripts:
-    image: python:3.11
+    build:
+      context: .
+      dockerfile: Dockerfile.misc-scripts
     volumes:
       - ./misc_scripts:/scripts
       - ./.cursor/rules:/app/.cursor/rules
       - ./ai_ide_rules:/app/ai_ide_rules
+      - .:/code
     working_dir: /scripts
     depends_on:
       - api
     environment:
       - RUNNING_IN_DOCKER=1
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGHOST=db-test
+      - PGPORT=5432
     command: tail -f /dev/null
 
   ollama-functions:
@@ -98,6 +105,8 @@ services:
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}
     depends_on:
       - api
+    volumes:
+      - .:/code
 
 volumes:
   rules_postgres_data: 

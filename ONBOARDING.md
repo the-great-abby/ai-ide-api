@@ -473,4 +473,14 @@ See `Makefile.ai` for the full list and usage examples.
 - **Frontend port:** `3000` (or as set by `ADMIN_FRONTEND_PORT`)
 - Always use Docker service names and internal ports for all connections.
 
+---
+
+## 🛡️ Backup/Restore Disaster Recovery Test Workflow
+
+For the full, AI-friendly backup/restore and disaster recovery workflow—including automated test phases and host-side restore scripts—see:
+
+- [docs/user_stories/backup_and_restore.md](docs/user_stories/backup_and_restore.md)
+
+This user story is the canonical, up-to-date reference for all backup, restore, and disaster recovery operations in this project.
+
 --- 

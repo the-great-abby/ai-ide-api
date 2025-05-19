@@ -165,6 +165,34 @@ ai-rebuild-all: preflight-check
 ai-import-backup:
 	docker compose exec api python import_from_backup.py
 
+#
+# ai-enable-fdw: Enable the postgres_fdw extension in both memorydb and rulesdb databases.
+# Usage:
+#   make -f Makefile.ai ai-enable-fdw
+#
+ai-enable-fdw:
+	docker compose exec db-test psql -U postgres -d memorydb -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
+	docker compose exec db-test psql -U postgres -d rulesdb -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
+
+#
+# ai-smart-merge-backup: Merge a backup SQL file into the live database using the smart_merge_backup.py script.
+# Usage:
+#   make -f Makefile.ai ai-smart-merge-backup BACKUP=/path/to/backup.sql
+#
+ai-smart-merge-backup: ai-enable-fdw ai-misc-install
+	python3 smart_merge_backup.py $(BACKUP)
+
+#
+# ai-smart-merge-all-backups: Merge all backup SQL files in the backups directory using the smart_merge_backup.py script in misc-scripts
+# Usage:
+#   make -f Makefile.ai ai-smart-merge-all-backups
+#
+ai-smart-merge-all-backups: ai-enable-fdw ai-misc-install
+	@for f in backups/*.sql; do \
+		echo "Merging $$f ..."; \
+		docker compose exec misc-scripts python3 /code/smart_merge_backup.py /code/$$f || exit 1; \
+	done
+
 ai-bug-report:
 	curl -s -X POST http://localhost:$(PORT)/bug-report \
 	  -H 'Content-Type: application/json' \
@@ -434,7 +462,7 @@ ai-docker-gateway-ip:
 # Usage: make -f Makefile.ai ai-ollama-serve-docker-gateway
 # (You may want to run this in a separate terminal)
 ai-ollama-serve-docker-gateway:
-	@echo "Starting Ollama on 0.0.0.0:11434..."
+	@echo "Starting Ollama with OLLAMA_HOST=0.0.0.0..."
 	OLLAMA_HOST=0.0.0.0 ollama serve
 
 # Note: If you use the gateway IP, set OLLAMA_URL to http://<gateway-ip>:11434/api/generate for ai-run-ollama-functions-service
@@ -559,7 +587,7 @@ ai-ollama-functions-logs:
 # Create a new Alembic migration with autogeneration
 # Usage: make -f Makefile.ai ai-db-migration-new NAME=add_some_feature
 ai-db-migration-new:
-	alembic revision --autogenerate -m "$(NAME)"
+	docker compose exec api alembic revision --autogenerate -m "$(NAME)"
 
 # Restart the frontend container without rebuilding
 ai-admin-frontend-restart:
@@ -690,3 +718,81 @@ ai-memory-export-dot:
 # make -f Makefile.ai ai-memory-traverse-multi-hop NODE_ID=...
 # make -f Makefile.ai ai-memory-traverse-by-relation NODE_ID=... REL_TYPE=...
 # make -f Makefile.ai ai-memory-export-dot
+
+ai-memory-delete-nodes:
+	@if [ -z "$(NAMESPACE)" ]; then \
+	  echo 'Deleting ALL memory nodes!'; \
+	  curl -X DELETE http://localhost:9103/memory/nodes; \
+	else \
+	  echo 'Deleting memory nodes in namespace: $(NAMESPACE)'; \
+	  curl -X DELETE "http://localhost:9103/memory/nodes?namespace=$(NAMESPACE)"; \
+	fi
+# Usage:
+# make -f Makefile.ai ai-memory-delete-nodes NAMESPACE=testns
+# make -f Makefile.ai ai-memory-delete-nodes   # (deletes ALL nodes)
+
+# Note: Alembic migrations are executed in the API container (not the test container).
+# Run the backup/restore end-to-end test (destructive!)
+ai-test-backup-restore:
+	$(MAKE) -f Makefile.ai ai-up
+	$(MAKE) -f Makefile.ai ai-api-wait
+	docker-compose run --rm -e RUN_BACKUP_RESTORE_TEST=1 -e API_URL=http://api:8000 test pytest tests/test_backup_restore.py -x -s
+# Usage:
+# make -f Makefile.ai ai-test-backup-restore
+
+ai-test-unit:
+	docker-compose run --rm test pytest tests/unit/ --disable-warnings --tb=short
+
+ai-scan-memory-nodes:
+	docker compose run --rm ollama-functions python /code/scripts/scan_for_memory_node_opportunities.py
+
+ai-stop-ollama-functions:
+	docker compose stop ollama-functions
+
+ai-down-ollama-functions:
+	docker compose rm -sf ollama-functions
+
+ai-test-coverage:
+	docker-compose run --rm test pytest --cov=. --cov-report=term-missing --cov-report=html tests/
+
+ai-test-integration:
+	docker-compose run --rm test pytest tests/integration $(PYTEST_ARGS)
+
+ai-memorydb-migrate:
+	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
+
+# Search memory nodes by text (preferred)
+ai-memory-search-text:
+	curl -X POST http://localhost:9103/memory/nodes/search \
+	  -H "Content-Type: application/json" \
+	  -d '{"text": "$(TEXT)", "namespace": "$(NAMESPACE)", "limit": $(LIMIT)}'
+
+# Search memory nodes by embedding (advanced)
+ai-memory-search-embedding:
+	curl -X POST http://localhost:9103/memory/nodes/search \
+	  -H "Content-Type: application/json" \
+	  -d '{"embedding": $(EMBEDDING), "namespace": "$(NAMESPACE)", "limit": $(LIMIT)}'
+
+# Usage:
+# make -f Makefile.ai ai-memory-search-text TEXT="Find similar ideas about AI memory." NAMESPACE=notes LIMIT=5
+# make -f Makefile.ai ai-memory-search-embedding EMBEDDING="[0.1,0.2,...]" NAMESPACE=notes LIMIT=5
+
+#
+# ai-search-user-stories: Search user stories in docs/user_stories/ for a keyword.
+# Usage:
+#   make -f Makefile.ai ai-search-user-stories KEYWORD=merge
+#
+ai-search-user-stories:
+	python3 scripts/search_user_stories.py $(KEYWORD)
+
+#
+# ai-fdw-setup-script: Run the FDW setup steps for a given temp DB and target DB (for troubleshooting and reference).
+# Usage:
+#   make -f Makefile.ai ai-fdw-setup-script TEMP_DB=temp_restore_db_xxxx TARGET_DB=memorydb
+#
+ai-fdw-setup-script:
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "DROP SERVER IF EXISTS temp_restore_server CASCADE;"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE SERVER temp_restore_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host='db-test', dbname='$(TEMP_DB)', port='5432');"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE USER MAPPING FOR CURRENT_USER SERVER temp_restore_server OPTIONS (user='postgres');"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "IMPORT FOREIGN SCHEMA public FROM SERVER temp_restore_server INTO temp_schema;"

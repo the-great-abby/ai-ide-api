@@ -1,3 +1,4 @@
 requests
 pyyaml
-tqdm 
+tqdm
+psycopg2-binary 

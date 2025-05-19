@@ -53,6 +53,10 @@ Welcome! This document is your comprehensive onboarding guide for integrating an
 > 
 > The memory graph API now guarantees that all `embedding` fields are returned as proper lists (not strings), regardless of how they are stored in the database. This resolves previous FastAPI validation errors and ensures compatibility with all AI IDE clients. If you previously encountered issues with embedding serialization, update your client to expect a list. See the user story [`docs/user_stories/ai_memory_vector_sqlalchemy_limitations.md`](docs/user_stories/ai_memory_vector_sqlalchemy_limitations.md) for background and [`rule_api_server.py`](rule_api_server.py) for the backend patch.
 
+> **Integration Note (2025-05-18):**
+> 
+> The memory graph API now generates all `embedding` fields server-side. Do NOT provide `embedding` in POST /memory/nodes requests; the backend will generate and return the embedding automatically. If you previously provided `embedding` in your payloads, update your client to omit it.
+
 **New Feature!** The AI-IDE API now supports a powerful memory graph API for storing, relating, and searching ideas, notes, and code snippets using semantic embeddings and explicit relationships.
 
 - **What is it?**
@@ -74,8 +78,7 @@ Welcome! This document is your comprehensive onboarding guide for integrating an
       -d '{
         "namespace": "notes",
         "content": "This is an idea about AI memory.",
-        "embedding": [0.1, 0.2, 0.3, 0.4, 0.5],
-        "metadata": "{\"tags\": [\"ai\", \"memory\"]}"
+        "meta": "{\"tags\": [\"ai\", \"memory\"]}"
       }'
     ```
   - List all nodes:
@@ -639,7 +642,7 @@ The following scripts help you interact with the memory graph API for onboarding
 ```bash
 curl -X POST http://localhost:9103/memory/nodes \
   -H "Content-Type: application/json" \
-  -d '{"namespace": "notes", "content": "Example node", "embedding": [0.0, ...], "meta": "{\"tags\": [\"example\"]}"}'
+  -d '{"namespace": "notes", "content": "Example node", "meta": "{\"tags\": [\"example\"]}"}'
 ```
 
 ### Add an edge

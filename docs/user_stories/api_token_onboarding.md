@@ -45,4 +45,28 @@ To enable secure, individualized access for other AI IDEs and client systems, we
 
 ## References
 - See also: `api_access_tokens` and `api_error_logs` models in `db.py`
-- Error logging middleware and endpoints in `rule_api_server.py` 
+- Error logging middleware and endpoints in `rule_api_server.py`
+
+## Role-Based Access Control (RBAC)
+
+- When generating a token, you can now specify a `role` (e.g., `admin`, `moderator`, `user`).
+- Example:
+  ```bash
+  curl -X POST http://localhost:9103/admin/generate-token \
+    -d "description=AI IDE integration" \
+    -d "created_by=ai-ide-x" \
+    -d "role=moderator"
+  # Response:
+  # { "token": "...", "description": "AI IDE integration", "role": "moderator" }
+  ```
+- The default role is `admin` if not specified.
+- Certain endpoints (such as use-case moderation) require `admin` or `moderator` roles.
+- If you attempt to access a protected endpoint with insufficient role, you will receive a 403 error.
+
+## Example: Moderation Endpoint Access
+
+- Only tokens with `admin` or `moderator` roles can approve or reject use-cases:
+  ```bash
+  curl -X POST http://localhost:9103/use-cases/<id>/approve \
+    -H "Authorization: Bearer <moderator-or-admin-token>"
+  ``` 

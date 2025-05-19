@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy import Float
 from sqlalchemy import text
 from sqlalchemy.types import UserDefinedType
+import sqlalchemy as sa
 
 # SQLite database URL
 POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
@@ -29,7 +30,7 @@ Base = declarative_base()
 # Add support for pgvector
 class Vector(UserDefinedType):
     def get_col_spec(self, **kw):
-        return "vector(1536)"  # Adjust dimension as needed
+        return "vector(768)"  # Adjust dimension as needed
 
 # MemoryDB connection (for vector store)
 MEMORYDB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/memorydb"
@@ -179,6 +180,7 @@ class ApiAccessToken(Base):
     created_by = Column(String, nullable=True)
     description = Column(String, nullable=True)
     active = Column(Integer, default=1)  # 1 = active, 0 = revoked
+    role = Column(String(32), default="admin", nullable=False)  # New: role-based access
 
 
 # Vector store model
@@ -223,6 +225,21 @@ class ProjectMembership(Base):
     # Optionally, add unique constraint on (user_id, project_id) in migration
 
 
+# UseCase model for collaborative use-case submissions
+class UseCase(Base):
+    __tablename__ = "use_cases"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    example_workflow = Column(sa.JSON, nullable=False)
+    tags = Column(String(255), default="")
+    categories = Column(String(255), default="")
+    submitted_by = Column(String(255), nullable=True)
+    status = Column(String(32), default="pending")
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    source = Column(String(255), nullable=True)
+
+
 # Initialize the database and create tables
 def init_db():
     Base.metadata.create_all(bind=engine)
@@ -236,13 +253,13 @@ def init_memorydb():
 # Example usage:
 # from db import MemorySessionLocal, MemoryVector, init_memorydb
 # session = MemorySessionLocal()
-# vector = MemoryVector(namespace="test", reference_id="abc123", embedding=[0.1]*1536, metadata="{}")
+# vector = MemoryVector(namespace="test", reference_id="abc123", embedding=[0.1]*768, metadata="{}")
 # session.add(vector)
 # session.commit()
 # session.close()
 
 # Example vector search (cosine distance):
-# session.execute(text("SELECT *, embedding <=> :query_vec AS distance FROM memory_vectors ORDER BY distance LIMIT 5"), {"query_vec": [0.1]*1536})
+# session.execute(text("SELECT *, embedding <=> :query_vec AS distance FROM memory_vectors ORDER BY distance LIMIT 5"), {"query_vec": [0.1]*768})
 
 # Example usage for edges:
 # from db import MemorySessionLocal, MemoryEdge
