@@ -225,6 +225,18 @@ class ProjectMembership(Base):
     # Optionally, add unique constraint on (user_id, project_id) in migration
 
 
+# --- New: ProjectOnboardingProgress model ---
+class ProjectOnboardingProgress(Base):
+    __tablename__ = "project_onboarding_progress"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(String, nullable=False)
+    path = Column(String, nullable=False)  # New: onboarding process type
+    step = Column(String, nullable=False)
+    completed = Column(sa.Boolean, default=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    details = Column(sa.JSON, nullable=True)
+
+
 # UseCase model for collaborative use-case submissions
 class UseCase(Base):
     __tablename__ = "use_cases"

@@ -28,8 +28,22 @@ from rule_proposal_feedback import FeedbackType, RuleProposalFeedback
 from db import MemorySessionLocal, MemoryVector, MemoryEdge, init_memorydb
 from db import ApiErrorLog, ApiAccessToken
 from db import UseCase
+from db import ProjectOnboardingProgress
+import threading
 
-app = FastAPI(title="Rule Proposal API")
+app = FastAPI(
+    title="Rule Proposal API",
+    description="""
+# Onboarding & User Stories
+
+- [External Project Onboarding](docs/user_stories/external_project_onboarding.md)
+- [Internal Developer Onboarding](docs/user_stories/internal_dev_onboarding.md)
+- [AI Agent Onboarding](docs/user_stories/ai_agent_onboarding.md)
+- [Full User Story Index](docs/user_stories/INDEX.md)
+
+See these user stories for step-by-step onboarding, automation, and best practices for all client types.
+"""
+)
 
 """
 CORS Configuration via Environment Variables:
@@ -64,6 +78,7 @@ app.add_middleware(
 # File paths for storing rules and proposals
 RULES_FILE = "rules.json"
 PROPOSALS_FILE = "proposals.json"
+ONBOARDING_PATHS_FILE = "onboarding_paths.json"
 
 
 # Ensure files exist
@@ -1329,3 +1344,169 @@ def reject_use_case(use_case_id: str, db: Session = Depends(get_db), auth=Depend
     if isinstance(data.get("timestamp"), datetime):
         data["timestamp"] = data["timestamp"].isoformat()
     return data
+
+# --- Onboarding Progress Pydantic Schemas ---
+class OnboardingProgressBase(BaseModel):
+    project_id: str
+    path: str  # New: onboarding process type
+    step: str
+    completed: bool = False
+    details: Optional[dict] = None
+
+class OnboardingProgressCreate(OnboardingProgressBase):
+    pass
+
+class OnboardingProgressUpdate(BaseModel):
+    path: Optional[str] = None  # Allow updating path if needed
+    completed: Optional[bool] = None
+    details: Optional[dict] = None
+
+class OnboardingProgressOut(OnboardingProgressBase):
+    id: str
+    timestamp: datetime
+
+# --- Onboarding Progress Endpoints ---
+@app.get("/onboarding/progress", response_model=List[OnboardingProgressOut])
+def list_onboarding_progress(project_id: Optional[str] = None, path: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(ProjectOnboardingProgress)
+    if project_id:
+        query = query.filter(ProjectOnboardingProgress.project_id == project_id)
+    if path:
+        query = query.filter(ProjectOnboardingProgress.path == path)
+    records = query.all()
+    return [OnboardingProgressOut(
+        id=r.id,
+        project_id=r.project_id,
+        path=r.path,
+        step=r.step,
+        completed=r.completed,
+        timestamp=r.timestamp,
+        details=r.details,
+    ) for r in records]
+
+@app.get("/onboarding/progress/{project_id}", response_model=List[OnboardingProgressOut])
+def get_project_onboarding_progress(project_id: str, path: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.project_id == project_id)
+    if path:
+        query = query.filter(ProjectOnboardingProgress.path == path)
+    records = query.all()
+    return [OnboardingProgressOut(
+        id=r.id,
+        project_id=r.project_id,
+        path=r.path,
+        step=r.step,
+        completed=r.completed,
+        timestamp=r.timestamp,
+        details=r.details,
+    ) for r in records]
+
+@app.post("/onboarding/progress", response_model=OnboardingProgressOut)
+def create_onboarding_progress(progress: OnboardingProgressCreate, db: Session = Depends(get_db)):
+    record = ProjectOnboardingProgress(
+        id=str(uuid.uuid4()),
+        project_id=progress.project_id,
+        path=progress.path,
+        step=progress.step,
+        completed=progress.completed,
+        timestamp=datetime.utcnow(),
+        details=progress.details,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return OnboardingProgressOut(
+        id=record.id,
+        project_id=record.project_id,
+        path=record.path,
+        step=record.step,
+        completed=record.completed,
+        timestamp=record.timestamp,
+        details=record.details,
+    )
+
+@app.patch("/onboarding/progress/{progress_id}", response_model=OnboardingProgressOut)
+def update_onboarding_progress(progress_id: str, update: OnboardingProgressUpdate, db: Session = Depends(get_db)):
+    record = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.id == progress_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Onboarding progress not found.")
+    if update.path is not None:
+        record.path = update.path
+    if update.completed is not None:
+        record.completed = update.completed
+    if update.details is not None:
+        record.details = update.details
+    db.commit()
+    db.refresh(record)
+    return OnboardingProgressOut(
+        id=record.id,
+        project_id=record.project_id,
+        path=record.path,
+        step=record.step,
+        completed=record.completed,
+        timestamp=record.timestamp,
+        details=record.details,
+    )
+
+@app.delete("/onboarding/progress/{progress_id}")
+def delete_onboarding_progress(progress_id: str, db: Session = Depends(get_db)):
+    record = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.id == progress_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Onboarding progress not found.")
+    db.delete(record)
+    db.commit()
+    return {"message": "Onboarding progress deleted."}
+
+@app.post("/onboarding/init", response_model=List[OnboardingProgressOut])
+def init_onboarding(
+    project_id: str = Body(...),
+    path: str = Body(...),
+    steps: Optional[List[str]] = Body(None),
+    db: Session = Depends(get_db),
+):
+    # Load steps from file if not provided
+    if steps is None:
+        try:
+            with open(ONBOARDING_PATHS_FILE) as f:
+                all_paths = json.load(f)
+            steps = all_paths.get(path)
+            if not steps:
+                raise HTTPException(status_code=400, detail=f"No steps found for path '{path}' in onboarding_paths.json")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Could not load onboarding_paths.json: {e}")
+    created = []
+    for step in steps:
+        # Check if already exists
+        existing = db.query(ProjectOnboardingProgress).filter_by(project_id=project_id, path=path, step=step).first()
+        if existing:
+            created.append(OnboardingProgressOut(
+                id=existing.id,
+                project_id=existing.project_id,
+                path=existing.path,
+                step=existing.step,
+                completed=existing.completed,
+                timestamp=existing.timestamp,
+                details=existing.details,
+            ))
+        else:
+            record = ProjectOnboardingProgress(
+                id=str(uuid.uuid4()),
+                project_id=project_id,
+                path=path,
+                step=step,
+                completed=False,
+                timestamp=datetime.utcnow(),
+                details={},
+            )
+            db.add(record)
+            db.commit()
+            db.refresh(record)
+            created.append(OnboardingProgressOut(
+                id=record.id,
+                project_id=record.project_id,
+                path=record.path,
+                step=record.step,
+                completed=record.completed,
+                timestamp=record.timestamp,
+                details=record.details,
+            ))
+    return created

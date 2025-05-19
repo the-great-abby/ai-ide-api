@@ -5,6 +5,20 @@ As a developer, admin, or AI agent, I want a simple, reliable way to list all en
 
 ---
 
+## Suggested Enhancement (Open)
+
+### Expose User Story Search and Listing via API Endpoints
+- **Motivation:** Make user stories (docs/user_stories/*.md) discoverable and searchable via API, not just scripts or docs.
+- **Possible Endpoints:**
+  - `GET /user-stories` — List all user stories (title, description, link)
+  - `GET /user-stories/search?keyword=onboarding` — Search user stories by keyword
+- **Benefits:**
+  - Enables UI, bots, and external clients to discover onboarding and best practices programmatically
+  - Makes onboarding and documentation more accessible and automatable
+- **Status:** Open for future consideration
+
+---
+
 ## Actors
 - Developer
 - Admin
@@ -16,7 +30,7 @@ As a developer, admin, or AI agent, I want a simple, reliable way to list all en
 ## Preconditions
 - The API is running and exposes an `/enhancements` endpoint for listing enhancements.
 - The Makefile.ai can invoke curl or httpie to call the API.
-- (Optional) The frontend or admin UI also lists enhancements for manual review.
+- (Optional) The frontend or admin UI also supports enhancement listing.
 
 ---
 
