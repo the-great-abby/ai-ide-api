@@ -1,0 +1,32 @@
+{
+  "external_project": [
+    "register_project",
+    "obtain_api_token",
+    "configure_api_url",
+    "verify_api_connectivity",
+    "submit_first_rule",
+    "run_onboarding_health_check",
+    "complete_code_review_objective",
+    "setup_webhook_endpoint",
+    "enable_logging_and_monitoring",
+    "review_api_rate_limits",
+    "accept_terms_of_service",
+    "explore_api_docs_and_user_stories",
+    "setup_automated_testing"
+  ],
+  "internal_dev": [
+    "clone_repo",
+    "install_dependencies",
+    "setup_env",
+    "run_tests",
+    "start_services",
+    "submit_first_rule"
+  ],
+  "ai_agent": [
+    "fetch_rules",
+    "sync_rule_index",
+    "submit_test_proposal",
+    "validate_api_token",
+    "report_onboarding_status"
+  ]
+} 

@@ -1,5 +1,5 @@
-import os
 import json
+import os
 
 RULES_FILE = "rules.json"
 OUTPUT_DIR = "rules_mdc"
@@ -21,4 +21,4 @@ for rule in rules:
     filepath = os.path.join(OUTPUT_DIR, filename)
     with open(filepath, "w") as out:
         out.write(mdc_content)
-    print(f"Wrote {filepath}") 
+    print(f"Wrote {filepath}")

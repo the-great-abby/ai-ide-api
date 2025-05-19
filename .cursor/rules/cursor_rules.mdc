@@ -43,6 +43,7 @@ alwaysApply: false
     - [file_paths.mdc](mdc:.cursor/rules/file_paths.mdc) - File organization standards
 
   - **Development**
+    - [ai_augmented_code_review_workflow.mdc](mdc:.cursor/rules/ai_augmented_code_review_workflow.mdc) - AI-augmented code review and rule proposal workflow
     - [test_organization.mdc](mdc:.cursor/rules/test_organization.mdc) - Test code organization
     - [core_business_logic.mdc](mdc:.cursor/rules/core_business_logic.mdc) - Core backend business logic files to prioritize for testing and coverage
     - [terminal.mdc](mdc:.cursor/rules/terminal.mdc) - Terminal operations

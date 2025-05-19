@@ -33,6 +33,8 @@ function App() {
   const [acceptStatus, setAcceptStatus] = useState({});
   const [completingEnh, setCompletingEnh] = useState({});
   const [completeStatus, setCompleteStatus] = useState({});
+  const [warning, setWarning] = useState(null);
+  const [showEnhancementDetails, setShowEnhancementDetails] = useState({});
 
   // Extract unique categories and tags from rules
   const uniqueCategories = Array.from(new Set(rules.flatMap(r => r.categories || []))).filter(Boolean);
@@ -46,22 +48,45 @@ function App() {
   const fetchAll = async (categories = categoryFilter, tags = tagFilter) => {
     setLoading(true);
     setError(null);
+    let proposalsData = null;
+    let rulesData = null;
+    let proposalsError = null;
+    let rulesError = null;
     try {
-      const [proposalsRes, rulesRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/pending-rule-changes`),
-        axios.get(`${API_BASE_URL}/rules`, {
-          params: {
-            category: categories.join(','),
-            tag: tags.join(',')
-          }
-        })
-      ]);
-      setProposals(proposalsRes.data);
-      setRules(rulesRes.data);
+      const proposalsPromise = axios.get(`${API_BASE_URL}/pending-rule-changes`).then(res => res.data).catch(e => { proposalsError = e; return null; });
+      const rulesPromise = axios.get(`${API_BASE_URL}/rules`, {
+        params: {
+          category: categories.join(','),
+          tag: tags.join(',')
+        }
+      }).then(res => res.data).catch(e => { rulesError = e; return null; });
+      [proposalsData, rulesData] = await Promise.all([proposalsPromise, rulesPromise]);
+      if (proposalsData) setProposals(proposalsData);
+      if (rulesData) setRules(rulesData);
+      if (proposalsError && rulesError) {
+        setError('Failed to fetch proposals and rules');
+        console.error('Both proposals and rules fetch failed:', proposalsError, rulesError);
+      } else if (proposalsError || rulesError) {
+        setError(null);
+        setWarning('Some data could not be loaded.');
+        if (proposalsError) console.warn('Failed to fetch proposals:', proposalsError);
+        if (rulesError) console.warn('Failed to fetch rules:', rulesError);
+      } else {
+        setError(null);
+        setWarning(null);
+      }
     } catch (err) {
-      setError('Failed to fetch proposals or rules');
+      setError('Unexpected error fetching proposals or rules');
+      console.error('Unexpected fetchAll error:', err);
     }
     setLoading(false);
+    console.log('fetchAll: fetching proposals and rules', { categories, tags });
+    console.log('fetchAll results:', {
+      proposalsData,
+      rulesData,
+      proposalsError,
+      rulesError
+    });
   };
 
   const fetchEnhancements = async () => {
@@ -221,16 +246,22 @@ function App() {
     setCompletingEnh((prev) => ({ ...prev, [id]: false }));
   };
 
+  const toggleEnhancementDetails = (id) => {
+    setShowEnhancementDetails((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   return (
     <div className="App">
       <h1>Admin Rule Proposals</h1>
-      <button onClick={fetchAll} style={{ marginBottom: 20 }}>Refresh</button>
+      <button onClick={() => fetchAll(categoryFilter, tagFilter)} style={{ marginBottom: 20 }}>Refresh</button>
       {loading ? (
         <p>Loading...</p>
-      ) : error ? (
-        <p style={{ color: 'red' }}>{error}</p>
       ) : (
         <>
+          {/* Show error/warning above tables if present */}
+          {error && <p style={{ color: 'red' }}>{error}</p>}
+          {warning && <p style={{ color: 'orange' }}>{warning}</p>}
+
           <h2>Pending Proposals</h2>
           {proposals.length === 0 ? (
             <p>No pending proposals.</p>
@@ -286,11 +317,29 @@ function App() {
                     <tr>
                       <td colSpan={5} style={{ background: '#f9f9f9', textAlign: 'left' }}>
                         <strong>Full Proposal:</strong>
-                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify(p, null, 2)}</pre>
+                        <pre style={{
+                          background: '#f5f5f5',
+                          color: '#222',
+                          padding: 8,
+                          borderRadius: 4,
+                          fontSize: '1em',
+                          overflowX: 'auto',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word'
+                        }}>{JSON.stringify(p, null, 2)}</pre>
                         {p.diff && (
                           <>
                             <strong>Diff:</strong>
-                            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#eee', padding: 8 }}>{p.diff}</pre>
+                            <pre style={{
+                              background: '#f5f5f5',
+                              color: '#222',
+                              padding: 8,
+                              borderRadius: 4,
+                              fontSize: '1em',
+                              overflowX: 'auto',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word'
+                            }}>{p.diff}</pre>
                           </>
                         )}
                       </td>
@@ -356,6 +405,7 @@ function App() {
                   <th>ID</th>
                   <th>Type</th>
                   <th>Description</th>
+                  <th>User Story</th>
                   <th>Added By</th>
                   <th>Actions</th>
                 </tr>
@@ -367,6 +417,7 @@ function App() {
                     <td>{r.id}</td>
                     <td>{r.rule_type}</td>
                     <td>{r.description}</td>
+                    <td>{r.user_story || <span style={{color:'#aaa'}}>—</span>}</td>
                     <td>{r.added_by}</td>
                     <td>
                       <button onClick={() => toggleRuleDetails(r.id)}>
@@ -376,13 +427,31 @@ function App() {
                   </tr>
                   {showRuleDetails[r.id] && (
                     <tr>
-                      <td colSpan={5} style={{ background: '#f0f0f0', textAlign: 'left' }}>
+                      <td colSpan={6} style={{ background: '#f0f0f0', textAlign: 'left' }}>
                         <strong>Full Rule:</strong>
-                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify(r, null, 2)}</pre>
+                        <pre style={{
+                          background: '#f5f5f5',
+                          color: '#222',
+                          padding: 8,
+                          borderRadius: 4,
+                          fontSize: '1em',
+                          overflowX: 'auto',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word'
+                        }}>{JSON.stringify(r, null, 2)}</pre>
                         {r.diff && (
                           <>
                             <strong>Diff:</strong>
-                            <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#eee', padding: 8 }}>{r.diff}</pre>
+                            <pre style={{
+                              background: '#f5f5f5',
+                              color: '#222',
+                              padding: 8,
+                              borderRadius: 4,
+                              fontSize: '1em',
+                              overflowX: 'auto',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word'
+                            }}>{r.diff}</pre>
                           </>
                         )}
                       </td>
@@ -449,6 +518,7 @@ function App() {
                 </thead>
                 <tbody>
                   {enhancements.map(e => (
+                    <>
                     <tr key={e.id}>
                       <td style={{ maxWidth: 120, wordBreak: 'break-all' }}>{e.id}</td>
                       <td>{e.description}</td>
@@ -500,6 +570,9 @@ function App() {
                         ) : (
                           <span style={{ color: 'red' }}>Rejected</span>
                         )}
+                        <button onClick={() => toggleEnhancementDetails(e.id)} style={{ marginLeft: 8 }}>
+                          {showEnhancementDetails[e.id] ? 'Hide Details' : 'Details'}
+                        </button>
                         {transferStatus[e.id] && transferStatus[e.id].success && (
                           <div style={{ color: 'green', fontSize: 12 }}>Transferred! Proposal ID: {transferStatus[e.id].proposal_id}</div>
                         )}
@@ -526,6 +599,56 @@ function App() {
                         )}
                       </td>
                     </tr>
+                    {showEnhancementDetails[e.id] && (
+                      <tr>
+                        <td colSpan={8} style={{ background: '#f9f9f9', textAlign: 'left' }}>
+                          <strong>Full Enhancement:</strong>
+                          <pre style={{
+                            background: '#f5f5f5',
+                            color: '#222',
+                            padding: 8,
+                            borderRadius: 4,
+                            fontSize: '1em',
+                            overflowX: 'auto',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word'
+                          }}>{JSON.stringify(e, null, 2)}</pre>
+                          {e.user_story && (
+                            <>
+                              <strong>User Story:</strong>
+                              <pre style={{
+                                background: '#f5f5f5',
+                                color: '#222',
+                                padding: 8,
+                                borderRadius: 4,
+                                fontSize: '1em',
+                                overflowX: 'auto',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                marginTop: 8
+                              }}>{e.user_story}</pre>
+                            </>
+                          )}
+                          {e.diff && (
+                            <>
+                              <strong>Diff:</strong>
+                              <pre style={{
+                                background: '#f5f5f5',
+                                color: '#222',
+                                padding: 8,
+                                borderRadius: 4,
+                                fontSize: '1em',
+                                overflowX: 'auto',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                marginTop: 8
+                              }}>{e.diff}</pre>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </>
                   ))}
                 </tbody>
               </table>

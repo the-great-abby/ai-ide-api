@@ -1,0 +1,41 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Rule Proposal Submission Requirements
+
+- **Overview**
+  - All rule proposals must use the full template, including:
+    - `reason_for_change`
+    - `references`
+    - `current_rule`
+  - Proposals missing these fields will be rejected or flagged for revision.
+
+- **Guidelines**
+  - Provide a clear rationale for the change.
+  - Link to related documentation, rules, or external resources in `references`.
+  - Include the current rule or code pattern being replaced in `current_rule`.
+
+- **Sample JSON**
+```json
+{
+  "rule_type": "testing_flow",
+  "description": "All integration tests must use Docker service names for database and cache connections.",
+  "diff": "---\ndescription: All integration tests must use Docker service names for database and cache connections.\nglobs: tests/integration/*\n---\n# Integration Test Service Naming\n\n- Use `db-test` for PostgreSQL and `redis-test` for Redis in all integration test configs.\n- Do not use `localhost` or external ports.\n",
+  "submitted_by": "ai-agent",
+  "categories": ["testing", "docker", "integration"],
+  "tags": ["docker", "service-names", "integration"],
+  "project": "ai-ide-api",
+  "applies_to": ["tests/integration"],
+  "applies_to_rationale": "Ensures tests run reliably in CI and local Docker environments.",
+  "examples": "POSTGRES_HOST = 'db-test'\nREDIS_HOST = 'redis-test'",
+  "reason_for_change": "Developers were using localhost, causing tests to fail in CI and on other machines.",
+  "references": "See: https://docs.docker.com/networking/\nRelated rule: pytest_execution",
+  "current_rule": "POSTGRES_HOST = 'localhost'\nREDIS_HOST = '127.0.0.1'"
+}
+```
+
+- **References**
+  - [Rule Proposal Template](docs/rule_proposal_template.md)
+  - [Testing Flow Rule](mdc:.cursor/rules/testing_flow.mdc)

@@ -1,6 +1,7 @@
 import json
-import sys
 import os
+import sys
+
 from lint_rule import validate_rule
 
 RULES_FILE = "rules.json"
@@ -23,4 +24,4 @@ for idx, rule in enumerate(rules):
 if any_errors:
     sys.exit(1)
 else:
-    print("All rules are valid.") 
+    print("All rules are valid.")

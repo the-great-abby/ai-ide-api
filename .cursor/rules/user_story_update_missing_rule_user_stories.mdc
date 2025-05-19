@@ -1,0 +1,16 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# User Story
+
+As a rule maintainer, I want to identify all rules missing a user story and update them via the API, using LLM assistance to generate clear, relevant user stories, so that every rule has discoverable context and the process works for all contributors, including those using remote or AI-powered IDEs.
+
+# Acceptance Criteria
+
+- All rules have a non-empty `user_story` field.
+- There is a documented API endpoint for updating a rule's `user_story`.
+- The process is described in onboarding and rule maintenance docs.
+- LLM is used to suggest user stories for rules missing them, with human review before submission.
+- All updates are performed via the API, not direct DB access.

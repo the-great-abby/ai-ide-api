@@ -1,3 +1,22 @@
+# Welcome to Project Onboarding!
+
+Welcome to the AI IDE API project! This onboarding guide will help you get started, whether you are a core team member, an external collaborator, or an adventurous power user.
+
+## Choose Your Onboarding Path:
+
+- **[Internal Developer Onboarding →](ONBOARDING_INTERNAL.md)**
+  - For core team members and contributors who need full access to dev tools, advanced Makefile targets, and deep-dive workflows.
+
+- **[External/Partner Onboarding →](ONBOARDING_EXTERNAL.md)**
+  - For external users, partners, or integrators who want a streamlined setup, essential Makefile targets, and extension instructions.
+
+- **[Onboarding Adventures (Advanced/Experimental) →](ONBOARDING_ADVENTURES.md)**
+  - For those interested in advanced, experimental, or power-user onboarding stories and integrations.
+
+---
+
+**Tip:** You can always return to this page to choose a different path or explore more advanced topics as your needs evolve.
+
 # Onboarding Guide
 
 ## 🚨 What's New (June 2024)
@@ -48,6 +67,11 @@ Welcome to the Rule Proposal API project! We're excited to have you here. This p
 - [ ] Run the coverage report: `make coverage`
 - [ ] Propose a test rule via the API docs (see below!)
 - [ ] **Stop containers:** `make down`
+- [ ] Review the '🧠 Memory Graph Quickstart' section in ONBOARDING_OTHER_AI_IDE.md for ready-to-run scripts to:
+  - Add/list nodes and edges
+  - Traverse the memory graph (single/multi-hop)
+  - Filter by relation type
+  - Export the graph for visualization
 
 > **Note:** The default API server port for this project is **9103**. Update your client, integration, and rule config URLs accordingly.
 
@@ -467,5 +491,15 @@ See `Makefile.ai` for the full list and usage examples.
 - **Default API port:** `9103` (update all configs, docs, and clients accordingly)
 - **Frontend port:** `3000` (or as set by `ADMIN_FRONTEND_PORT`)
 - Always use Docker service names and internal ports for all connections.
+
+---
+
+## 🛡️ Backup/Restore Disaster Recovery Test Workflow
+
+For the full, AI-friendly backup/restore and disaster recovery workflow—including automated test phases and host-side restore scripts—see:
+
+- [docs/user_stories/backup_and_restore.md](docs/user_stories/backup_and_restore.md)
+
+This user story is the canonical, up-to-date reference for all backup, restore, and disaster recovery operations in this project.
 
 --- 

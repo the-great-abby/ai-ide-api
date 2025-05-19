@@ -1,0 +1,21 @@
+FROM node:20
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+# Robustness: generate package-lock.json if missing
+RUN if [ ! -f package-lock.json ]; then \
+      echo "package-lock.json missing, running npm install to generate it..."; \
+      npm install; \
+    fi
+RUN npm ci
+
+# Install Playwright and its browsers
+RUN npm install --save-dev @playwright/test
+RUN npx playwright install --with-deps
+
+# Copy the rest of the code, including tests
+COPY . .
+
+CMD ["npx", "playwright", "test"] 

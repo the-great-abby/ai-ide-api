@@ -1,5 +1,9 @@
 *.pyc
-__pycache__
+__pycache__/*
 sqlite_export
-tests/__pycache__
+tests/__pycache__/*
 rules.db*
+backups/*
+scripts/__pycache__/*
+.ai_assistant_admin_token
+.DS_Store

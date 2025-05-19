@@ -1,0 +1,1 @@
+{"detail":[{"type":"list_type","loc":["body"],"msg":"Input should be a valid list","input":{"embedding":"not a list"}}]}

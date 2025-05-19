@@ -1,0 +1,39 @@
+---
+description: Best practices and user stories for database backups before destructive operations.
+globs: 
+alwaysApply: false
+---
+---
+description: >
+  
+globs:
+  - Makefile*
+  - .cursor/rules/db_backup.mdc
+---
+categories:
+  - database
+  - backup
+  - onboarding
+  - safety
+
+# User Stories
+
+- As a developer, before making major changes or performing destructive operations, I want to create a full backup of both the schema and data using the `ai-db-backup` target, so I can restore the entire database to its previous state if needed.
+- As a developer, when I want to preserve just the data (and not the schema), I want to use the `ai-db-backup-data-only` target, so I can restore only the data after recreating or updating the schema.
+- As a developer, to minimize confusion and maximize safety, I want a single command (`ai-db-backup-all`) that creates both full and data-only backups before any destructive operation.
+
+# Best Practices
+
+- Always take a backup before running destructive operations (e.g., drop, nuke, or major migrations).
+- Use `ai-db-backup` for a full backup (schema + data).
+- Use `ai-db-backup-data-only` for a data-only backup.
+- Use `ai-db-backup-all` to create both types of backups for maximum flexibility.
+- Store backups in a versioned, timestamped directory (e.g., `backups/`).
+- Test restoring from backups periodically to ensure reliability.
+- Document backup and restore procedures for onboarding and incident response.
+
+# References
+
+- Makefile.ai targets: ai-db-backup, ai-db-backup-data-only, ai-db-backup-all
+- Onboarding documentation
+- Incident response playbooks
