@@ -6,16 +6,16 @@ Welcome to the AI-IDE API Developer Guide! This document is your central map for
 - [Onboarding](../ONBOARDING.md)
 - [Backup & Restore User Story](user_stories/merge_backups_with_smart_script.md)
 - [Testing Workflow](user_stories/testing_flow.md)
-- [Database Migrations](user_stories/database_migrations.md)
+- [Database Migrations](user_stories/database_migrations.md)  # How to check and apply Alembic migrations
 - [Rule Proposal Workflow](user_stories/rule_proposal_workflow.md)
 - [User Story Index](user_stories/INDEX.md)
 
 ## Common Workflows
 - **Run tests:** See [Testing Workflow](user_stories/testing_flow.md)
 - **Merge backups:** See [Backup & Restore User Story](user_stories/merge_backups_with_smart_script.md)
+- **Check/apply DB migrations:** See [Database Migrations](user_stories/database_migrations.md)
 - **Propose a new rule:** See [Rule Proposal Workflow](user_stories/rule_proposal_workflow.md)
 - **Restore a database:** See [Backup & Restore User Story](user_stories/merge_backups_with_smart_script.md)
-- **Run database migrations:** See [Database Migrations](user_stories/database_migrations.md)
 
 ## Best Practices
 - Use Makefile.ai targets for all automation and testing.

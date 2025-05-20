@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File, Body
 from pydantic import BaseModel
 import os
 import subprocess
@@ -59,10 +59,14 @@ def build_llm_prompt(suggestions):
     )
     return prompt
 
-def call_ollama(prompt):
+def call_ollama(chunk, prompt=None):
+    if prompt is not None:
+        full_prompt = f"{prompt}\n\n{chunk}"
+    else:
+        full_prompt = chunk
     payload = {
         "model": MODEL,
-        "prompt": prompt,
+        "prompt": full_prompt,
         "stream": False
     }
     print(f"[DEBUG] Sending to Ollama: {OLLAMA_URL} with payload: {json.dumps(payload)[:200]}...")
@@ -105,7 +109,7 @@ def suggest_llm_rules(req: SuggestRequest):
         if not suggestions:
             return {"proposals": [], "message": "No suggestions found."}
         prompt = build_llm_prompt(suggestions)
-        llm_output = call_ollama(prompt)
+        llm_output = call_ollama(suggestions, prompt)
         try:
             proposals = parse_llm_output(llm_output)
             return {"proposals": proposals}
@@ -130,7 +134,7 @@ async def review_code_file(file: UploadFile = File(...)):
         f"\nFilename: {file.filename}\n\nCode:\n{content}\n"
     )
     try:
-        llm_output = call_ollama(prompt)
+        llm_output = call_ollama(content, prompt)
         try:
             feedback = json.loads(llm_output)
         except Exception:
@@ -138,3 +142,47 @@ async def review_code_file(file: UploadFile = File(...)):
     except Exception as e:
         feedback = [f"[ERROR] LLM call failed: {e}"]
     return feedback 
+
+def chunk_text(text, max_tokens=2000):
+    lines = text.splitlines()
+    chunk = []
+    chunks = []
+    count = 0
+    for line in lines:
+        chunk.append(line)
+        count += 1
+        if count >= max_tokens:
+            chunks.append("\n".join(chunk))
+            chunk = []
+            count = 0
+    if chunk:
+        chunks.append("\n".join(chunk))
+    return chunks
+
+VERBOSE_PROMPT = (
+    "Provide a detailed, technical summary of the following git diff. "
+    "List all changed files, describe the nature of the changes, highlight any new features, "
+    "bug fixes, or breaking changes, and include code snippets for the most significant changes. "
+    "Be as verbose and explicit as possible."
+)
+CONCISE_PROMPT = (
+    "Summarize the following git diff. List changed files and main changes."
+)
+
+@app.post("/summarize-git-diff")
+def summarize_git_diff(
+    diff: str = Body(..., embed=True),
+    concise: bool = Body(False, embed=True)
+):
+    prompt = CONCISE_PROMPT if concise else VERBOSE_PROMPT
+    chunks = chunk_text(diff, max_tokens=2000)
+    summaries = []
+    for i, chunk in enumerate(chunks):
+        summary = call_ollama(chunk, prompt)
+        summaries.append(summary)
+    return {
+        "summaries": summaries,
+        "combined": "\n\n".join(summaries),
+        "chunks": len(chunks),
+        "prompt": prompt
+    } 

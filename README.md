@@ -38,4 +38,39 @@ For robust, repeatable merging of multiple Postgres backup SQL files into your l
 
 ---
 
-For more details, see the relevant sections in this documentation. 
+For more details, see the relevant sections in this documentation.
+
+# Portable AI-Powered Memory Logging & Git Diff Summarization
+
+Easily enable automated memory logging and LLM-powered git diff summarization in any project!
+
+## Quick Start
+```bash
+# Copy scripts and Makefile.memory from a reference repo
+cp -r ../ai-ide-api/scripts ./scripts
+cp ../ai-ide-api/Makefile.memory ./Makefile.memory
+
+# (Optional) Set environment variables
+export PROJECT=my-other-repo
+export MEMORY_API_URL=http://shared-server:9103/memory/nodes
+
+# Log a git diff as a memory node
+make -f Makefile.memory ai-memory-log-git-diff
+```
+
+## Setup Steps
+1. Copy or symlink `scripts/` and `Makefile.memory` into your repo.
+2. Set environment variables as needed (`PROJECT`, `NAMESPACE`, `MEMORY_API_URL`, `LLM_API_URL`, `DIFFS_DIR`).
+3. Start or connect to the required services (Memory API, LLM Summarization API).
+4. Run the workflow with `make -f Makefile.memory ai-memory-log-git-diff`.
+
+## Best Practices
+- Use environment variables for all project-specific values
+- Namespace memory nodes by project for easy filtering
+- Store only references to large diffs, not the full content
+- Use `.env` files for local overrides
+- Reference the [portable memory logging user story](docs/user_stories/portable_memory_logging_onboarding.md) for full onboarding and advanced usage
+
+---
+
+For more details, see [docs/user_stories/portable_memory_logging_onboarding.md](docs/user_stories/portable_memory_logging_onboarding.md) 

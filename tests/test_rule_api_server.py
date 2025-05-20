@@ -517,3 +517,47 @@ def test_memory_graph_vector_search():
     print("Embedding search response JSON:", search_resp_emb.json())
     results_emb = search_resp_emb.json()
     assert any(n["id"] == node["id"] for n in results_emb)
+
+
+def test_rule_proposal_categories_field():
+    # Submit a proposal with categories
+    payload = {
+        "rule_type": "category_test",
+        "description": "Test categories field handling.",
+        "diff": "# Rule: Category Test\n## Description\nTest categories field\n## Enforcement\n...",
+        "submitted_by": "ai-agent",
+        "categories": ["testing", "api", "bugfix"],
+        "tags": ["test", "bug"],
+        "user_story": "As a user, I want categories to be correctly handled."
+    }
+    # Propose rule
+    response = client.post("/propose-rule-change", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["categories"] == payload["categories"], f"Expected categories {payload['categories']}, got {data['categories']}"
+    assert isinstance(data["categories"], list)
+    proposal_id = data["id"]
+
+    # List pending proposals and check categories
+    response = client.get("/pending-rule-changes")
+    assert response.status_code == 200
+    proposals = response.json()
+    found = [p for p in proposals if p["id"] == proposal_id]
+    assert found, f"Proposal {proposal_id} not found in pending proposals"
+    proposal = found[0]
+    assert proposal["categories"] == payload["categories"], f"Expected categories {payload['categories']}, got {proposal['categories']}"
+    assert isinstance(proposal["categories"], list)
+
+    # Approve the proposal
+    approve_response = client.post(f"/approve-rule-change/{proposal_id}")
+    assert approve_response.status_code == 200
+
+    # List rules and check categories
+    response = client.get("/rules")
+    assert response.status_code == 200
+    rules = response.json()
+    found = [r for r in rules if r["description"] == payload["description"]]
+    assert found, f"Rule with description '{payload['description']}' not found in rules"
+    rule = found[0]
+    assert rule["categories"] == payload["categories"], f"Expected categories {payload['categories']}, got {rule['categories']}"
+    assert isinstance(rule["categories"], list)

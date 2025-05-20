@@ -6,11 +6,12 @@ import tempfile
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
+import re
 
 from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
                      UploadFile, Request, Header)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 import requests
@@ -274,9 +275,10 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
         if isinstance(db_proposal.timestamp, datetime)
         else db_proposal.timestamp
     )
-    data["categories"] = str_to_list(data.get("categories", ""))
-    data["tags"] = str_to_list(data.get("tags", ""))
-    data["applies_to"] = str_to_list(data.get("applies_to", ""))
+    # Always return categories as a list
+    data["categories"] = str_to_list(getattr(db_proposal, "categories", ""))
+    data["tags"] = str_to_list(getattr(db_proposal, "tags", ""))
+    data["applies_to"] = str_to_list(getattr(db_proposal, "applies_to", ""))
     data["applies_to_rationale"] = data.get("applies_to_rationale", "")
     data["user_story"] = db_proposal.user_story
     return RuleProposal(**data)
@@ -293,9 +295,10 @@ def list_pending_proposals(db: Session = Depends(get_db)):
         data = p.__dict__.copy()
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
-        data["categories"] = str_to_list(data.get("categories", ""))
-        data["tags"] = str_to_list(data.get("tags", ""))
-        data["applies_to"] = str_to_list(data.get("applies_to", ""))
+        # Always return categories as a list
+        data["categories"] = str_to_list(getattr(p, "categories", ""))
+        data["tags"] = str_to_list(getattr(p, "tags", ""))
+        data["applies_to"] = str_to_list(getattr(p, "applies_to", ""))
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         data["reason_for_change"] = data.get("reason_for_change", None)
         data["references"] = data.get("references", None)
@@ -367,8 +370,9 @@ def approve_rule_change(
         project=proposal.project,
         timestamp=ts,
         version=new_version,
-        categories=proposal.categories,
-        tags=proposal.tags,
+        # Always store categories as comma-separated string, but return as list in API
+        categories=list_to_str(proposal.categories),
+        tags=list_to_str(proposal.tags),
         examples=proposal.examples,
         applies_to=list_to_str(proposal.applies_to),
         applies_to_rationale=proposal.applies_to_rationale,
@@ -416,9 +420,10 @@ def list_rules(
         data = r.__dict__.copy()
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
-        data["categories"] = str_to_list(data.get("categories", ""))
-        data["tags"] = str_to_list(data.get("tags", ""))
-        data["applies_to"] = str_to_list(data.get("applies_to", ""))
+        # Always return categories as a list
+        data["categories"] = str_to_list(getattr(r, "categories", ""))
+        data["tags"] = str_to_list(getattr(r, "tags", ""))
+        data["applies_to"] = str_to_list(getattr(r, "applies_to", ""))
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         # Filtering by category/tag
         if category_list and not any(
@@ -715,8 +720,6 @@ def get_changelog_markdown():
         with open("CHANGELOG.md", "r") as f:
             content = f.read()
         # Return as Markdown content type
-        from fastapi.responses import Response
-
         return Response(content, media_type="text/markdown")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not read changelog: {e}")
@@ -729,8 +732,6 @@ def get_changelog_json():
         with open("CHANGELOG.md", "r") as f:
             content = f.read()
         # Simple parser: split by headings and bullet points
-        import re
-
         changelog = []
         current_section = None
         current_subsection = None
@@ -1365,8 +1366,49 @@ class OnboardingProgressOut(OnboardingProgressBase):
     id: str
     timestamp: datetime
 
-# --- Onboarding Progress Endpoints ---
-@app.get("/onboarding/progress", response_model=List[OnboardingProgressOut])
+# --- Helper: Load onboarding step descriptions from user story files ---
+ONBOARDING_USER_STORY_FILES = {
+    "external_project": "docs/user_stories/external_project_onboarding.md",
+    "internal_dev": "docs/user_stories/internal_dev_onboarding.md",
+    "ai_agent": "docs/user_stories/ai_agent_onboarding.md",
+}
+
+ONBOARDING_USER_STORY_LINKS = {
+    "external_project": "/onboarding/user_story/external_project",
+    "internal_dev": "/onboarding/user_story/internal_dev",
+    "ai_agent": "/onboarding/user_story/ai_agent",
+}
+
+def load_onboarding_step_descriptions(path: str) -> dict:
+    """Return a mapping of step -> description for the given onboarding path."""
+    file = ONBOARDING_USER_STORY_FILES.get(path)
+    if not file:
+        return {}
+    try:
+        with open(file) as f:
+            content = f.read()
+        # Find the markdown table
+        table_match = re.search(r"\| Step[^\n]+\n\|[-| ]+\n([\s\S]+?)\n\n", content)
+        if not table_match:
+            return {}
+        table = table_match.group(1)
+        step_desc = {}
+        for line in table.strip().split("\n"):
+            cols = [c.strip() for c in line.split("|") if c.strip()]
+            if len(cols) >= 2:
+                step, desc = cols[0], cols[1]
+                step_desc[step] = desc
+        return step_desc
+    except Exception:
+        return {}
+
+# --- Enhanced Onboarding Progress Output Model ---
+class OnboardingProgressWithDesc(OnboardingProgressOut):
+    description: str = ""
+    user_story_link: str = ""
+
+# --- Enhanced Endpoints ---
+@app.get("/onboarding/progress", response_model=List[OnboardingProgressWithDesc])
 def list_onboarding_progress(project_id: Optional[str] = None, path: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(ProjectOnboardingProgress)
     if project_id:
@@ -1374,7 +1416,9 @@ def list_onboarding_progress(project_id: Optional[str] = None, path: Optional[st
     if path:
         query = query.filter(ProjectOnboardingProgress.path == path)
     records = query.all()
-    return [OnboardingProgressOut(
+    step_desc = load_onboarding_step_descriptions(path) if path else {}
+    user_story_link = ONBOARDING_USER_STORY_LINKS.get(path, "")
+    return [OnboardingProgressWithDesc(
         id=r.id,
         project_id=r.project_id,
         path=r.path,
@@ -1382,15 +1426,19 @@ def list_onboarding_progress(project_id: Optional[str] = None, path: Optional[st
         completed=r.completed,
         timestamp=r.timestamp,
         details=r.details,
+        description=step_desc.get(r.step, ""),
+        user_story_link=user_story_link,
     ) for r in records]
 
-@app.get("/onboarding/progress/{project_id}", response_model=List[OnboardingProgressOut])
+@app.get("/onboarding/progress/{project_id}", response_model=List[OnboardingProgressWithDesc])
 def get_project_onboarding_progress(project_id: str, path: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.project_id == project_id)
     if path:
         query = query.filter(ProjectOnboardingProgress.path == path)
     records = query.all()
-    return [OnboardingProgressOut(
+    step_desc = load_onboarding_step_descriptions(path) if path else {}
+    user_story_link = ONBOARDING_USER_STORY_LINKS.get(path, "")
+    return [OnboardingProgressWithDesc(
         id=r.id,
         project_id=r.project_id,
         path=r.path,
@@ -1398,65 +1446,11 @@ def get_project_onboarding_progress(project_id: str, path: Optional[str] = None,
         completed=r.completed,
         timestamp=r.timestamp,
         details=r.details,
+        description=step_desc.get(r.step, ""),
+        user_story_link=user_story_link,
     ) for r in records]
 
-@app.post("/onboarding/progress", response_model=OnboardingProgressOut)
-def create_onboarding_progress(progress: OnboardingProgressCreate, db: Session = Depends(get_db)):
-    record = ProjectOnboardingProgress(
-        id=str(uuid.uuid4()),
-        project_id=progress.project_id,
-        path=progress.path,
-        step=progress.step,
-        completed=progress.completed,
-        timestamp=datetime.utcnow(),
-        details=progress.details,
-    )
-    db.add(record)
-    db.commit()
-    db.refresh(record)
-    return OnboardingProgressOut(
-        id=record.id,
-        project_id=record.project_id,
-        path=record.path,
-        step=record.step,
-        completed=record.completed,
-        timestamp=record.timestamp,
-        details=record.details,
-    )
-
-@app.patch("/onboarding/progress/{progress_id}", response_model=OnboardingProgressOut)
-def update_onboarding_progress(progress_id: str, update: OnboardingProgressUpdate, db: Session = Depends(get_db)):
-    record = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.id == progress_id).first()
-    if not record:
-        raise HTTPException(status_code=404, detail="Onboarding progress not found.")
-    if update.path is not None:
-        record.path = update.path
-    if update.completed is not None:
-        record.completed = update.completed
-    if update.details is not None:
-        record.details = update.details
-    db.commit()
-    db.refresh(record)
-    return OnboardingProgressOut(
-        id=record.id,
-        project_id=record.project_id,
-        path=record.path,
-        step=record.step,
-        completed=record.completed,
-        timestamp=record.timestamp,
-        details=record.details,
-    )
-
-@app.delete("/onboarding/progress/{progress_id}")
-def delete_onboarding_progress(progress_id: str, db: Session = Depends(get_db)):
-    record = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.id == progress_id).first()
-    if not record:
-        raise HTTPException(status_code=404, detail="Onboarding progress not found.")
-    db.delete(record)
-    db.commit()
-    return {"message": "Onboarding progress deleted."}
-
-@app.post("/onboarding/init", response_model=List[OnboardingProgressOut])
+@app.post("/onboarding/init", response_model=List[OnboardingProgressWithDesc])
 def init_onboarding(
     project_id: str = Body(...),
     path: str = Body(...),
@@ -1478,15 +1472,7 @@ def init_onboarding(
         # Check if already exists
         existing = db.query(ProjectOnboardingProgress).filter_by(project_id=project_id, path=path, step=step).first()
         if existing:
-            created.append(OnboardingProgressOut(
-                id=existing.id,
-                project_id=existing.project_id,
-                path=existing.path,
-                step=existing.step,
-                completed=existing.completed,
-                timestamp=existing.timestamp,
-                details=existing.details,
-            ))
+            created.append(existing)
         else:
             record = ProjectOnboardingProgress(
                 id=str(uuid.uuid4()),
@@ -1500,13 +1486,51 @@ def init_onboarding(
             db.add(record)
             db.commit()
             db.refresh(record)
-            created.append(OnboardingProgressOut(
-                id=record.id,
-                project_id=record.project_id,
-                path=record.path,
-                step=record.step,
-                completed=record.completed,
-                timestamp=record.timestamp,
-                details=record.details,
-            ))
-    return created
+            created.append(record)
+    # Attach descriptions and user story link
+    step_desc = load_onboarding_step_descriptions(path) if path else {}
+    user_story_link = ONBOARDING_USER_STORY_LINKS.get(path, "")
+    return [OnboardingProgressWithDesc(
+        id=r.id,
+        project_id=r.project_id,
+        path=r.path,
+        step=r.step,
+        completed=r.completed,
+        timestamp=r.timestamp,
+        details=r.details,
+        description=step_desc.get(r.step, ""),
+        user_story_link=user_story_link,
+    ) for r in created]
+
+@app.post("/summarize-git-diff")
+def summarize_git_diff_passthrough(
+    diff: str = Body(..., embed=True),
+    concise: bool = Body(False, embed=True)
+):
+    """
+    Passthrough endpoint to ollama-functions /summarize-git-diff
+    """
+    try:
+        resp = requests.post(
+            "http://ollama-functions:8000/summarize-git-diff",
+            json={"diff": diff, "concise": concise},
+            timeout=180
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/onboarding/user_story/{path}")
+def get_user_story(path: str):
+    file_map = {
+        "external_project": "docs/user_stories/external_project_onboarding.md",
+        "internal_dev": "docs/user_stories/internal_dev_onboarding.md",
+        "ai_agent": "docs/user_stories/ai_agent_onboarding.md",
+    }
+    file = file_map.get(path)
+    if not file or not os.path.exists(file):
+        raise HTTPException(status_code=404, detail="User story not found")
+    with open(file) as f:
+        content = f.read()
+    return Response(content, media_type="text/markdown")
