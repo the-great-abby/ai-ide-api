@@ -3,26 +3,6 @@ description: taskmaster related
 globs: 
 alwaysApply: false
 ---
-{section}
-----------------
-(Add content for this section.)
-
-
-{section}
-----------------
-(Add content for this section.)
-
-
-{section}
-----------------
-(Add content for this section.)
-
-
-{section}
-----------------
-(Add content for this section.)
-
-
 # Task Master Usage
 
 - **Overview**

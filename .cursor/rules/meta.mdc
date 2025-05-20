@@ -3,26 +3,6 @@ description: meta
 globs: 
 alwaysApply: false
 ---
-{section}
-----------------
-(Add content for this section.)
-
-
-{section}
-----------------
-(Add content for this section.)
-
-
-{section}
-----------------
-(Add content for this section.)
-
-
-{section}
-----------------
-(Add content for this section.)
-
-
 # Rule Organization and Maintenance
 
 - **Rule Categories**

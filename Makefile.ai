@@ -12,6 +12,8 @@ BACKUP_FILE ?= not_provided
 # OLLAMA_MODEL ?= llama3.1:70b-instruct-q5_K_M
 OLLAMA_MODEL ?= llama3.1:8b-instruct-q6_K
 
+PROJECT ?= ai-ide-api
+
 ai-up:
 	docker-compose up -d api frontend
 	$(MAKE) -f Makefile.ai ai-api-wait
@@ -799,3 +801,61 @@ ai-fdw-setup-script:
 	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE SERVER temp_restore_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host='db-test', dbname='$(TEMP_DB)', port='5432');"
 	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE USER MAPPING FOR CURRENT_USER SERVER temp_restore_server OPTIONS (user='postgres');"
 	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "IMPORT FOREIGN SCHEMA public FROM SERVER temp_restore_server INTO temp_schema;"
+
+.PHONY: ai-safe-shutdown
+## Run a safe shutdown: backup rulesdb & memorydb, then stop all services (see docs/user_stories/safe_shutdown.md)
+ai-safe-shutdown:
+	@echo "[Safe Shutdown] Backing up rulesdb (data only)..."
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+	@echo "[Safe Shutdown] Backing up memorydb (data only)..."
+	$(MAKE) -f Makefile.ai ai-memorydb-backup-data-only
+	@echo "[Safe Shutdown] (Optional) For full backup, run: make -f Makefile.ai ai-db-backup-all"
+	@echo "[Safe Shutdown] Stopping all services..."
+	$(MAKE) -f Makefile.ai ai-down
+	@echo "[Safe Shutdown] Done. See docs/user_stories/safe_shutdown.md for details."
+
+.PHONY: ai-logs-help
+## Show help for viewing logs of all major services
+ai-logs-help:
+	@echo "\n==== Log Viewing Quick Reference ===="
+	@echo "Ollama backend logs:         make -f Makefile.ai ai-ollama-logs"
+	@echo "Ollama gateway logs:         make -f Makefile.ai ai-ollama-functions-logs"
+	@echo "API logs:                    make -f Makefile.ai logs-api"
+	@echo "Frontend logs:               make -f Makefile.ai logs-frontend"
+	@echo "Database logs:               make -f Makefile.ai logs-db"
+	@echo "\nAll of these show the last 100 lines of logs for the relevant service."
+	@echo "For more, see docs/user_stories/unified_system_startup.md or onboarding docs."
+	@echo "==== End Log Viewing Help ===="
+
+.PHONY: ai-memory-create
+## Create a new memory node. Usage: make -f Makefile.ai ai-memory-create NAME="..." OBSERVATION="..." [PROJECT="..."] [NAMESPACE="..."]
+ai-memory-create:
+	@if [ -z "$(NAME)" ] || [ -z "$(OBSERVATION)" ] || [ -z "$(NAMESPACE)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai ai-memory-create NAME=\"...\" OBSERVATION=\"...\" [PROJECT=\"...\"] [NAMESPACE=\"...\"]"; \
+		exit 1; \
+	fi
+	@echo "[ai-memory-create] Creating memory: $(NAME)"
+	@python3 scripts/create_memory.py --name "$(NAME)" --observation "$(OBSERVATION)" --project "$(PROJECT)" --namespace "$(NAMESPACE)"
+
+.PHONY: ai-memory-log-git-diff
+## Log a git diff as a memory node with LLM summary. Usage: make -f Makefile.ai ai-memory-log-git-diff [DIFF_RANGE=HEAD~1..HEAD] [CONCISE=0] [NAME=...] [OBSERVATION=...] [NAMESPACE=...]
+ai-memory-log-git-diff:
+	@DIFF_RANGE=$${DIFF_RANGE:-HEAD~1..HEAD}; \
+	CONCISE_FLAG=$${CONCISE:-0}; \
+	NAME=$${NAME:-"git-diff-$$DIFF_RANGE-`date +%Y%m%d-%H%M%S`"}; \
+	OBSERVATION=$${OBSERVATION:-"Code changes for $$DIFF_RANGE summarized by LLM."}; \
+	NAMESPACE=$${NAMESPACE:-"ai-ide-api"}; \
+	mkdir -p diffs; \
+	DIFF_FILE=diffs/$$NAME.diff; \
+	DIFF=$$(git diff $$DIFF_RANGE); \
+	if [ -z "$$DIFF" ]; then echo "[ai-memory-log-git-diff] No changes in diff range: $$DIFF_RANGE"; exit 0; fi; \
+	echo "$$DIFF" > "$$DIFF_FILE"; \
+	SUMMARY=$$(curl -s -X POST http://localhost:9103/summarize-git-diff -H "Content-Type: application/json" -d "{\"diff\":$$(jq -Rs . <<< \"$$DIFF\"),\"concise\":$$CONCISE_FLAG}" | jq -r .combined); \
+	META=$$(jq -nc --arg diff_file "$$DIFF_FILE" --arg summary "$$SUMMARY" --arg diff_range "$$DIFF_RANGE" --arg name "$$NAME" --arg project "ai-ide-api" '{diff_file: $$diff_file, summary: $$summary, diff_range: $$diff_range, name: $$name, project: $$project}'); \
+	echo "[DEBUG] META: $$META"; \
+	python3 scripts/create_memory.py --name "$$NAME" --observation "$$OBSERVATION" --project "ai-ide-api" --namespace "$$NAMESPACE" --meta "$$META";
+
+.PHONY: ai-memory-list-nodes-summary
+## List memory nodes, showing LLM summary (if present) and omitting raw git diff. Usage: make -f Makefile.ai ai-memory-list-nodes-summary
+ai-memory-list-nodes-summary:
+	$(MAKE) -f Makefile.ai ai-memory-list-nodes | awk 'f||/^[[]/{f=1;print}' | jq -c '.[] | select(type == "object") | {name: (.meta.name // .name // ""), project: (.meta.project // .project // ""), namespace, created_at, summary: (.meta.summary // null), content}'

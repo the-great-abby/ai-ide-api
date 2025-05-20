@@ -3,58 +3,62 @@
 ----------------
 (Add content for this section.)
 
+# Database Migration Execution Guidelines
 
-{section}
-----------------
-(Add content for this section.)
+- **Core Requirements**
+  - **Execution Environment**
+    - All Alembic migration commands MUST be run via the API Docker container using Makefile.ai targets
+    - Never run Alembic or database migrations directly on your local machine
+    - Use the provided Makefile.ai targets for consistency and safety
 
+  - **Correct Usage Examples:**
+    ```bash
+    # ✅ Correct: Using Makefile.ai targets (runs inside Docker)
+    make -f Makefile.ai ai-db-migration-new NAME="add_some_feature"
+    make -f Makefile.ai ai-db-upgrade
+    make -f Makefile.ai ai-db-history
+    ```
+    
+    # ❌ Incorrect: Running Alembic locally
+    alembic revision --autogenerate -m "add_some_feature"
+    alembic upgrade head
+    
+  - **Best Practices**
+    - ✅ DO: Use Makefile.ai targets for all migration and schema operations
+    - ✅ DO: Run migrations in the same environment as the API (Docker container)
+    - ✅ DO: Document all schema changes in PRs and user stories
+    - ❌ DON'T: Run Alembic or database migrations directly on your host machine
+    - ❌ DON'T: Edit migration files manually unless necessary for conflict resolution
+    - ❌ DON'T: Skip Makefile targets for migrations
 
-{section}
-----------------
-(Add content for this section.)
+- **Common Issues**
+  - **Migration Failures**
+    - Symptom: "ModuleNotFoundError: No module named 'psycopg2'" or similar
+    - Cause: Running Alembic outside the Docker environment
+    - Solution: Always use Makefile.ai targets
 
+  - **Schema Drift**
+    - Symptom: Database schema does not match models
+    - Cause: Migrations not run in the correct environment
+    - Solution: Use Makefile.ai targets and verify with `ai-db-history`
 
-{section}
-----------------
-(Add content for this section.)
+- **References**
+  - [pytest_execution.mdc](pytest_execution.mdc) for analogous test execution rules
+  - [Makefile.ai](../../Makefile.ai) for available migration targets
+  - [environments.mdc](environments.mdc) for environment configuration
 
-- **Database Migration Strategy**
-  - ✅ DO: Use direct SQLAlchemy schema creation with `Base.metadata.create_all()`
-  - ✅ DO: Handle schema changes through code updates and database resets in development
-  - ✅ DO: Use SQLAlchemy's built-in DDL commands for any necessary schema modifications
-  - ❌ DON'T: Use Alembic or any other migration tool
-  - ❌ DON'T: Add migration-specific files or directories
+# Migration Workflow
 
-- **Schema Management**
-  - All schema changes should be made in SQLAlchemy model definitions
-  - Development environments should recreate database from scratch
-  - Production schema changes require manual review and execution
-  - Use SQLAlchemy events for any data migrations needed
+1. Update your SQLAlchemy models in `db.py` (or relevant model files)
+2. Generate a migration:
+   ```bash
+   make -f Makefile.ai ai-db-migration-new NAME="add_some_feature"
+   ```
+3. Apply the migration:
+   ```bash
+   make -f Makefile.ai ai-db-upgrade
+   ```
+4. Verify schema and document changes
 
-- **File Structure**
-  - Keep all database models in `app/models/`
-  - Define base classes in `app/db/base.py`
-  - No migration directories or version tracking files
-  - No `alembic.ini` or similar configuration files
-
-- **Development Workflow**
-  - Update model definitions in SQLAlchemy
-  - Test changes locally with database recreation
-  - Document schema changes in code comments
-  - Use docker-compose down/up to reset development database
-
-- **Deployment Notes**
-  - Production database changes require manual DBA review
-  - Document all schema changes in pull requests
-  - Include rollback procedures in deployment plans
-  - Test schema changes in staging environment first
-
-- **Dependencies**
-  - ❌ DO NOT add these to requirements:
-    - alembic
-    - Flask-Migrate
-    - django-migrations
-  - ✅ Use these for schema management:
-    - SQLAlchemy
-    - asyncpg
-    - psycopg2-binary (for scripts) 
+# Warning
+**Never run Alembic or database migrations directly on your local machine. Always use the provided Makefile.ai targets to ensure migrations run in the correct Docker environment.** 

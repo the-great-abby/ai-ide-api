@@ -31,9 +31,16 @@ categories:
 - Store backups in a versioned, timestamped directory (e.g., `backups/`).
 - Test restoring from backups periodically to ensure reliability.
 - Document backup and restore procedures for onboarding and incident response.
+- Regularly create new memory nodes for important lessons, best practices, and workflow changes, so the knowledge graph stays up to date for both humans and AI agents.
 
 # References
 
 - Makefile.ai targets: ai-db-backup, ai-db-backup-data-only, ai-db-backup-all
 - Onboarding documentation
 - Incident response playbooks
+
+# Canonical Workflow Reference
+
+- For the full, AI-friendly backup/restore and disaster recovery workflow—including automated test phases and host-side restore scripts—see:
+  - [docs/user_stories/backup_and_restore.md](../docs/user_stories/backup_and_restore.md)
+- This user story is the canonical, up-to-date reference for all backup, restore, and disaster recovery operations in this project.
