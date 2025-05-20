@@ -58,6 +58,42 @@ As a core team member or internal developer, I want a standardized onboarding ch
 
 ---
 
+## 🧠 Saving and Using Memories (Memory Graph API)
+
+Internal developers can use the memory graph API to store, relate, and search ideas, notes, and code snippets using semantic embeddings and relationships.
+
+### How to use it?
+- **Add a memory node:**
+  ```bash
+  curl -X POST http://localhost:9103/memory/nodes \
+    -H "Content-Type: application/json" \
+    -d '{"namespace": "notes", "content": "This is an idea about AI memory.", "meta": "{\"tags\":[\"ai\",\"memory\"]}"}'
+  ```
+- **List all memory nodes:**
+  ```bash
+  curl http://localhost:9103/memory/nodes | jq .
+  ```
+- **Add a relationship (edge):**
+  ```bash
+  curl -X POST http://localhost:9103/memory/edges \
+    -H "Content-Type: application/json" \
+    -d '{"from_id": "UUID-OF-NODE-1", "to_id": "UUID-OF-NODE-2", "relation_type": "inspired_by", "meta": "{\"note\": \"A inspired B\"}"}'
+  ```
+- **List all edges:**
+  ```bash
+  curl http://localhost:9103/memory/edges | jq .
+  ```
+- **Search for similar nodes:**
+  ```bash
+  curl -X POST http://localhost:9103/memory/nodes/search \
+    -H "Content-Type: application/json" \
+    -d '{"text": "Find similar ideas about AI memory.", "namespace": "notes", "limit": 5}'
+  ```
+
+For more advanced usage, traversal, and best practices, see [`docs/user_stories/ai_memory_graph_api.md`](docs/user_stories/ai_memory_graph_api.md).
+
+---
+
 ## Expected Outcomes
 - Developers have a clear, actionable onboarding checklist.
 - Onboarding is consistent across all team members.

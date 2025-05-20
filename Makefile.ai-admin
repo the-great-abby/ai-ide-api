@@ -1,0 +1,77 @@
+# Admin/Frontend-related targets extracted from Makefile.ai
+
+ai-admin-frontend-restart:
+	docker compose restart frontend
+
+ai-admin-frontend-nocache-restart:
+	docker compose build --no-cache frontend
+	docker compose restart frontend
+
+ai-docs:
+	curl -s http://localhost:$(PORT)/docs || echo 'Could not fetch docs. Is the API running?'
+
+open-docs:
+	open http://localhost:$(PORT)/docs
+
+open-admin:
+	open http://localhost:$(ADMIN_FRONTEND_PORT)
+
+ai-playwright-test:
+	docker compose build frontend
+	docker compose run --rm playwright
+
+ai-playwright-build-nocache:
+	docker compose build --no-cache playwright
+
+ai-onboarding-help:
+	@echo "\n==== AI-IDE Onboarding Quick Start ===="
+	@echo "1. Fetch the latest OpenAPI docs (API reference):"
+	@echo "   make -f Makefile.ai ai-docs"
+	@echo "   (or visit http://localhost:9103/docs in your browser)"
+	@echo "2. Start all services if needed:"
+	@echo "   make -f Makefile.ai ai-up"
+	@echo "3. For more onboarding info, see ONBOARDING_OTHER_AI_IDE.md"
+	@echo "4. All automation (tests, builds, migrations) MUST run through Makefile.ai targets."
+	@echo "5. Use Docker service names and internal ports for all connections."
+	@echo "\n==== End Onboarding Quick Start ===="
+
+ai-port-3000-procs:
+	@echo "Processes using port 3000:"
+	lsof -i :3000 || echo "No process found on port 3000."
+
+ai-docker-stop-all:
+	@echo "Stopping all running Docker containers..."
+	docker stop $(shell docker ps -q) || echo "No running containers to stop."
+
+ai-kill-port-3000:
+	@echo "Killing any process using port 3000..."
+	PID=$$(lsof -ti :3000); if [ -n "$$PID" ]; then kill -9 $$PID && echo "Killed process $$PID on port 3000."; else echo "No process found on port 3000."; fi
+
+ai-frontend-volumes:
+	@echo "Checking for volume mounts in docker-compose.yml (frontend service):"
+	@awk '/frontend:/, /^[^ ]/' docker-compose.yml | grep -A 5 'volumes:' || echo "No volumes found for frontend."
+
+logs:
+	docker compose logs --tail=100 api db-test frontend || docker-compose logs --tail=100 api db-test frontend
+
+logs-api:
+	docker compose logs --tail=100 api || docker-compose logs --tail=100 api
+
+logs-db:
+	docker compose logs --tail=100 db-test || docker compose logs --tail=100 db-test
+
+logs-frontend:
+	docker compose logs --tail=100 frontend || docker compose logs --tail=100 frontend
+
+ai-logs-help:
+	@echo "\n==== Log Viewing Quick Reference ===="
+	@echo "Ollama backend logs:         make -f Makefile.ai ai-ollama-logs"
+	@echo "Ollama gateway logs:         make -f Makefile.ai ai-ollama-functions-logs"
+	@echo "API logs:                    make -f Makefile.ai logs-api"
+	@echo "Frontend logs:               make -f Makefile.ai logs-frontend"
+	@echo "Database logs:               make -f Makefile.ai logs-db"
+	@echo "\nAll of these show the last 100 lines of logs for the relevant service."
+	@echo "For more, see docs/user_stories/unified_system_startup.md or onboarding docs."
+	@echo "==== End Log Viewing Help ===="
+
+.PHONY: ai-admin-frontend-restart ai-admin-frontend-nocache-restart ai-docs open-docs open-admin ai-playwright-test ai-playwright-build-nocache ai-onboarding-help ai-port-3000-procs ai-docker-stop-all ai-kill-port-3000 ai-frontend-volumes logs logs-api logs-db logs-frontend ai-logs-help 

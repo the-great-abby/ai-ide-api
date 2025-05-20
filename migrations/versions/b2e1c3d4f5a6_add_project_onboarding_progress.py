@@ -15,8 +15,8 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    # If the table does not exist, create it (as before)
-    if not op.get_bind().dialect.has_table(op.get_bind(), 'project_onboarding_progress'):
+    print('--- MIGRATION: Starting creation of project_onboarding_progress table ---')
+    try:
         op.create_table(
             'project_onboarding_progress',
             sa.Column('id', sa.String(), primary_key=True),
@@ -27,11 +27,10 @@ def upgrade() -> None:
             sa.Column('timestamp', sa.DateTime(), default=datetime.utcnow),
             sa.Column('details', sa.JSON(), nullable=True),
         )
-    else:
-        # If the table exists, add the 'path' column if not present
-        with op.batch_alter_table('project_onboarding_progress') as batch_op:
-            batch_op.add_column(sa.Column('path', sa.String(), nullable=False, server_default='default'))
-            batch_op.alter_column('path', server_default=None)
+        print('--- MIGRATION: Successfully created project_onboarding_progress table ---')
+    except Exception as e:
+        print(f'--- MIGRATION ERROR: {e} ---')
+        raise
 
 def downgrade() -> None:
     # Remove the 'path' column if it exists

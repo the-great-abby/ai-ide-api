@@ -12,7 +12,11 @@
     "review_api_rate_limits",
     "accept_terms_of_service",
     "explore_api_docs_and_user_stories",
-    "setup_automated_testing"
+    "setup_automated_testing",
+    "explore_memory_graph_api",
+    "add_sample_memory_node",
+    "add_sample_memory_edge",
+    "search_memory_nodes"
   ],
   "internal_dev": [
     "read_onboarding_guide",
@@ -28,7 +32,11 @@
     "start_services",
     "submit_first_rule",
     "make_first_contribution",
-    "review_changelog"
+    "review_changelog",
+    "explore_memory_graph_api",
+    "add_sample_memory_node",
+    "add_sample_memory_edge",
+    "search_memory_nodes"
   ],
   "ai_agent": [
     "fetch_rules",

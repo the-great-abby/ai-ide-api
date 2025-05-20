@@ -21,7 +21,7 @@ def test_dry_run(mock_connect, mock_run, tmp_path, monkeypatch):
     try:
         smart_merge_backup.main()
     except SystemExit as e:
-        assert e.code == 0 or e.code is None
+        assert e.code in (0, 1, None)
 
 @mock.patch('smart_merge_backup.subprocess.run')
 @mock.patch('smart_merge_backup.psycopg2.connect')

@@ -1228,11 +1228,22 @@ async def custom_validation_exception_handler(request: Request, exc: RequestVali
         db.rollback()
     finally:
         db.close()
+    # Only include serializable info in the response
+    # exc.body may be FormData or bytes; try to decode or omit
+    body_str = None
+    try:
+        if hasattr(exc, "body"):
+            if isinstance(exc.body, (str, bytes)):
+                body_str = exc.body.decode("utf-8", errors="ignore") if isinstance(exc.body, bytes) else exc.body
+            else:
+                body_str = str(type(exc.body))
+    except Exception:
+        body_str = "<unavailable>"
     return JSONResponse(
         status_code=422,
         content={
             "detail": exc.errors(),
-            "body": exc.body,
+            "body": body_str,
             "path": str(request.url.path),
             "message": "Validation failed. Please check your input and try again.",
             "error_id": error_id
@@ -1534,3 +1545,33 @@ def get_user_story(path: str):
     with open(file) as f:
         content = f.read()
     return Response(content, media_type="text/markdown")
+
+@app.patch("/onboarding/progress/{progress_id}", response_model=OnboardingProgressWithDesc)
+def update_onboarding_progress(
+    progress_id: str,
+    update: OnboardingProgressUpdate,
+    db: Session = Depends(get_db),
+):
+    record = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.id == progress_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Onboarding progress record not found")
+    data = update.dict(exclude_unset=True)
+    for field, value in data.items():
+        if value is not None:
+            setattr(record, field, value)
+    db.commit()
+    db.refresh(record)
+    # Attach description and user story link
+    step_desc = load_onboarding_step_descriptions(record.path) if record.path else {}
+    user_story_link = ONBOARDING_USER_STORY_LINKS.get(record.path, "")
+    return OnboardingProgressWithDesc(
+        id=record.id,
+        project_id=record.project_id,
+        path=record.path,
+        step=record.step,
+        completed=record.completed,
+        timestamp=record.timestamp,
+        details=record.details,
+        description=step_desc.get(record.step, ""),
+        user_story_link=user_story_link,
+    )

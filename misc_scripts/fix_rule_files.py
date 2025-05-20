@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import subprocess
 
 RULES_DIR = '/app/ai_ide_rules'
 
@@ -60,9 +61,16 @@ def fix_rule_file(path):
 
 
 def main():
+    any_failed = False
     for fname in sorted(os.listdir(RULES_DIR)):
         if fname.endswith('.json'):
-            fix_rule_file(os.path.join(RULES_DIR, fname))
+            changed = fix_rule_file(os.path.join(RULES_DIR, fname))
+            if not changed:
+                any_failed = True
+    if any_failed:
+        print("[ERROR] One or more rule files failed to load or fix.")
+        import sys
+        sys.exit(1)
 
 if __name__ == "__main__":
     main() 

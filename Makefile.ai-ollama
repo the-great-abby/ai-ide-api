@@ -1,0 +1,85 @@
+# Ollama/LLM-related targets extracted from Makefile.ai
+
+ai-ollama-pull-model:
+	ollama pull $(OLLAMA_MODEL)
+
+ai-build-ollama-functions-service:
+	docker build -f Dockerfile.ollama_functions -t $(OLLAMA_FUNCTIONS_IMAGE) .
+
+ai-run-ollama-functions-service: ai-build-ollama-functions-service
+	docker run --rm -e RUNNING_IN_DOCKER=1 \
+	  --add-host=host.docker.internal:host-gateway \
+	  -e OLLAMA_URL=$(OLLAMA_URL) \
+	  -e OLLAMA_MODEL=$(OLLAMA_MODEL) \
+	  -v $(PWD):/code -w /code \
+	  -p 8000:8000 \
+	  $(OLLAMA_FUNCTIONS_IMAGE)
+
+ai-ollama-serve-docker-gateway:
+	@echo "Starting Ollama with OLLAMA_HOST=0.0.0.0..."
+	OLLAMA_HOST=0.0.0.0 ollama serve
+
+ai-ollama-logs:
+	tail -n 100 ollama.log
+
+ai-ollama-kill:
+	pkill -f 'ollama serve' || true
+
+ai-ollama-restart-docker-gateway: ai-ollama-kill
+	$(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway
+
+ai-ollama-serve-docker-gateway-bg:
+	nohup $(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway > ollama.log 2>&1 &
+
+ai-build-ollama-functions:
+	docker-compose build ollama-functions
+
+ai-up-ollama-functions:
+	docker-compose up -d ollama-functions
+
+ai-restart-ollama-functions:
+	docker-compose build ollama-functions
+	docker-compose up -d ollama-functions
+
+ai-ollama-functions-health:
+	curl -s http://localhost:9104/healthz || echo '{"error": "ollama-functions not running"}'
+
+ai-ollama-functions-logs:
+	docker-compose logs --tail=100 ollama-functions
+
+ai-suggest-llm-rules:
+	OLLAMA_URL=$(OLLAMA_URL) RULE_API_URL=$(RULE_API_URL) \
+	python scripts/suggest_and_propose_rules.py $${TARGET-.}
+
+ai-suggest-llm-rules-docker:
+	docker compose run --rm \
+	  -e RUNNING_IN_DOCKER=1 \
+	  -e OLLAMA_URL=$(OLLAMA_URL) -e RULE_API_URL=$(RULE_API_URL) \
+	  ollama-functions python scripts/suggest_and_propose_rules.py $${TARGET-.}
+
+ai-llm-setup:
+	@echo "[LLM Setup] Downloading Ollama model if not present..."
+	$(MAKE) -f Makefile.ai ai-ollama-pull-model
+	@echo "[LLM Setup] Starting Ollama service (docker gateway)..."
+	$(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway &
+	@echo "[LLM Setup] Waiting for Ollama service to be ready..."
+	@sleep 5
+	@echo "[LLM Setup] Verifying Ollama service is running..."
+	@if curl -sf http://localhost:11434 | grep -q 'Ollama'; then \
+		echo '[LLM Setup] Ollama service is running!'; \
+		echo '[LLM Setup] You can now use LLM-powered features.'; \
+	else \
+		echo '[LLM Setup] ERROR: Ollama service did not start. Please check logs with: make -f Makefile.ai ai-ollama-logs'; \
+		exit 1; \
+	fi
+
+ai-scan-memory-nodes:
+	docker compose run --rm ollama-functions python /code/scripts/scan_for_memory_node_opportunities.py
+
+ai-stop-ollama-functions:
+	docker compose stop ollama-functions
+
+ai-down-ollama-functions:
+	docker compose rm -sf ollama-functions
+
+.PHONY: ai-ollama-pull-model ai-build-ollama-functions-service ai-run-ollama-functions-service ai-ollama-serve-docker-gateway ai-ollama-logs ai-ollama-kill ai-ollama-restart-docker-gateway ai-ollama-serve-docker-gateway-bg ai-build-ollama-functions ai-up-ollama-functions ai-restart-ollama-functions ai-ollama-functions-health ai-ollama-functions-logs ai-suggest-llm-rules ai-suggest-llm-rules-docker ai-llm-setup ai-scan-memory-nodes ai-stop-ollama-functions ai-down-ollama-functions 

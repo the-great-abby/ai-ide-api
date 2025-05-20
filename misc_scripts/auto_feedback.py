@@ -1,6 +1,7 @@
 import requests
 import os
 import json
+import subprocess
 
 # Determine API base URL based on environment
 

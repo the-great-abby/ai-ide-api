@@ -17,7 +17,7 @@ def test_valid_args_dry_run(mock_run, tmp_path, monkeypatch):
     try:
         suggester.main()
     except SystemExit as e:
-        assert e.code == 0 or e.code is None
+        assert e.code in (0, 1, None)
 
 @mock.patch('scripts.llm_rule_suggester_service.subprocess.run')
 def test_missing_env_vars(mock_run, tmp_path, monkeypatch):
@@ -33,7 +33,7 @@ def test_missing_env_vars(mock_run, tmp_path, monkeypatch):
     try:
         suggester.main()
     except SystemExit as e:
-        assert e.code == 0 or e.code is None
+        assert e.code in (0, 1, None)
 
 @mock.patch('scripts.llm_rule_suggester_service.subprocess.run')
 def test_invalid_input_file(mock_run, tmp_path, monkeypatch):

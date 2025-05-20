@@ -1,0 +1,197 @@
+# Miscellaneous script/utility targets extracted from Makefile.ai
+
+ai-export-rules:
+	python scripts/export_approved_rules.py
+
+ai-lint-rules:
+	python scripts/lint_rules.py
+
+ai-propose-rule:
+	curl -s -X POST http://localhost:$(PORT)/propose-rule-change \
+	  -H "Content-Type: application/json" \
+	  -d @$(RULE_FILE)
+
+ai-list-pending:
+	curl -s http://localhost:$(PORT)/pending-rule-changes
+
+ai-approve-rule:
+	curl -s -X POST http://localhost:$(PORT)/approve-rule-change/$(PROPOSAL_ID)
+
+ai-reject-rule:
+	curl -s -X POST http://localhost:$(PORT)/reject-rule-change/$(PROPOSAL_ID)
+
+ai-list-rules:
+	curl -s http://localhost:$(PORT)/rules
+
+ai-list-rules-mdc:
+	curl -s http://localhost:$(PORT)/rules-mdc
+
+ai-review-code-files:
+	curl -s -X POST http://localhost:$(PORT)/review-code-files \
+	  -F "files=@$(FILE)"
+
+ai-review-code-snippet:
+	curl -s -X POST http://localhost:$(PORT)/review-code-snippet \
+	  -H "Content-Type: application/json" \
+	  -d '{"filename": "$(FILENAME)", "code": "$(CODE)"}'
+
+ai-scan-db:
+	echo '--- Proposals ---'; sqlite3 rules.db 'SELECT * FROM proposals;'; \
+	echo '\n--- Rules ---'; sqlite3 rules.db 'SELECT * FROM rules;'; \
+	echo '\n--- Feedback ---'; sqlite3 rules.db 'SELECT * FROM feedback;'
+
+ai-approve-all-pending:
+	python scripts/approve_all_pending.py
+
+ai-propose-makefile-rule:
+	curl -s -X POST http://localhost:$(PORT)/propose-rule-change \
+	  -H "Content-Type: application/json" \
+	  -d '{ \
+	    "rule_type": "$(RULE_TYPE)", \
+	    "description": "$(DESCRIPTION)", \
+	    "diff": "$(DIFF)", \
+	    "submitted_by": "$(SUBMITTED_BY)", \
+	    "categories": [$(CATEGORIES)], \
+	    "tags": [$(TAGS)], \
+	    "project": "$(PROJECT)", \
+	    "applies_to": [$(APPLIES_TO)], \
+	    "applies_to_rationale": "$(APPLIES_TO_RATIONALE)", \
+	    "examples": "$(EXAMPLES)", \
+	    "reason_for_change": "$(REASON_FOR_CHANGE)", \
+	    "references": "$(REFERENCES)", \
+	    "current_rule": "$(CURRENT_RULE)" \
+	  }'
+
+ai-review-multiple-files:
+	python scripts/review_multiple_files.py $(FILES)
+
+ai-propose-rules:
+	bash misc_scripts/propose_rules.sh
+
+ai-misc-install:
+	docker compose exec misc-scripts pip install -r requirements.txt
+
+ai-misc-up:
+	docker compose up -d misc-scripts
+
+ai-misc-update-rules:
+	$(MAKE) -f Makefile.ai ai-misc-up
+	docker compose exec misc-scripts pip install -r requirements.txt
+	docker compose exec misc-scripts python update_rules.py
+
+ai-misc-generate-update-template:
+	docker compose exec misc-scripts python generate_rules_update_template.py
+
+ai-misc-mdc-to-json: ai-misc-install
+	docker compose exec misc-scripts python mdc_to_json_rule_proposals.py
+
+ai-misc-enrich-rules:
+	docker compose exec misc-scripts python enrich_rule_proposals.py
+
+ai-misc-build:
+	docker compose build misc-scripts
+
+ai-misc-update-missing-user-stories:
+	docker compose exec misc-scripts python /scripts/update_missing_user_stories.py
+
+ai-misc-restart:
+	docker compose restart misc-scripts
+
+ai-propose-portable-rule:
+	curl -s -X POST http://localhost:$(API_PORT)/propose-rule-change \
+	  -H 'Content-Type: application/json' \
+	  -d '{ \
+	    "rule_type": "$(RULE_TYPE)", \
+	    "description": "$(DESCRIPTION)", \
+	    "diff": "$(DIFF)", \
+	    "submitted_by": "$(SUBMITTED_BY)", \
+	    "categories": [$(CATEGORIES)], \
+	    "tags": [$(TAGS)], \
+	    "project": "$(PROJECT)", \
+	    "reason_for_change": "$(REASON_FOR_CHANGE)", \
+	    "references": "$(REFERENCES)", \
+	    "current_rule": "$(CURRENT_RULE)" \
+	  }'
+
+ai-bug-report:
+	curl -s -X POST http://localhost:$(PORT)/bug-report \
+	  -H 'Content-Type: application/json' \
+	  -d '{"description": "$(DESCRIPTION)", "reporter": "$(REPORTER)", "page": "$(PAGE)"}'
+
+ai-bug-report-test:
+	$(MAKE) -f Makefile.ai ai-bug-report \
+	  DESCRIPTION='Test bug report from Makefile' \
+	  REPORTER='cli-test' \
+	  PAGE='/admin'
+
+ai-suggest-enhancement:
+	curl -s -X POST http://localhost:$(PORT)/suggest-enhancement \
+	  -H 'Content-Type: application/json' \
+	  -d '{"description": "$(DESCRIPTION)", "suggested_by": "$(SUGGESTED_BY)", "page": "$(PAGE)", "tags": [$(TAGS)], "categories": [$(CATEGORIES)]}'
+
+ai-suggest-enhancement-test:
+	$(MAKE) -f Makefile.ai ai-suggest-enhancement \
+	  DESCRIPTION='Test enhancement from Makefile' \
+	  SUGGESTED_BY='cli-test' \
+	  PAGE='/admin' \
+	  TAGS='"cli","test"' \
+	  CATEGORIES='"usability"'
+
+ai-enhancement-to-proposal:
+	curl -s -X POST http://localhost:$(PORT)/enhancement-to-proposal/$(ENHANCEMENT_ID)
+
+ai-proposal-to-enhancement:
+	curl -s -X POST http://localhost:$(PORT)/proposal-to-enhancement/$(PROPOSAL_ID)
+
+ai-accept-enhancement:
+	curl -s -X POST http://localhost:$(PORT)/accept-enhancement/$(ENHANCEMENT_ID)
+
+ai-complete-enhancement:
+	curl -s -X POST http://localhost:$(PORT)/complete-enhancement/$(ENHANCEMENT_ID)
+
+ai-list-enhancements:
+	curl http://$(API_HOST):9103/enhancements | jq
+
+ai-onboarding-health:
+	python scripts/onboarding_health_check.py
+
+ai-import-backup:
+	docker compose exec api python import_from_backup.py
+
+ai-search-user-stories:
+	python3 scripts/search_user_stories.py $(KEYWORD)
+
+ai-fdw-setup-script:
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "DROP SERVER IF EXISTS temp_restore_server CASCADE;"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE SERVER temp_restore_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host='db-test', dbname='$(TEMP_DB)', port='5432');"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE USER MAPPING FOR CURRENT_USER SERVER temp_restore_server OPTIONS (user='postgres');"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "IMPORT FOREIGN SCHEMA public FROM SERVER temp_restore_server INTO temp_schema;"
+
+ai-safe-shutdown:
+	@echo "[Safe Shutdown] Backing up rulesdb (data only)..."
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+	@echo "[Safe Shutdown] Backing up memorydb (data only)..."
+	$(MAKE) -f Makefile.ai ai-memorydb-backup-data-only
+	@echo "[Safe Shutdown] (Optional) For full backup, run: make -f Makefile.ai ai-db-backup-all"
+	@echo "[Safe Shutdown] Stopping all services..."
+	$(MAKE) -f Makefile.ai ai-down
+	@echo "[Safe Shutdown] Done. See docs/user_stories/safe_shutdown.md for details."
+
+ai-logs-help:
+	@echo "\n==== Log Viewing Quick Reference ===="
+	@echo "Ollama backend logs:         make -f Makefile.ai ai-ollama-logs"
+	@echo "Ollama gateway logs:         make -f Makefile.ai ai-ollama-functions-logs"
+	@echo "API logs:                    make -f Makefile.ai logs-api"
+	@echo "Frontend logs:               make -f Makefile.ai logs-frontend"
+	@echo "Database logs:               make -f Makefile.ai logs-db"
+	@echo "\nAll of these show the last 100 lines of logs for the relevant service."
+	@echo "For more, see docs/user_stories/unified_system_startup.md or onboarding docs."
+	@echo "==== End Log Viewing Help ===="
+
+# Remove duplicate targets from Makefile.ai using scripts/remove_makefile_targets.awk
+# Usage: make -f Makefile.ai-misc ai-remove-duplicate-makefile-targets
+ai-remove-duplicate-makefile-targets:
+	awk -f scripts/remove_makefile_targets.awk Makefile.ai > Makefile.ai.cleaned && mv Makefile.ai.cleaned Makefile.ai
+
+.PHONY: ai-export-rules ai-lint-rules ai-propose-rule ai-list-pending ai-approve-rule ai-reject-rule ai-list-rules ai-list-rules-mdc ai-review-code-files ai-review-code-snippet ai-scan-db ai-approve-all-pending ai-propose-makefile-rule ai-review-multiple-files ai-propose-rules ai-misc-install ai-misc-up ai-misc-update-rules ai-misc-generate-update-template ai-misc-mdc-to-json ai-misc-enrich-rules ai-misc-build ai-misc-update-missing-user-stories ai-misc-restart ai-propose-portable-rule ai-bug-report ai-bug-report-test ai-suggest-enhancement ai-suggest-enhancement-test ai-enhancement-to-proposal ai-proposal-to-enhancement ai-accept-enhancement ai-complete-enhancement ai-list-enhancements ai-onboarding-health ai-import-backup ai-search-user-stories ai-fdw-setup-script ai-safe-shutdown ai-logs-help ai-remove-duplicate-makefile-targets 

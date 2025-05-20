@@ -185,4 +185,21 @@ def summarize_git_diff(
         "combined": "\n\n".join(summaries),
         "chunks": len(chunks),
         "prompt": prompt
-    } 
+    }
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="LLM Rule Suggester Service CLI")
+    parser.add_argument("target", nargs="?", default=".", help="Target directory or file to analyze")
+    parser.add_argument("--dry-run", action="store_true", help="Run static checker only (no LLM)")
+    args = parser.parse_args()
+    try:
+        suggestions = run_static_checker(args.target)
+        print(json.dumps(suggestions, indent=2))
+        sys.exit(0)
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main() 

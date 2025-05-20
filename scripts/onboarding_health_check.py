@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import subprocess
 
 yaml_pattern = re.compile(r"^---\s*([\s\S]+?)---", re.MULTILINE)
 

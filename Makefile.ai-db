@@ -1,0 +1,109 @@
+# Database and backup/restore related targets extracted from Makefile.ai
+
+ai-db-migrate:
+	docker compose exec api alembic upgrade head
+
+ai-db-revision:
+	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
+
+ai-db-autorevision:
+	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
+
+ai-db-rollback:
+	docker compose exec -T db-test psql -U postgres -d rulesdb -c 'ROLLBACK;'
+
+ai-db-reset-migrations:
+	docker compose down
+	docker compose up -d db-test
+	$(MAKE) -f Makefile.ai ai-db-rollback
+	docker compose up -d
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+ai-db-heads:
+	docker compose exec api alembic heads
+
+ai-db-history:
+	docker compose exec api alembic history --verbose
+
+ai-db-merge-heads:
+	docker compose exec api alembic heads
+
+ai-db-stamp-head:
+	docker compose exec api alembic stamp head
+
+ai-db-migration-new:
+	docker compose exec api alembic revision --autogenerate -m "$(NAME)"
+
+ai-db-backup:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump -U postgres -d rulesdb > backups/rulesdb-`date +"%Y%m%d-%H%M%S"`.sql
+
+ai-db-backup-data-only:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump --data-only -U postgres -d rulesdb > backups/rulesdb-data-`date +"%Y%m%d-%H%M%S"`.sql
+
+ai-db-backup-all:
+	docker compose exec db-test pg_dump -U postgres -d rulesdb > backups/rulesdb-$(shell date +%Y%m%d-%H%M%S).sql
+	docker compose exec db-test pg_dump -U postgres -d memorydb > backups/memorydb-$(shell date +%Y%m%d-%H%M%S).sql
+
+ai-db-restore:
+	docker compose exec -T db-test psql -U postgres -d rulesdb < $(BACKUP)
+
+ai-db-restore-data:
+	cat $(BACKUP) | grep -vE '^CREATE |^ALTER |^DROP |^--' | grep -v 'COPY alembic_version' | docker compose exec -T db-test psql -U postgres -d rulesdb
+
+ai-db-restore-all:
+	docker compose exec -T db-test psql -U postgres -d rulesdb < $(RULESDB_FILE)
+	docker compose exec -T db-test psql -U postgres -d memorydb < $(MEMORYDB_FILE)
+
+ai-db-nuke:
+	docker compose down -v
+	docker compose up -d db-test
+
+ai-db-nuke-and-restore-data:
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+	$(MAKE) -f Makefile.ai ai-db-nuke
+	$(MAKE) -f Makefile.ai ai-up
+	$(MAKE) -f Makefile.ai ai-api-wait
+	$(MAKE) -f Makefile.ai ai-db-migrate
+	BACKUP=$$(ls -t backups/rulesdb-data-*.sql | head -1) $(MAKE) -f Makefile.ai ai-db-restore-data
+
+ai-db-drop-recreate:
+	docker compose exec -T db-test psql -U postgres -c 'DROP DATABASE IF EXISTS rulesdb;'
+	docker compose exec -T db-test psql -U postgres -c 'CREATE DATABASE rulesdb;'
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+ai-db-drop-statusenum:
+	docker compose cp scripts/drop_statusenum.sql db-test:/tmp/drop_statusenum.sql
+	docker compose exec -T db-test psql -U postgres -d rulesdb -f /tmp/drop_statusenum.sql
+
+ai-enable-fdw:
+	docker compose exec db-test psql -U postgres -d memorydb -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
+	docker compose exec db-test psql -U postgres -d rulesdb -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
+
+ai-fdw-setup-script:
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "DROP SERVER IF EXISTS temp_restore_server CASCADE;"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE SERVER temp_restore_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host='db-test', dbname='$(TEMP_DB)', port='5432');"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE USER MAPPING FOR CURRENT_USER SERVER temp_restore_server OPTIONS (user='postgres');"
+	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "IMPORT FOREIGN SCHEMA public FROM SERVER temp_restore_server INTO temp_schema;"
+
+ai-memorydb-backup:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump -U postgres -d memorydb > backups/memorydb-`date +"%Y%m%d-%H%M%S"`.sql
+
+ai-memorydb-backup-data-only:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump --data-only -U postgres -d memorydb > backups/memorydb-data-`date +"%Y%m%d-%H%M%S"`.sql
+
+ai-memorydb-schema-backup:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump -U postgres -d memorydb --schema-only > backups/memorydb-schema-`date +"%Y%m%d-%H%M%S"`.sql
+
+ai-memorydb-restore:
+	docker compose exec -T db-test psql -U postgres -d memorydb < $(BACKUP_FILE)
+
+ai-memorydb-restore-data:
+	docker compose exec -T db-test psql -U postgres -d memorydb < $(BACKUP_FILE)
+
+.PHONY: ai-db-migrate ai-db-revision ai-db-autorevision ai-db-rollback ai-db-reset-migrations ai-db-heads ai-db-history ai-db-merge-heads ai-db-stamp-head ai-db-migration-new ai-db-backup ai-db-backup-data-only ai-db-backup-all ai-db-restore ai-db-restore-data ai-db-restore-all ai-db-nuke ai-db-nuke-and-restore-data ai-db-drop-recreate ai-db-drop-statusenum ai-enable-fdw ai-fdw-setup-script ai-memorydb-backup ai-memorydb-backup-data-only ai-memorydb-schema-backup ai-memorydb-restore ai-memorydb-restore-data 

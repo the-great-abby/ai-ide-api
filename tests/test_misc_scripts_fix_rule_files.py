@@ -43,4 +43,13 @@ def test_invalid_input_file(mock_run, tmp_path, monkeypatch):
     with pytest.raises(SystemExit):
         fix_rule_files.main()
 
+def test_invalid_input_file(tmp_path):
+    # Create an invalid JSON file
+    invalid_file = tmp_path / 'invalid.json'
+    invalid_file.write_text('{invalid json}')
+    # Patch RULES_DIR to tmp_path
+    fix_rule_files.RULES_DIR = str(tmp_path)
+    with pytest.raises(SystemExit):
+        fix_rule_files.main()
+
 # TODO: Add tests for rule file fixing logic, error handling, and logging 

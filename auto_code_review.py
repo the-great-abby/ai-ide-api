@@ -6,6 +6,8 @@ import os
 import glob
 import requests
 import json
+import subprocess
+import argparse
 
 # For Docker: use host.docker.internal; for direct API container, use localhost
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
@@ -79,18 +81,32 @@ def submit_proposals(proposals):
         else:
             print(f"Failed to submit: {proposal.get('rule_type')}", resp.text)
 
-if __name__ == "__main__":
-    print("Scanning codebase for patterns...")
-    patterns = scan_codebase_for_patterns()
-    print(f"Found {len(patterns)} patterns.")
+def main():
+    import argparse
+    import sys
+    parser = argparse.ArgumentParser(description="Auto Code Review CLI")
+    parser.add_argument("target", nargs="?", default=".", help="Target directory or file to analyze")
+    parser.add_argument("--dry-run", action="store_true", help="Run static checker only (no LLM)")
+    args = parser.parse_args()
+    if not os.path.exists(args.target):
+        print(f"[ERROR] Target path '{args.target}' does not exist.")
+        sys.exit(1)
+    patterns = scan_codebase_for_patterns()  # Optionally use args.target if needed
     rules = get_current_rules()
     prompt = build_prompt(patterns, rules)
-    print("Calling Ollama for rule proposals...")
+    if args.dry_run:
+        print(json.dumps({"patterns": patterns, "rules": rules, "prompt": prompt[:200] + ("..." if len(prompt) > 200 else "")}, indent=2))
+        return 0
     llm_output = call_ollama(prompt)
-    print("LLM output received. Parsing...")
     proposals = parse_rule_proposals(llm_output)
     if proposals:
-        print(f"Submitting {len(proposals)} proposals to API...")
         submit_proposals(proposals)
+        print(f"Submitted {len(proposals)} proposals.")
+        return 0
     else:
-        print("No valid proposals generated.") 
+        print("No valid proposals generated.")
+        return 1
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main()) 
