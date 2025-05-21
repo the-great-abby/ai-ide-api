@@ -23,7 +23,6 @@ def get_git_diff(paths):
     """Return the git diff for the given paths since last commit."""
     diffs = {}
     for path in paths:
-        # Always use /code/ prefix for paths
         code_path = f"/code/{path}" if not path.startswith("/code/") else path
         try:
             result = subprocess.run([
@@ -31,14 +30,14 @@ def get_git_diff(paths):
             ], capture_output=True, text=True, check=True)
             changed_files = [f for f in result.stdout.strip().split("\n") if f]
             if changed_files:
-                # Get the actual diff for each file
                 for file in changed_files:
                     diff_result = subprocess.run([
                         "git", "diff", "HEAD~1", "HEAD", "--", file
                     ], capture_output=True, text=True, check=True)
                     diffs[file] = diff_result.stdout.strip()
         except subprocess.CalledProcessError as e:
-            print(f"Error running git diff for {path}: {e}", file=sys.stderr)
+            if os.path.exists(code_path):
+                print(f"Warning: git diff failed for {path}: {e}", file=sys.stderr)
     return diffs
 
 def call_ollama(prompt):
