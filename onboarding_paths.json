@@ -51,5 +51,21 @@
     "submit_test_proposal",
     "validate_api_token",
     "report_onboarding_status"
+  ],
+  "novice_user": [
+    "review_getting_started_guide",
+    "install_development_tools",
+    "verify_tool_installations",
+    "clone_repository",
+    "start_services",
+    "explore_api_documentation",
+    "make_first_api_call",
+    "understand_basic_concepts",
+    "try_sample_workflow",
+    "review_common_issues",
+    "practice_basic_commands",
+    "explore_memory_graph",
+    "create_first_memory_node",
+    "review_progress"
   ]
 } 

@@ -21,9 +21,10 @@ def chunk_text(text, max_tokens=2000):
         chunks.append("\n".join(chunk))
     return chunks
 
+# Use Docker service name when running in Docker, otherwise use localhost
 OLLAMA_URL = os.environ.get(
     "OLLAMA_URL",
-    "http://localhost:9104/api/generate"
+    "http://api:8000/summarize-git-diff" if os.environ.get("RUNNING_IN_DOCKER") else "http://localhost:9103/summarize-git-diff"
 )
 MODEL = os.environ.get("OLLAMA_MODEL", "llama3")
 

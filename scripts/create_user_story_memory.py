@@ -7,8 +7,15 @@ import yaml
 import json
 import re
 
-API_URL = os.environ.get("MEMORY_API_URL", "http://localhost:9103/memory/nodes")
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:9104/api/generate")
+# Use Docker service names when running in Docker, otherwise use localhost
+API_URL = os.environ.get(
+    "MEMORY_API_URL",
+    "http://api:8000/memory/nodes" if os.environ.get("RUNNING_IN_DOCKER") else "http://localhost:9103/memory/nodes"
+)
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_URL",
+    "http://api:8000/suggest-llm-rules" if os.environ.get("RUNNING_IN_DOCKER") else "http://localhost:9103/suggest-llm-rules"
+)
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3")
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)

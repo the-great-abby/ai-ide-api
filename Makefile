@@ -1,4 +1,4 @@
-.PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down frontend generate-knowledge-graph simulate-onboarding create-user-story-memory
+.PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down frontend generate-knowledge-graph simulate-onboarding create-user-story-memory setup-memory-hook
 
 PORT ?= 9103
 
@@ -20,6 +20,7 @@ help:
 	@echo "  generate-knowledge-graph  Generate the project knowledge graph (KNOWLEDGE_GRAPH.md)"
 	@echo "  simulate-onboarding  Run onboarding simulation script inside misc-scripts container"
 	@echo "  create-user-story-memory  Create a memory node from a user story markdown file (with frontmatter)"
+	@echo "  setup-memory-hook  Set up the memory scanning git hook"
 	@echo ""
 	@echo "You can override the port with: make up PORT=9000"
 	@echo "To run a specific test: make test-one TEST=test_rule_api_server.py::test_docs_endpoint"
@@ -32,10 +33,10 @@ build:
 	docker-compose build
 
 up:
-	PORT=$(PORT) docker-compose up api
+	PORT=$(PORT) docker-compose up db-test api ollama-functions
 
 up-detached:
-	PORT=$(PORT) docker-compose up -d api
+	PORT=$(PORT) docker-compose up -d db-test api ollama-functions
 
 test:
 	docker-compose run --rm test pytest tests/
@@ -78,4 +79,21 @@ simulate-onboarding:
 # Usage:
 #   make create-user-story-memory USER_STORY=simulated_onboarding_demo.md
 create-user-story-memory:
-	docker compose exec misc-scripts python /code/scripts/create_user_story_memory.py --file /code/docs/user_stories/$(USER_STORY) 
+	docker compose exec -e MEMORY_API_URL="http://api:8000/memory/nodes" -e OLLAMA_URL="http://ollama-functions:8000/api/generate" misc-scripts python /code/scripts/create_user_story_memory.py --file /code/docs/user_stories/$(USER_STORY)
+
+setup-memory-hook:
+	@echo "Setting up memory scanning git hook..."
+	@if [ ! -f .git/hooks/pre-commit ]; then \
+		echo "#!/bin/sh" > .git/hooks/pre-commit; \
+		echo "" >> .git/hooks/pre-commit; \
+		echo "# Run memory scanning script" >> .git/hooks/pre-commit; \
+		echo "echo \"Scanning for memory node opportunities...\"" >> .git/hooks/pre-commit; \
+		echo "docker compose exec -e MEMORY_API_URL=\"http://api:8000/memory/nodes\" -e OLLAMA_URL=\"http://ollama-functions:8000/api/generate\" misc-scripts python /code/scripts/scan_for_memory_node_opportunities.py" >> .git/hooks/pre-commit; \
+		echo "" >> .git/hooks/pre-commit; \
+		echo "# Continue with commit" >> .git/hooks/pre-commit; \
+		echo "exit 0" >> .git/hooks/pre-commit; \
+		chmod +x .git/hooks/pre-commit; \
+		echo "Memory scanning hook installed successfully!"; \
+	else \
+		echo "Memory scanning hook already exists. Skipping installation."; \
+	fi 

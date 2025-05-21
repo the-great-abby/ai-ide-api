@@ -31,6 +31,7 @@ from db import ApiErrorLog, ApiAccessToken
 from db import UseCase
 from db import ProjectOnboardingProgress
 import threading
+import markdown
 
 app = FastAPI(
     title="Rule Proposal API",
@@ -973,7 +974,6 @@ class MemoryNodeOut(BaseModel):
     id: str
     namespace: str
     content: str
-    embedding: Optional[List[float]] = None
     meta: Optional[str] = None
     created_at: datetime
 
@@ -1418,12 +1418,14 @@ ONBOARDING_USER_STORY_FILES = {
     "external_project": "docs/user_stories/external_project_onboarding.md",
     "internal_dev": "docs/user_stories/internal_dev_onboarding.md",
     "ai_agent": "docs/user_stories/ai_agent_onboarding.md",
+    "novice_user": "docs/user_stories/novice_user_onboarding.md"
 }
 
 ONBOARDING_USER_STORY_LINKS = {
     "external_project": "/onboarding/user_story/external_project",
     "internal_dev": "/onboarding/user_story/internal_dev",
     "ai_agent": "/onboarding/user_story/ai_agent",
+    "novice_user": "/onboarding/user_story/novice_user"
 }
 
 def load_onboarding_step_descriptions(path: str) -> dict:
@@ -1644,3 +1646,24 @@ def update_onboarding_progress(
         description=step_desc.get(record.step, ""),
         user_story_link=user_story_link,
     )
+
+@app.get("/api/troubleshooting-guide", response_class=Response)
+def get_troubleshooting_guide():
+    doc_path = os.path.join(os.path.dirname(__file__), "docs", "troubleshooting.md")
+    if not os.path.exists(doc_path):
+        return Response(content="Troubleshooting guide not found.", media_type="text/plain", status_code=404)
+    
+    with open(doc_path, "r") as f:
+        content = f.read()
+    
+    # Convert markdown to HTML
+    html = markdown.markdown(content, extensions=['fenced_code', 'tables'])
+    
+    return {
+        "content": content,
+        "html": html
+    }
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}

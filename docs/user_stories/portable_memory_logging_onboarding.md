@@ -31,7 +31,7 @@ As a developer or team, I want to easily enable automated memory logging and LLM
    - `PROJECT` (defaults to repo name)
    - `NAMESPACE` (defaults to project)
    - `MEMORY_API_URL` (defaults to `http://localhost:9103/memory/nodes`)
-   - `LLM_API_URL` (defaults to `http://localhost:9104/summarize-git-diff`)
+   - `LLM_API_URL` (defaults to `http://localhost:9103/summarize-git-diff`)
    - `DIFFS_DIR` (defaults to `diffs`)
    - Use a `.env` file or export in your shell for convenience
 3. **Start or connect to the required services:**

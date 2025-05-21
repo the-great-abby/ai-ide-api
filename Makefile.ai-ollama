@@ -42,7 +42,7 @@ ai-restart-ollama-functions:
 	docker-compose up -d ollama-functions
 
 ai-ollama-functions-health:
-	curl -s http://localhost:9104/healthz || echo '{"error": "ollama-functions not running"}'
+	curl -s http://localhost:9103/healthz || echo '{"error": "API not running"}'
 
 ai-ollama-functions-logs:
 	docker-compose logs --tail=100 ollama-functions

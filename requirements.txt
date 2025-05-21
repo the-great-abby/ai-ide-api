@@ -10,4 +10,5 @@ alembic
 python-dateutil 
 psycopg2-binary 
 requests 
-numpy 
+numpy
+markdown==3.5.2 

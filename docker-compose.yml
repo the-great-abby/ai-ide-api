@@ -101,8 +101,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ollama_functions
-    ports:
-      - "9104:8000"
     environment:
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}

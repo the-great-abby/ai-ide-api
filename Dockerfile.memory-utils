@@ -1,8 +1,0 @@
-FROM alpine:3.18
-
-RUN apk add --no-cache bash curl jq
-
-WORKDIR /scripts
-COPY scripts/ /scripts/
-
-ENTRYPOINT ["/bin/bash"] 
