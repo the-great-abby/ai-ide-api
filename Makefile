@@ -66,13 +66,13 @@ frontend:
 	docker-compose up frontend
 
 generate-knowledge-graph:
-	docker compose exec api python scripts/generate_knowledge_graph.py 
+	docker compose exec api python /code/scripts/generate_knowledge_graph.py
 
 # Run onboarding simulation script inside misc-scripts container
 # Usage:
 #   make simulate-onboarding PROJECT_ID=test_onboarding ONBOARDING_PATH=external_project
 simulate-onboarding:
-	docker compose exec -e ONBOARDING_API_URL="http://api:8000" misc-scripts python scripts/simulate_onboarding.py $(PROJECT_ID) $(ONBOARDING_PATH) 
+	docker compose exec -e ONBOARDING_API_URL="http://api:8000" misc-scripts python /code/scripts/simulate_onboarding.py $(PROJECT_ID) $(ONBOARDING_PATH)
 
 # Create a memory node from a user story markdown file (with frontmatter)
 # Usage:

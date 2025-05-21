@@ -204,4 +204,4 @@ submit-rule:
 	curl -X POST http://localhost:9103/propose-rule-change -H 'Content-Type: application/json' --data @$(FILE)
 
 update-project-map:
-	docker compose exec misc-scripts python3 scripts/update_project_map.py
+	docker compose exec misc-scripts python3 /code/scripts/update_project_map.py
