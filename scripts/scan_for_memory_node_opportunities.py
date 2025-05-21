@@ -10,6 +10,10 @@ TARGETS = [
     ".cursor/rules/",
     "docs/user_stories/",
     "ONBOARDING.md",
+    "scripts/",
+    "misc_scripts/",
+    "Makefile.ai",
+    "Makefile.ai.*",
 ]
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
