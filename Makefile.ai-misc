@@ -194,4 +194,7 @@ ai-logs-help:
 ai-remove-duplicate-makefile-targets:
 	awk -f scripts/remove_makefile_targets.awk Makefile.ai > Makefile.ai.cleaned && mv Makefile.ai.cleaned Makefile.ai
 
+ai-enhancement-lifecycle-notify:
+	docker compose exec misc-scripts python3 /code/misc_scripts/enhancement_lifecycle_notify.py
+
 .PHONY: ai-export-rules ai-lint-rules ai-propose-rule ai-list-pending ai-approve-rule ai-reject-rule ai-list-rules ai-list-rules-mdc ai-review-code-files ai-review-code-snippet ai-scan-db ai-approve-all-pending ai-propose-makefile-rule ai-review-multiple-files ai-propose-rules ai-misc-install ai-misc-up ai-misc-update-rules ai-misc-generate-update-template ai-misc-mdc-to-json ai-misc-enrich-rules ai-misc-build ai-misc-update-missing-user-stories ai-misc-restart ai-propose-portable-rule ai-bug-report ai-bug-report-test ai-suggest-enhancement ai-suggest-enhancement-test ai-enhancement-to-proposal ai-proposal-to-enhancement ai-accept-enhancement ai-complete-enhancement ai-list-enhancements ai-onboarding-health ai-import-backup ai-search-user-stories ai-fdw-setup-script ai-safe-shutdown ai-logs-help ai-remove-duplicate-makefile-targets 

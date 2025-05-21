@@ -34,5 +34,6 @@ A central index of all user stories for workflows, onboarding, automation, and b
 | User Story: Database Migration Recovery & Alembic Stamping | As a developer or admin, I want to quickly recover from Alembic migration mismatches or missing revision errors, so that I can keep the database and migration history in sync and continue development without downtime. | [db_migration_recovery_and_stamping.md](db_migration_recovery_and_stamping.md) |
 | User Story: Database Schema Recovery and Data-Only Restore | **As a developer or maintainer,** | [db_schema_recovery_and_data_restore.md](db_schema_recovery_and_data_restore.md) |
 | User Story: Reviewing Recent Commits with Makefile Target | To streamline the process of reviewing recent code changes and enhancements, a Makefile target (`git-log-recent`) was added. This helps team members quickly audit recent activity, track enhancements, and support better communication and documentation of ongoing work. | [git_log_recent_commits.md](git_log_recent_commits.md) |
+| [Rule Promotion and Hierarchical Scopes](rule_promotion_and_hierarchical_scopes.md)
 
 **Tip:** Reference this index when onboarding, reviewing code, or adding new workflows.

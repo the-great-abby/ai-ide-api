@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 import re
 
 from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
-                     UploadFile, Request, Header)
+                     UploadFile, Request, Header, status)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -114,6 +114,10 @@ class RuleProposal(BaseModel):
     references: Optional[str] = None
     current_rule: Optional[str] = None
     user_story: Optional[str] = None
+    # Hierarchical scope fields
+    scope_level: str = "global"  # Allowed: 'global', 'team', 'project', 'machine'
+    scope_id: Optional[str] = None
+    parent_rule_id: Optional[str] = None
 
 
 class Rule(BaseModel):
@@ -131,6 +135,10 @@ class Rule(BaseModel):
     applies_to: List[str] = []
     applies_to_rationale: Optional[str] = None
     user_story: Optional[str] = None
+    # Hierarchical scope fields
+    scope_level: str = "global"  # Allowed: 'global', 'team', 'project', 'machine'
+    scope_id: Optional[str] = None
+    parent_rule_id: Optional[str] = None
 
 
 class BugReportModel(BaseModel):
@@ -173,6 +181,10 @@ class RuleUpdate(BaseModel):
     references: Optional[str] = None
     current_rule: Optional[str] = None
     user_story: Optional[str] = None
+    # Hierarchical scope fields
+    scope_level: Optional[str] = None  # Allowed: 'global', 'team', 'project', 'machine'
+    scope_id: Optional[str] = None
+    parent_rule_id: Optional[str] = None
 
 
 class RuleProposalFeedbackCreate(BaseModel):
@@ -258,6 +270,9 @@ def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
         references=proposal.references,
         current_rule=proposal.current_rule,
         user_story=proposal.user_story,
+        scope_level=proposal.scope_level,
+        scope_id=proposal.scope_id,
+        parent_rule_id=proposal.parent_rule_id,
     )
     db.add(db_proposal)
     db.commit()
@@ -377,6 +392,9 @@ def approve_rule_change(
         applies_to=list_to_str(proposal.applies_to),
         applies_to_rationale=proposal.applies_to_rationale,
         user_story=proposal.user_story,
+        scope_level=proposal.scope_level,
+        scope_id=proposal.scope_id,
+        parent_rule_id=proposal.parent_rule_id,
         # Optionally store reason_for_change, references, current_rule in Rule if desired
     )
     db.add(db_rule)
@@ -407,11 +425,17 @@ def list_rules(
     project: Optional[str] = None,
     category: Optional[str] = None,
     tag: Optional[str] = None,
+    scope_level: Optional[str] = None,
+    scope_id: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(DBRule)
     if project:
         query = query.filter(DBRule.project == project)
+    if scope_level:
+        query = query.filter(DBRule.scope_level == scope_level)
+    if scope_id:
+        query = query.filter(DBRule.scope_id == scope_id)
     rules = query.all()
     result = []
     # Support multi-category filtering
@@ -627,6 +651,9 @@ def enhancement_to_proposal(enhancement_id: str, db: Session = Depends(get_db)):
         tags=enh.tags,
         applies_to=list_to_str(enh.applies_to),
         applies_to_rationale=enh.applies_to_rationale,
+        scope_level=enh.scope_level,
+        scope_id=enh.scope_id,
+        parent_rule_id=enh.parent_rule_id,
     )
     db.add(proposal)
     enh.status = "transferred"
@@ -675,6 +702,9 @@ def proposal_to_enhancement(proposal_id: str, db: Session = Depends(get_db)):
         proposal_id=proposal.id,
         applies_to=str_to_list(proposal.applies_to),
         applies_to_rationale=proposal.applies_to_rationale,
+        scope_level=proposal.scope_level,
+        scope_id=proposal.scope_id,
+        parent_rule_id=proposal.parent_rule_id,
     )
     db.add(enh)
     proposal.status = StatusEnum.reverted_to_enhancement
@@ -1575,3 +1605,39 @@ def update_onboarding_progress(
         description=step_desc.get(record.step, ""),
         user_story_link=user_story_link,
     )
+
+class RulePromotionRequest(BaseModel):
+    scope_level: str  # 'global', 'team', 'project', 'machine'
+    scope_id: Optional[str] = None
+
+@app.post("/rules/{rule_id}/promote", response_model=Rule, status_code=status.HTTP_200_OK)
+def promote_rule(
+    rule_id: str,
+    promotion: RulePromotionRequest,
+    db: Session = Depends(get_db),
+):
+    rule = db.query(DBRule).filter(DBRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    # Validate allowed transitions
+    allowed_levels = ["global", "team", "project", "machine"]
+    if promotion.scope_level not in allowed_levels:
+        raise HTTPException(status_code=400, detail=f"Invalid scope_level: {promotion.scope_level}")
+    # Optionally: enforce only upward transitions (e.g., project->team->global)
+    current_level = rule.scope_level or "global"
+    level_order = {"machine": 0, "project": 1, "team": 2, "global": 3}
+    if level_order.get(promotion.scope_level, -1) <= level_order.get(current_level, -1):
+        raise HTTPException(status_code=400, detail=f"Can only promote to a higher scope (current: {current_level}, requested: {promotion.scope_level})")
+    rule.scope_level = promotion.scope_level
+    rule.scope_id = promotion.scope_id
+    db.commit()
+    db.refresh(rule)
+    # Return as Pydantic Rule
+    result = rule.__dict__.copy()
+    result["categories"] = str_to_list(result.get("categories", ""))
+    result["tags"] = str_to_list(result.get("tags", ""))
+    result["applies_to"] = str_to_list(result.get("applies_to", ""))
+    result["applies_to_rationale"] = result.get("applies_to_rationale", "")
+    if isinstance(result.get("timestamp"), datetime):
+        result["timestamp"] = result["timestamp"].isoformat()
+    return Rule(**result)

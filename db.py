@@ -13,6 +13,7 @@ from sqlalchemy import Float
 from sqlalchemy import text
 from sqlalchemy.types import UserDefinedType
 import sqlalchemy as sa
+from sqlalchemy import Enum as SAEnum
 
 # SQLite database URL
 POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
@@ -45,6 +46,16 @@ class StatusEnum(str, enum.Enum):
     reverted_to_enhancement = "reverted_to_enhancement"  # New status
 
 
+# Enum for scope level
+class ScopeLevelEnum(str, enum.Enum):
+    global_ = "global"
+    team = "team"
+    project = "project"
+    machine = "machine"
+
+
+# Allowed values for scope_level: 'global', 'team', 'project', 'machine'
+
 # Rule model
 class Rule(Base):
     __tablename__ = "rules"
@@ -64,6 +75,10 @@ class Rule(Base):
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
+    # Hierarchical scope fields
+    scope_level = Column(String, index=True, nullable=False, default="global")  # 'global', 'team', 'project', 'machine'
+    scope_id = Column(String, index=True, nullable=True)
+    parent_rule_id = Column(String, nullable=True)
 
 
 # Proposal model
@@ -87,8 +102,11 @@ class Proposal(Base):
     reason_for_change = Column(Text, nullable=True, default=None)
     references = Column(Text, nullable=True, default=None)
     current_rule = Column(Text, nullable=True, default=None)
-    # Fields below support the full rule proposal template
     user_story = Column(Text, nullable=True, default=None)
+    # Hierarchical scope fields
+    scope_level = Column(String, index=True, nullable=False, default="global")  # 'global', 'team', 'project', 'machine'
+    scope_id = Column(String, index=True, nullable=True)
+    parent_rule_id = Column(String, nullable=True)
 
 
 # Feedback model
@@ -123,6 +141,10 @@ class RuleVersion(Base):
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
+    # Hierarchical scope fields
+    scope_level = Column(String, index=True, nullable=False, default="global")  # 'global', 'team', 'project', 'machine'
+    scope_id = Column(String, index=True, nullable=True)
+    parent_rule_id = Column(String, nullable=True)
 
 
 # BugReport model for bug reporting
@@ -156,6 +178,10 @@ class Enhancement(Base):
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
     diff = Column(Text, nullable=True, default=None)  # New: diff for enhancements
+    # Hierarchical scope fields
+    scope_level = Column(String, index=True, nullable=False, default="global")  # 'global', 'team', 'project', 'machine'
+    scope_id = Column(String, index=True, nullable=True)
+    parent_rule_id = Column(String, nullable=True)
 
 
 # --- New: API Error Log model ---
