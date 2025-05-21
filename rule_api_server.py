@@ -9,9 +9,9 @@ from typing import Dict, List, Optional
 import re
 
 from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
-                     UploadFile, Request, Header, status)
+                     UploadFile, Request, Header, status, Response)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 import requests
@@ -232,7 +232,13 @@ def str_to_list(s):
 
 # Dependency to get DB session
 def get_db():
-    db = SessionLocal()
+    import os
+    if os.getenv("USE_MOCK_SERVICES") == "true":
+        from mocks.mock_db import MockSession
+        db = MockSession()
+    else:
+        from db import SessionLocal
+        db = SessionLocal()
     try:
         yield db
     finally:
@@ -1562,55 +1568,20 @@ def summarize_git_diff_passthrough(
     except Exception as e:
         return {"error": str(e)}
 
-@app.get("/onboarding/user_story/{path}")
-def get_user_story(path: str):
-    file_map = {
-        "external_project": "docs/user_stories/external_project_onboarding.md",
-        "internal_dev": "docs/user_stories/internal_dev_onboarding.md",
-        "ai_agent": "docs/user_stories/ai_agent_onboarding.md",
-    }
-    file = file_map.get(path)
-    if not file or not os.path.exists(file):
-        raise HTTPException(status_code=404, detail="User story not found")
-    with open(file) as f:
+@app.get("/onboarding-docs", response_class=Response)
+def get_onboarding_docs():
+    doc_path = os.path.join(os.path.dirname(__file__), "docs", "onboarding", "automation_and_makefile_best_practices.md")
+    if not os.path.exists(doc_path):
+        return Response(content="Onboarding documentation not found.", media_type="text/plain", status_code=404)
+    with open(doc_path, "r") as f:
         content = f.read()
-    return Response(content, media_type="text/markdown")
-
-@app.patch("/onboarding/progress/{progress_id}", response_model=OnboardingProgressWithDesc)
-def update_onboarding_progress(
-    progress_id: str,
-    update: OnboardingProgressUpdate,
-    db: Session = Depends(get_db),
-):
-    record = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.id == progress_id).first()
-    if not record:
-        raise HTTPException(status_code=404, detail="Onboarding progress record not found")
-    data = update.dict(exclude_unset=True)
-    for field, value in data.items():
-        if value is not None:
-            setattr(record, field, value)
-    db.commit()
-    db.refresh(record)
-    # Attach description and user story link
-    step_desc = load_onboarding_step_descriptions(record.path) if record.path else {}
-    user_story_link = ONBOARDING_USER_STORY_LINKS.get(record.path, "")
-    return OnboardingProgressWithDesc(
-        id=record.id,
-        project_id=record.project_id,
-        path=record.path,
-        step=record.step,
-        completed=record.completed,
-        timestamp=record.timestamp,
-        details=record.details,
-        description=step_desc.get(record.step, ""),
-        user_story_link=user_story_link,
-    )
+    return Response(content=content, media_type="text/markdown")
 
 class RulePromotionRequest(BaseModel):
     scope_level: str  # 'global', 'team', 'project', 'machine'
     scope_id: Optional[str] = None
 
-@app.post("/rules/{rule_id}/promote", response_model=Rule, status_code=status.HTTP_200_OK)
+@app.post("/rules/{rule_id}/promote", response_model=Rule)
 def promote_rule(
     rule_id: str,
     promotion: RulePromotionRequest,

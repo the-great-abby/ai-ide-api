@@ -2,6 +2,7 @@ import requests
 import os
 import json
 import subprocess
+import sys
 
 # Determine API base URL based on environment
 
@@ -10,13 +11,16 @@ def get_default_api_base():
         return "http://api:8000"
     return "http://localhost:9103"
 
+def get_api_base():
+    return os.environ.get("API_BASE", get_default_api_base())
+
 API_BASE = os.environ.get("API_BASE", get_default_api_base())
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
 MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
 
 
 def get_pending_proposals():
-    resp = requests.get(f"{API_BASE}/pending-rule-changes")
+    resp = requests.get(f"{get_api_base()}/pending-rule-changes")
     resp.raise_for_status()
     return resp.json()
 
@@ -82,13 +86,23 @@ Given the following rule proposal, suggest feedback (accept, reject, needs_chang
 
 def submit_feedback(proposal_id, feedback_type, comments):
     feedback = {"feedback_type": feedback_type, "comments": comments}
-    resp = requests.post(f"{API_BASE}/api/rule_proposals/{proposal_id}/feedback", json=feedback)
+    resp = requests.post(f"{get_api_base()}/api/rule_proposals/{proposal_id}/feedback", json=feedback)
     print(f"Submitted feedback for {proposal_id}: {feedback_type} ({comments[:60]})")
     return resp
 
 
 def main():
-    proposals = get_pending_proposals()
+    # Check for input file argument if present
+    if len(sys.argv) > 1 and sys.argv[0].endswith('auto_feedback.py'):
+        input_file = sys.argv[1]
+        if not os.path.exists(input_file):
+            print(f"Error: Input file '{input_file}' does not exist.")
+            sys.exit(1)
+    try:
+        proposals = get_pending_proposals()
+    except Exception as e:
+        print(f"Error fetching proposals: {e}")
+        sys.exit(1)
     if not proposals:
         print("No pending proposals found.")
         return
@@ -96,7 +110,11 @@ def main():
         feedback_type, comments = rule_based_feedback(proposal)
         if not feedback_type:
             feedback_type, comments = llm_feedback(proposal)
-        submit_feedback(proposal["id"], feedback_type, comments)
+        try:
+            submit_feedback(proposal["id"], feedback_type, comments)
+        except Exception as e:
+            print(f"Error submitting feedback: {e}")
+            sys.exit(1)
         print(f"AI suggested: {feedback_type} - {comments}\n{'-'*40}")
 
 if __name__ == "__main__":

@@ -19,7 +19,11 @@ As an external project owner or integrator, I want a simple, automated way to in
 ---
 
 ## Step-by-Step Actions
-1. **Call the onboarding initialization endpoint:**
+1. **Review onboarding and automation docs:**
+   - Download and review the onboarding and automation best practices documentation:
+     - `GET /onboarding-docs` (automation and Makefile best practices)
+     - `GET /onboarding/user_story/external_project` (this user story)
+2. **Call the onboarding initialization endpoint:**
    - Send a POST request to `/onboarding/init` with your `project_id` and `path` set to `external_project`.
    - Example:
      ```json
@@ -28,13 +32,15 @@ As an external project owner or integrator, I want a simple, automated way to in
        "path": "external_project"
      }
      ```
-2. **API creates onboarding steps:**
+3. **API creates onboarding steps:**
    - The API reads the steps for 'external_project' from onboarding_paths.json.
    - It creates progress records for each step (if not already present).
-3. **Query onboarding progress:**
+4. **Query onboarding progress:**
    - Use `GET /onboarding/progress/rebel_container?path=external_project` to see the checklist and status.
-4. **Mark steps as completed:**
+5. **Mark steps as completed:**
    - As you complete each step, update the corresponding progress record via the PATCH endpoint.
+6. **Promote rules as needed:**
+   - Use `POST /rules/{rule_id}/promote` to promote rules to higher scopes (see [Rule Promotion and Hierarchical Scopes](./rule_promotion_and_hierarchical_scopes.md)).
 
 ---
 
@@ -105,10 +111,14 @@ For more advanced usage, traversal, and best practices, see [`docs/user_stories/
 - Always use the onboarding_paths.json template for consistency.
 - Automate onboarding initialization in your project setup scripts.
 - Regularly query and update onboarding progress to keep status current.
+- Review and use the `/onboarding-docs` endpoint for automation and Makefile best practices.
+- Use the `/rules/{rule_id}/promote` endpoint to manage rule scopes as your project grows.
 
 ---
 
 ## References
 - Endpoint: `POST /onboarding/init`
 - Step template: `onboarding_paths.json`
-- Progress: `GET /onboarding/progress/{project_id}?path=external_project` 
+- Progress: `GET /onboarding/progress/{project_id}?path=external_project`
+- Automation docs: `GET /onboarding-docs`
+- Rule promotion: `POST /rules/{rule_id}/promote` 

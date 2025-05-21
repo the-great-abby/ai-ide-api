@@ -1,4 +1,5 @@
 import pytest
+pytestmark = pytest.mark.unit
 from scripts.memory_edge_inference import (
     extract_explicit_edges,
     extract_tag_based_edges,

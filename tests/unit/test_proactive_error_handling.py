@@ -1,4 +1,5 @@
 import pytest
+pytestmark = pytest.mark.unit
 from scripts.proactive_error_handling import suggest_fixes_for_error
 
 def test_suggest_fixes_for_error_string_match():

@@ -4,6 +4,8 @@ from rule_api_server import parse_env_list
 from scripts.lint_rule import validate_rule
 from scripts.onboarding_health_check import check_env
 
+pytestmark = pytest.mark.unit
+
 def test_parse_env_list_basic(monkeypatch):
     monkeypatch.setenv("FOO", "a,b,c")
     assert parse_env_list("FOO", ["x"]) == ["a", "b", "c"]

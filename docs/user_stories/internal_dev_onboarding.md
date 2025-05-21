@@ -19,7 +19,11 @@ As a core team member or internal developer, I want a standardized onboarding ch
 ---
 
 ## Step-by-Step Actions
-1. **Initialize onboarding:**
+1. **Review onboarding and automation docs:**
+   - Download and review the onboarding and automation best practices documentation:
+     - `GET /onboarding-docs` (automation and Makefile best practices)
+     - `GET /onboarding/user_story/internal_dev` (this user story)
+2. **Initialize onboarding:**
    - Send a POST request to `/onboarding/init` with your `project_id` and `path` set to `internal_dev`.
    - Example:
      ```json
@@ -28,12 +32,14 @@ As a core team member or internal developer, I want a standardized onboarding ch
        "path": "internal_dev"
      }
      ```
-2. **API creates onboarding steps:**
+3. **API creates onboarding steps:**
    - The API loads the 'internal_dev' steps from onboarding_paths.json and creates progress records.
-3. **Check onboarding status:**
+4. **Check onboarding status:**
    - Use `GET /onboarding/progress/my_dev_env?path=internal_dev` to view your checklist.
-4. **Complete steps:**
+5. **Complete steps:**
    - As you finish each setup task, mark it complete via the PATCH endpoint.
+6. **Promote rules as needed:**
+   - Use `POST /rules/{rule_id}/promote` to promote rules to higher scopes (see [Rule Promotion and Hierarchical Scopes](./rule_promotion_and_hierarchical_scopes.md)).
 
 ---
 
@@ -105,10 +111,14 @@ For more advanced usage, traversal, and best practices, see [`docs/user_stories/
 - Use onboarding_paths.json as the source of truth for steps.
 - Automate onboarding in setup scripts or Makefile targets.
 - Keep progress up to date for better support and troubleshooting.
+- Review and use the `/onboarding-docs` endpoint for automation and Makefile best practices.
+- Use the `/rules/{rule_id}/promote` endpoint to manage rule scopes as your project grows.
 
 ---
 
 ## References
 - Endpoint: `POST /onboarding/init`
 - Step template: `onboarding_paths.json`
-- Progress: `GET /onboarding/progress/{project_id}?path=internal_dev` 
+- Progress: `GET /onboarding/progress/{project_id}?path=internal_dev`
+- Automation docs: `GET /onboarding-docs`
+- Rule promotion: `POST /rules/{rule_id}/promote` 

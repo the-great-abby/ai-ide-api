@@ -1,7 +1,7 @@
 # Test-related targets extracted from Makefile.ai
 
 ai-test:
-	docker-compose run --rm -e PYTHONPATH=/app test pytest tests/ --disable-warnings --tb=short
+	RUNNING_IN_DOCKER=1 docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
 
 ai-test-json:
 	docker-compose run --rm -e PYTHONPATH=/app test pytest --json-report --json-report-file=pytest-report.json tests/

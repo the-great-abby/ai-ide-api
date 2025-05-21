@@ -1,0 +1,10 @@
+fixtures: tests/conftest.py
+mocks: tests/mocks/
+models:
+  mocks: tests/mocks/mock_db_models.py
+  pydantic: rule_api_server.py
+  sqlalchemy: db.py
+scripts: scripts/
+tests:
+  integration: tests/integration/
+  unit: tests/unit/

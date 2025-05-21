@@ -1,5 +1,7 @@
 {
   "external_project": [
+    "review_onboarding_docs",
+    "review_automation_docs",
     "register_project",
     "obtain_api_token",
     "configure_api_url",
@@ -7,16 +9,20 @@
     "submit_first_rule",
     "run_onboarding_health_check",
     "complete_code_review_objective",
-    "setup_webhook_endpoint",
-    "enable_logging_and_monitoring",
-    "review_api_rate_limits",
-    "accept_terms_of_service",
     "explore_api_docs_and_user_stories",
     "setup_automated_testing",
     "explore_memory_graph_api",
     "add_sample_memory_node",
     "add_sample_memory_edge",
-    "search_memory_nodes"
+    "review_sample_memories",
+    "search_memory_nodes",
+    "promote_rule_if_needed"
+  ],
+  "future_steps": [
+    "setup_webhook_endpoint",
+    "enable_logging_and_monitoring",
+    "review_api_rate_limits",
+    "accept_terms_of_service"
   ],
   "internal_dev": [
     "read_onboarding_guide",
@@ -36,6 +42,7 @@
     "explore_memory_graph_api",
     "add_sample_memory_node",
     "add_sample_memory_edge",
+    "review_sample_memories",
     "search_memory_nodes"
   ],
   "ai_agent": [

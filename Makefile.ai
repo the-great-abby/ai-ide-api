@@ -198,3 +198,10 @@ ai-memory-search-embedding:
 	  -d '{"embedding": $(EMBEDDING), "namespace": "$(NAMESPACE)", "limit": $(LIMIT)}'
 
 # --- End of Deduplicated Makefile.ai ---
+
+submit-rule:
+	@echo "Submitting rule proposal from file: $(FILE)"
+	curl -X POST http://localhost:9103/propose-rule-change -H 'Content-Type: application/json' --data @$(FILE)
+
+update-project-map:
+	docker compose exec misc-scripts python3 scripts/update_project_map.py

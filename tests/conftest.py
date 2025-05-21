@@ -2,6 +2,7 @@ import pytest
 import requests
 
 from db import Base, engine
+from tests.mocks.mock_db_session import MockSession
 
 OLLAMA_EMBEDDING_URL = "http://host.docker.internal:11434/api/embeddings"
 OLLAMA_EMBEDDING_MODEL = "nomic-embed-text:latest"
@@ -30,3 +31,7 @@ def clean_db():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
+
+@pytest.fixture
+def db_session():
+    return MockSession()

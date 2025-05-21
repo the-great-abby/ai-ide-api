@@ -1,4 +1,4 @@
-.PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down frontend generate-knowledge-graph
+.PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down frontend generate-knowledge-graph simulate-onboarding create-user-story-memory
 
 PORT ?= 9103
 
@@ -18,6 +18,8 @@ help:
 	@echo "  down         Stop and remove containers"
 	@echo "  frontend     Launch the admin frontend as a Docker container"
 	@echo "  generate-knowledge-graph  Generate the project knowledge graph (KNOWLEDGE_GRAPH.md)"
+	@echo "  simulate-onboarding  Run onboarding simulation script inside misc-scripts container"
+	@echo "  create-user-story-memory  Create a memory node from a user story markdown file (with frontmatter)"
 	@echo ""
 	@echo "You can override the port with: make up PORT=9000"
 	@echo "To run a specific test: make test-one TEST=test_rule_api_server.py::test_docs_endpoint"
@@ -65,3 +67,15 @@ frontend:
 
 generate-knowledge-graph:
 	docker compose exec api python scripts/generate_knowledge_graph.py 
+
+# Run onboarding simulation script inside misc-scripts container
+# Usage:
+#   make simulate-onboarding PROJECT_ID=test_onboarding ONBOARDING_PATH=external_project
+simulate-onboarding:
+	docker compose exec -e ONBOARDING_API_URL="http://api:8000" misc-scripts python scripts/simulate_onboarding.py $(PROJECT_ID) $(ONBOARDING_PATH) 
+
+# Create a memory node from a user story markdown file (with frontmatter)
+# Usage:
+#   make create-user-story-memory USER_STORY=simulated_onboarding_demo.md
+create-user-story-memory:
+	docker compose exec misc-scripts python /code/scripts/create_user_story_memory.py --file /code/docs/user_stories/$(USER_STORY) 

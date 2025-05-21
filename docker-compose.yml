@@ -92,6 +92,9 @@ services:
       - PGPASSWORD=postgres
       - PGHOST=db-test
       - PGPORT=5432
+      - MEMORY_API_URL=http://api:8000/memory/nodes
+      - OLLAMA_URL=http://host.docker.internal:11434/api/generate
+      - OLLAMA_MODEL=llama3.1:8b-instruct-q6_K
     command: tail -f /dev/null
 
   ollama-functions:
