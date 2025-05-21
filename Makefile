@@ -33,10 +33,10 @@ build:
 	docker-compose build
 
 up:
-	PORT=$(PORT) docker-compose up db-test api ollama-functions
+	PORT=$(PORT) docker-compose up db-test api ollama-functions misc-scripts
 
 up-detached:
-	PORT=$(PORT) docker-compose up -d db-test api ollama-functions
+	PORT=$(PORT) docker-compose up -d db-test api ollama-functions misc-scripts
 
 test:
 	docker-compose run --rm test pytest tests/
