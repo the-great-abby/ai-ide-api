@@ -19,9 +19,11 @@ def get_git_diff(paths):
     """Return the git diff for the given paths since last commit."""
     diffs = {}
     for path in paths:
+        # Always use /code/ prefix for paths
+        code_path = f"/code/{path}" if not path.startswith("/code/") else path
         try:
             result = subprocess.run([
-                "git", "diff", "--name-only", "HEAD~1", "HEAD", "--", path
+                'git', 'diff', '--name-only', 'HEAD~1', 'HEAD', '--', code_path
             ], capture_output=True, text=True, check=True)
             changed_files = [f for f in result.stdout.strip().split("\n") if f]
             if changed_files:
