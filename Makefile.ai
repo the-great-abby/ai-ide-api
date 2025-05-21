@@ -15,7 +15,7 @@ OLLAMA_MODEL ?= llama3.1:8b-instruct-q6_K
 PROJECT ?= ai-ide-api
 
 include Makefile.ai-test
-include Makefile.ai-ollama
+include Makefile.ai-llm
 include Makefile.ai-misc
 include Makefile.ai-db
 include Makefile.ai-admin
@@ -48,73 +48,10 @@ ai-status:
 	docker-compose ps
 
 # --- Database and Migration Targets ---
-ai-db-migrate:
-	docker compose exec api alembic upgrade head
-
-ai-db-revision:
-	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
-
-ai-db-autorevision:
-	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
-
-ai-db-rollback:
-	docker compose exec -T db-test psql -U postgres -d rulesdb -c 'ROLLBACK;'
-
-ai-db-reset-migrations:
-	docker compose down
-	docker compose up -d db-test
-	$(MAKE) -f Makefile.ai ai-db-rollback
-	docker compose up -d
-	$(MAKE) -f Makefile.ai ai-db-migrate
-
-ai-db-backup:
-	mkdir -p backups
-	docker compose exec -T db-test pg_dump -U postgres -d rulesdb > backups/rulesdb-`date +"%Y%m%d-%H%M%S"`.sql
-
-ai-db-drop-recreate:
-	docker compose exec -T db-test psql -U postgres -c 'DROP DATABASE IF EXISTS rulesdb;'
-	docker compose exec -T db-test psql -U postgres -c 'CREATE DATABASE rulesdb;'
-	$(MAKE) -f Makefile.ai ai-db-migrate
-
-ai-db-drop-statusenum:
-	docker compose cp scripts/drop_statusenum.sql db-test:/tmp/drop_statusenum.sql
-	docker compose exec -T db-test psql -U postgres -d rulesdb -f /tmp/drop_statusenum.sql
-
-ai-db-nuke:
-	docker compose down -v
-	docker compose up -d db-test
-
-ai-db-restore:
-	docker compose exec -T db-test psql -U postgres -d rulesdb < $(BACKUP)
-
-ai-db-restore-data:
-	cat $(BACKUP) | grep -vE '^CREATE |^ALTER |^DROP |^--' | grep -v 'COPY alembic_version' | docker compose exec -T db-test psql -U postgres -d rulesdb
-
-ai-db-backup-data-only:
-	mkdir -p backups
-	docker compose exec -T db-test pg_dump --data-only -U postgres -d rulesdb > backups/rulesdb-data-`date +"%Y%m%d-%H%M%S"`.sql
-
-ai-db-merge-heads:
-	docker compose exec api alembic heads
-
-ai-db-heads:
-	docker compose exec api alembic heads
-
-ai-db-history:
-	docker compose exec api alembic history --verbose
-
 ai-api-wait:
 	@echo "Waiting for API to be ready..."
 	@until curl -sf http://localhost:$(API_PORT)/env > /dev/null; do sleep 2; done
 	@echo "API is up!"
-
-ai-db-nuke-and-restore-data:
-	$(MAKE) -f Makefile.ai ai-db-backup-data-only
-	$(MAKE) -f Makefile.ai ai-db-nuke
-	$(MAKE) -f Makefile.ai ai-up
-	$(MAKE) -f Makefile.ai ai-api-wait
-	$(MAKE) -f Makefile.ai ai-db-migrate
-	BACKUP=$$(ls -t backups/rulesdb-data-*.sql | head -1) $(MAKE) -f Makefile.ai ai-db-restore-data
 
 # --- Enhancement and Bug Report Targets ---
 ai-list-bug-reports:
@@ -142,39 +79,6 @@ open-admin:
 ai-build:
 	docker-compose build
 
-# --- Ollama and LLM Targets ---
-ai-build-ollama-functions-service:
-	docker build -f Dockerfile.ollama_functions -t $(OLLAMA_FUNCTIONS_IMAGE) .
-
-ai-run-ollama-functions-service: ai-build-ollama-functions-service
-	docker run --rm -e RUNNING_IN_DOCKER=1 \
-	  --add-host=host.docker.internal:host-gateway \
-	  -e OLLAMA_URL=$(OLLAMA_URL) \
-	  -e OLLAMA_MODEL=$(OLLAMA_MODEL) \
-	  -v $(PWD):/code -w /code \
-	  -p 8000:8000 \
-	  $(OLLAMA_FUNCTIONS_IMAGE)
-
-ai-ollama-serve-docker-gateway:
-	@echo "Starting Ollama with OLLAMA_HOST=0.0.0.0..."
-	OLLAMA_HOST=0.0.0.0 ollama serve
-
-ai-ollama-kill:
-	pkill -f 'ollama serve' || true
-
-ai-ollama-restart-docker-gateway: ai-ollama-kill
-	$(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway
-
-.PHONY:ai-ollama-restart-docker-gateway-bg
-ai-ollama-restart-docker-gateway-bg: ai-ollama-kill
-	$(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway-bg
-
-ai-ollama-logs:
-	tail -n 100 ollama.log
-
-ai-ollama-pull-model:
-	ollama pull $(OLLAMA_MODEL)
-
 # --- Restart and Utility Targets ---
 ai-api-restart-wait:
 	docker compose restart api
@@ -198,32 +102,14 @@ ai-memory-search-embedding:
 	  -d '{"embedding": $(EMBEDDING), "namespace": "$(NAMESPACE)", "limit": $(LIMIT)}'
 
 # --- Memory Graph Operations ---
-ai-memory-add-node:
-	docker compose exec misc-scripts python /scripts/memory_cli.py add-node $(NAMESPACE) "$(CONTENT)" --meta '$(META)'
 
-ai-memory-add-edge:
-	docker compose exec misc-scripts python /scripts/memory_cli.py add-edge $(FROM_ID) $(TO_ID) $(REL_TYPE) --meta '$(META)'
 
-ai-memory-list-nodes:
-	docker compose exec misc-scripts python /scripts/memory_cli.py list-nodes
 
-ai-memory-list-edges:
-	docker compose exec misc-scripts python /scripts/memory_cli.py list-edges
 
-ai-memory-traverse-single-hop:
-	docker compose exec misc-scripts python /scripts/memory_cli.py traverse $(NODE_ID)
 
-ai-memory-traverse-multi-hop:
-	docker compose exec misc-scripts python /scripts/memory_cli.py traverse $(NODE_ID) --hops $(HOPS)
 
-ai-memory-traverse-by-relation:
-	docker compose exec misc-scripts python /scripts/memory_cli.py traverse $(NODE_ID) --relation-type $(REL_TYPE)
 
-ai-memory-export-dot:
-	docker compose exec misc-scripts python /scripts/memory_cli.py export-dot > graph.dot
 
-ai-memory-delete-nodes:
-	docker compose exec misc-scripts python /scripts/memory_cli.py delete-nodes $(if $(NAMESPACE),--namespace $(NAMESPACE))
 
 # --- End of Deduplicated Makefile.ai ---
 
@@ -233,3 +119,119 @@ submit-rule:
 
 update-project-map:
 	docker compose exec misc-scripts python3 /code/scripts/update_project_map.py
+
+# --- Meta-targets for LLM operations ---
+ai-ollama-pull-model:
+	$(MAKE) -f Makefile.ai-llm ai-ollama-pull-model
+
+ai-build-ollama-functions-service:
+	$(MAKE) -f Makefile.ai-llm ai-build-ollama-functions-service
+
+ai-run-ollama-functions-service:
+	$(MAKE) -f Makefile.ai-llm ai-run-ollama-functions-service
+
+ai-ollama-serve-docker-gateway:
+	$(MAKE) -f Makefile.ai-llm ai-ollama-serve-docker-gateway
+
+ai-ollama-logs:
+	$(MAKE) -f Makefile.ai-llm ai-ollama-logs
+
+ai-ollama-kill:
+	$(MAKE) -f Makefile.ai-llm ai-ollama-kill
+
+ai-ollama-restart-docker-gateway:
+	$(MAKE) -f Makefile.ai-llm ai-ollama-restart-docker-gateway
+
+ai-ollama-restart-docker-gateway-bg:
+	$(MAKE) -f Makefile.ai-llm ai-ollama-restart-docker-gateway-bg
+
+ai-build-ollama-functions:
+	$(MAKE) -f Makefile.ai-llm ai-build-ollama-functions
+
+ai-up-ollama-functions:
+	$(MAKE) -f Makefile.ai-llm ai-up-ollama-functions
+
+ai-restart-ollama-functions:
+	$(MAKE) -f Makefile.ai-llm ai-restart-ollama-functions
+
+ai-ollama-functions-health:
+	$(MAKE) -f Makefile.ai-llm ai-ollama-functions-health
+
+ai-ollama-functions-logs:
+	$(MAKE) -f Makefile.ai-llm ai-ollama-functions-logs
+
+ai-suggest-llm-rules:
+	$(MAKE) -f Makefile.ai-llm ai-suggest-llm-rules
+
+ai-suggest-llm-rules-docker:
+	$(MAKE) -f Makefile.ai-llm ai-suggest-llm-rules-docker
+
+ai-llm-setup:
+	$(MAKE) -f Makefile.ai-llm ai-llm-setup
+
+ai-scan-memory-nodes:
+	$(MAKE) -f Makefile.ai-llm ai-scan-memory-nodes
+
+ai-stop-ollama-functions:
+	$(MAKE) -f Makefile.ai-llm ai-stop-ollama-functions
+
+ai-down-ollama-functions:
+	$(MAKE) -f Makefile.ai-llm ai-down-ollama-functions
+
+# --- Meta-targets for Database Operations ---
+ai-db-migrate:
+	$(MAKE) -f Makefile.ai-db ai-db-migrate
+
+ai-db-revision:
+	$(MAKE) -f Makefile.ai-db ai-db-revision
+
+ai-db-backup-full:
+	$(MAKE) -f Makefile.ai-db ai-db-backup-full
+
+ai-db-restore-full:
+	$(MAKE) -f Makefile.ai-db ai-db-restore-full
+
+ai-db-nuke-only:
+	$(MAKE) -f Makefile.ai-db ai-db-nuke-only
+
+ai-db-nuke-and-restore-data:
+	$(MAKE) -f Makefile.ai-db ai-db-nuke-and-restore-data
+
+ai-db-drop-recreate:
+	$(MAKE) -f Makefile.ai-db ai-db-drop-recreate
+
+ai-memorydb-backup:
+	$(MAKE) -f Makefile.ai-db ai-memorydb-backup
+
+ai-memorydb-restore:
+	$(MAKE) -f Makefile.ai-db ai-memorydb-restore
+
+# --- End of Meta-targets ---
+
+# --- Meta-targets for Test Operations ---
+ai-test:
+	$(MAKE) -f Makefile.ai-test ai-test
+
+ai-test-coverage:
+	$(MAKE) -f Makefile.ai-test ai-test-coverage
+
+# --- Meta-targets for Misc Operations ---
+ai-export-rules:
+	$(MAKE) -f Makefile.ai-misc ai-export-rules
+
+ai-lint-rules:
+	$(MAKE) -f Makefile.ai-misc ai-lint-rules
+
+ai-propose-rule:
+	$(MAKE) -f Makefile.ai-misc ai-propose-rule
+
+ai-list-rules:
+	$(MAKE) -f Makefile.ai-misc ai-list-rules
+
+ai-safe-shutdown:
+	$(MAKE) -f Makefile.ai-misc ai-safe-shutdown
+
+ai-logs-help:
+	$(MAKE) -f Makefile.ai-misc ai-logs-help
+
+# --- End of Meta-targets ---

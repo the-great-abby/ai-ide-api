@@ -1,4 +1,4 @@
-# Ollama/LLM-related targets extracted from Makefile.ai
+# LLM-related targets (Ollama, GPT-4, Claude, etc.) extracted from Makefile.ai
 
 ai-ollama-pull-model:
 	ollama pull $(OLLAMA_MODEL)

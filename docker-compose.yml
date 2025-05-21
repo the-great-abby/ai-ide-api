@@ -83,6 +83,7 @@ services:
       - ./.cursor/rules:/app/.cursor/rules
       - ./ai_ide_rules:/app/ai_ide_rules
       - .:/code
+      - ./.git:/code/.git
     working_dir: /scripts
     depends_on:
       - api

@@ -1,0 +1,235 @@
+PORT ?= 9103
+ADMIN_FRONTEND_PORT ?= 3000
+API_PORT ?= 9103
+MEMORYDB_FILE ?= not_provided
+RULESDB_FILE ?= not_provided
+BACKUP_FILE ?= not_provided
+
+# TODO: Implement a script for interactive Alembic head-checking and prompting for merges.
+# This will help users resolve migration graph conflicts more safely and with better UX.
+
+# Add this near the top with other variable definitions
+# OLLAMA_MODEL ?= llama3.1:70b-instruct-q5_K_M
+OLLAMA_MODEL ?= llama3.1:8b-instruct-q6_K
+
+PROJECT ?= ai-ide-api
+
+include Makefile.ai-test
+include Makefile.ai-ollama
+include Makefile.ai-misc
+include Makefile.ai-db
+include Makefile.ai-admin
+include Makefile.ai-memory
+
+# --- Core Targets ---
+ai-up:
+	docker-compose up -d api frontend
+	$(MAKE) -f Makefile.ai ai-api-wait
+
+ai-down:
+	docker-compose down
+
+api-up:
+	docker compose up -d api db-test
+
+ai-test:
+	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
+
+ai-test-json:
+	docker-compose run --rm test pytest --json-report --json-report-file=pytest-report.json tests/
+
+ai-test-one:
+	docker-compose run --rm test pytest $(TEST) --disable-warnings --tb=short
+
+ai-env:
+	curl -s http://localhost:$(PORT)/env || echo '{"error": "API not running"}'
+
+ai-status:
+	docker-compose ps
+
+# --- Database and Migration Targets ---
+ai-db-migrate:
+	docker compose exec api alembic upgrade head
+
+ai-db-revision:
+	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
+
+ai-db-autorevision:
+	docker compose exec api alembic revision --autogenerate -m "$(MSG)"
+
+ai-db-rollback:
+	docker compose exec -T db-test psql -U postgres -d rulesdb -c 'ROLLBACK;'
+
+ai-db-reset-migrations:
+	docker compose down
+	docker compose up -d db-test
+	$(MAKE) -f Makefile.ai ai-db-rollback
+	docker compose up -d
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+ai-db-backup:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump -U postgres -d rulesdb > backups/rulesdb-`date +"%Y%m%d-%H%M%S"`.sql
+
+ai-db-drop-recreate:
+	docker compose exec -T db-test psql -U postgres -c 'DROP DATABASE IF EXISTS rulesdb;'
+	docker compose exec -T db-test psql -U postgres -c 'CREATE DATABASE rulesdb;'
+	$(MAKE) -f Makefile.ai ai-db-migrate
+
+ai-db-drop-statusenum:
+	docker compose cp scripts/drop_statusenum.sql db-test:/tmp/drop_statusenum.sql
+	docker compose exec -T db-test psql -U postgres -d rulesdb -f /tmp/drop_statusenum.sql
+
+ai-db-nuke:
+	docker compose down -v
+	docker compose up -d db-test
+
+ai-db-restore:
+	docker compose exec -T db-test psql -U postgres -d rulesdb < $(BACKUP)
+
+ai-db-restore-data:
+	cat $(BACKUP) | grep -vE '^CREATE |^ALTER |^DROP |^--' | grep -v 'COPY alembic_version' | docker compose exec -T db-test psql -U postgres -d rulesdb
+
+ai-db-backup-data-only:
+	mkdir -p backups
+	docker compose exec -T db-test pg_dump --data-only -U postgres -d rulesdb > backups/rulesdb-data-`date +"%Y%m%d-%H%M%S"`.sql
+
+ai-db-merge-heads:
+	docker compose exec api alembic heads
+
+ai-db-heads:
+	docker compose exec api alembic heads
+
+ai-db-history:
+	docker compose exec api alembic history --verbose
+
+ai-api-wait:
+	@echo "Waiting for API to be ready..."
+	@until curl -sf http://localhost:$(API_PORT)/env > /dev/null; do sleep 2; done
+	@echo "API is up!"
+
+ai-db-nuke-and-restore-data:
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+	$(MAKE) -f Makefile.ai ai-db-nuke
+	$(MAKE) -f Makefile.ai ai-up
+	$(MAKE) -f Makefile.ai ai-api-wait
+	$(MAKE) -f Makefile.ai ai-db-migrate
+	BACKUP=$$(ls -t backups/rulesdb-data-*.sql | head -1) $(MAKE) -f Makefile.ai ai-db-restore-data
+
+# --- Enhancement and Bug Report Targets ---
+ai-list-bug-reports:
+	curl -s http://localhost:$(PORT)/bug-reports | jq '.'
+
+# --- Logs and Admin Targets ---
+logs:
+	docker compose logs --tail=100 api db-test frontend || docker-compose logs --tail=100 api db-test frontend
+
+logs-api:
+	docker compose logs --tail=100 api || docker-compose logs --tail=100 api
+
+logs-db:
+	docker compose logs --tail=100 db-test || docker-compose logs --tail=100 db-test
+
+logs-frontend:
+	docker compose logs --tail=100 frontend || docker-compose logs --tail=100 frontend
+
+open-docs:
+	open http://localhost:$(PORT)/docs
+
+open-admin:
+	open http://localhost:$(ADMIN_FRONTEND_PORT)
+
+ai-build:
+	docker-compose build
+
+# --- Ollama and LLM Targets ---
+ai-build-ollama-functions-service:
+	docker build -f Dockerfile.ollama_functions -t $(OLLAMA_FUNCTIONS_IMAGE) .
+
+ai-run-ollama-functions-service: ai-build-ollama-functions-service
+	docker run --rm -e RUNNING_IN_DOCKER=1 \
+	  --add-host=host.docker.internal:host-gateway \
+	  -e OLLAMA_URL=$(OLLAMA_URL) \
+	  -e OLLAMA_MODEL=$(OLLAMA_MODEL) \
+	  -v $(PWD):/code -w /code \
+	  -p 8000:8000 \
+	  $(OLLAMA_FUNCTIONS_IMAGE)
+
+ai-ollama-serve-docker-gateway:
+	@echo "Starting Ollama with OLLAMA_HOST=0.0.0.0..."
+	OLLAMA_HOST=0.0.0.0 ollama serve
+
+ai-ollama-kill:
+	pkill -f 'ollama serve' || true
+
+ai-ollama-restart-docker-gateway: ai-ollama-kill
+	$(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway
+
+.PHONY:ai-ollama-restart-docker-gateway-bg
+ai-ollama-restart-docker-gateway-bg: ai-ollama-kill
+	$(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway-bg
+
+ai-ollama-logs:
+	tail -n 100 ollama.log
+
+ai-ollama-pull-model:
+	ollama pull $(OLLAMA_MODEL)
+
+# --- Restart and Utility Targets ---
+ai-api-restart-wait:
+	docker compose restart api
+	$(MAKE) -f Makefile.ai ai-api-wait
+
+ai-restart-all:
+	$(MAKE) -f Makefile.ai ai-api-restart-wait
+	$(MAKE) -f Makefile.ai ai-restart-ollama-functions
+	$(MAKE) -f Makefile.ai ai-ollama-restart-docker-gateway-bg
+	$(MAKE) -f Makefile.ai ai-admin-frontend-restart
+	$(MAKE) -f Makefile.ai ai-misc-restart
+	@echo "[ai-restart-all] All core services (API, Ollama functions, frontend, misc-scripts) have been restarted."
+
+# --- MemoryDB and Misc Targets ---
+ai-memorydb-migrate:
+	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
+
+ai-memory-search-embedding:
+	curl -X POST http://localhost:9103/memory/nodes/search \
+	  -H "Content-Type: application/json" \
+	  -d '{"embedding": $(EMBEDDING), "namespace": "$(NAMESPACE)", "limit": $(LIMIT)}'
+
+# --- Memory Graph Operations ---
+ai-memory-add-node:
+	docker compose exec misc-scripts python /scripts/memory_cli.py add-node $(NAMESPACE) "$(CONTENT)" --meta '$(META)'
+
+ai-memory-add-edge:
+	docker compose exec misc-scripts python /scripts/memory_cli.py add-edge $(FROM_ID) $(TO_ID) $(REL_TYPE) --meta '$(META)'
+
+ai-memory-list-nodes:
+	docker compose exec misc-scripts python /scripts/memory_cli.py list-nodes
+
+ai-memory-list-edges:
+	docker compose exec misc-scripts python /scripts/memory_cli.py list-edges
+
+ai-memory-traverse-single-hop:
+	docker compose exec misc-scripts python /scripts/memory_cli.py traverse $(NODE_ID)
+
+ai-memory-traverse-multi-hop:
+	docker compose exec misc-scripts python /scripts/memory_cli.py traverse $(NODE_ID) --hops $(HOPS)
+
+ai-memory-traverse-by-relation:
+	docker compose exec misc-scripts python /scripts/memory_cli.py traverse $(NODE_ID) --relation-type $(REL_TYPE)
+
+ai-memory-export-dot:
+	docker compose exec misc-scripts python /scripts/memory_cli.py export-dot > graph.dot
+
+ai-memory-delete-nodes:
+	docker compose exec misc-scripts python /scripts/memory_cli.py delete-nodes $(if $(NAMESPACE),--namespace $(NAMESPACE))
+
+# --- End of Deduplicated Makefile.ai ---
+
+submit-rule:
+	@echo "Submitting rule proposal from file: $(FILE)"
+	curl -X POST http://localhost:9103/propose-rule-change -H 'Content-Type: application/json' --data @$(FILE)
+
+update-project-map:
+	docker compose exec misc-scripts python3 /code/scripts/update_project_map.py

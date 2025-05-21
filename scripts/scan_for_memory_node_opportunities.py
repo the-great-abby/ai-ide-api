@@ -7,13 +7,45 @@ import os
 
 # Directories/files to scan
 TARGETS = [
+    # Core configuration and documentation
     ".cursor/rules/",
-    "docs/user_stories/",
+    "docs/",
     "ONBOARDING.md",
+    "ONBOARDING_*.md",
+    "INTEGRATING_AI_IDE.md",
+    "KNOWLEDGE_GRAPH.md",
+    "CHANGELOG.md",
+    "README.md",
+    
+    # Code and scripts
     "scripts/",
     "misc_scripts/",
-    "Makefile.ai",
-    "Makefile.ai.*",
+    "ai_ide_rules/",
+    "rule_api_server.py",
+    "db.py",
+    
+    # Build and configuration files
+    "Makefile",
+    "Makefile.ai*",
+    "docker-compose.yml",
+    "Dockerfile*",
+    "requirements.txt",
+    "alembic.ini",
+    "alembic_memorydb.ini",
+    
+    # Test and development
+    "tests/",
+    "pytest.ini",
+    
+    # Database and migrations
+    "migrations/",
+    "migrations_memorydb/",
+    
+    # Frontend
+    "admin-frontend/",
+    
+    # GitHub workflows
+    ".github/workflows/"
 ]
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
@@ -26,13 +58,13 @@ def get_git_diff(paths):
         code_path = f"/code/{path}" if not path.startswith("/code/") else path
         try:
             result = subprocess.run([
-                'git', 'diff', '--name-only', '--cached', '--', code_path
+                'git', '-C', '/code', 'diff', '--name-only', '--cached', '--', code_path
             ], capture_output=True, text=True, check=True)
             changed_files = [f for f in result.stdout.strip().split("\n") if f]
             if changed_files:
                 for file in changed_files:
                     diff_result = subprocess.run([
-                        'git', 'diff', '--cached', '--', file
+                        'git', '-C', '/code', 'diff', '--cached', '--', file
                     ], capture_output=True, text=True, check=True)
                     diffs[file] = diff_result.stdout.strip()
         except subprocess.CalledProcessError as e:
