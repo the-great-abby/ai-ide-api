@@ -20,19 +20,19 @@ OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
 
 def get_git_diff(paths):
-    """Return the git diff for the given paths since last commit."""
+    """Return the git diff for the given paths in the staged (cached) index."""
     diffs = {}
     for path in paths:
         code_path = f"/code/{path}" if not path.startswith("/code/") else path
         try:
             result = subprocess.run([
-                'git', 'diff', '--name-only', 'HEAD~1', 'HEAD', '--', code_path
+                'git', 'diff', '--name-only', '--cached', '--', code_path
             ], capture_output=True, text=True, check=True)
             changed_files = [f for f in result.stdout.strip().split("\n") if f]
             if changed_files:
                 for file in changed_files:
                     diff_result = subprocess.run([
-                        "git", "diff", "HEAD~1", "HEAD", "--", file
+                        'git', 'diff', '--cached', '--', file
                     ], capture_output=True, text=True, check=True)
                     diffs[file] = diff_result.stdout.strip()
         except subprocess.CalledProcessError as e:
