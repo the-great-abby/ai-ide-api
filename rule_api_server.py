@@ -1612,3 +1612,35 @@ def promote_rule(
     if isinstance(result.get("timestamp"), datetime):
         result["timestamp"] = result["timestamp"].isoformat()
     return Rule(**result)
+
+@app.patch("/onboarding/progress/{project_id}/{step}", response_model=OnboardingProgressWithDesc)
+def update_onboarding_progress(
+    project_id: str,
+    step: str,
+    update: OnboardingProgressUpdate,
+    db: Session = Depends(get_db),
+):
+    record = db.query(ProjectOnboardingProgress).filter_by(project_id=project_id, step=step).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Onboarding progress record not found")
+    if update.path is not None:
+        record.path = update.path
+    if update.completed is not None:
+        record.completed = update.completed
+    if update.details is not None:
+        record.details = update.details
+    db.commit()
+    db.refresh(record)
+    step_desc = load_onboarding_step_descriptions(record.path) if record.path else {}
+    user_story_link = ONBOARDING_USER_STORY_LINKS.get(record.path, "")
+    return OnboardingProgressWithDesc(
+        id=record.id,
+        project_id=record.project_id,
+        path=record.path,
+        step=record.step,
+        completed=record.completed,
+        timestamp=record.timestamp,
+        details=record.details,
+        description=step_desc.get(record.step, ""),
+        user_story_link=user_story_link,
+    )

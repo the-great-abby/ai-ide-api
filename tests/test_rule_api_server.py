@@ -625,3 +625,50 @@ def test_review_code_files_llm_endpoint():
                 assert isinstance(item, (str, dict)), f"Unexpected item type: {type(item)}"
         if isinstance(v, str):
             assert "[ERROR]" in v or v.strip() != "", "Empty error string or unexpected output"
+
+
+def test_rule_promotion_endpoint():
+    # Step 1: Propose and approve a rule at project scope
+    payload = {
+        "rule_type": "promotion_test",
+        "description": "Test promotion flow.",
+        "diff": "Promotion diff.",
+        "submitted_by": "tester",
+        "scope_level": "project",
+        "scope_id": "project-abc",
+    }
+    response = client.post("/propose-rule-change", json=payload)
+    proposal_id = response.json()["id"]
+    client.post(f"/approve-rule-change/{proposal_id}")
+    # Get the rule's ID
+    rules = client.get("/rules?scope_level=project&scope_id=project-abc").json()
+    rule = next(r for r in rules if r["description"] == "Test promotion flow.")
+    rule_id = rule["id"]
+    assert rule["scope_level"] == "project"
+    assert rule["scope_id"] == "project-abc"
+
+    # Step 2: Promote to team scope
+    promote_payload = {"scope_level": "team", "scope_id": "team-xyz"}
+    promote_resp = client.post(f"/rules/{rule_id}/promote", json=promote_payload)
+    assert promote_resp.status_code == 200, promote_resp.text
+    promoted = promote_resp.json()
+    assert promoted["scope_level"] == "team"
+    assert promoted["scope_id"] == "team-xyz"
+
+    # Step 3: Promote to global scope (no scope_id needed)
+    promote_payload = {"scope_level": "global"}
+    promote_resp = client.post(f"/rules/{rule_id}/promote", json=promote_payload)
+    assert promote_resp.status_code == 200, promote_resp.text
+    promoted = promote_resp.json()
+    assert promoted["scope_level"] == "global"
+    assert promoted["scope_id"] is None
+
+    # Step 4: Try to demote (should fail)
+    demote_payload = {"scope_level": "project", "scope_id": "project-abc"}
+    demote_resp = client.post(f"/rules/{rule_id}/promote", json=demote_payload)
+    assert demote_resp.status_code == 400
+    assert "promote to a higher scope" in demote_resp.json()["detail"]
+
+    # Step 5: Check rule is visible at global scope
+    rules = client.get("/rules?scope_level=global").json()
+    assert any(r["id"] == rule_id for r in rules)
