@@ -877,7 +877,7 @@ def list_rule_proposal_feedback(
 
 
 # Pass-through endpoint to Ollama LLM functions service
-OLLAMA_FUNCTIONS_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000")
+OLLAMA_FUNCTIONS_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://host.docker.internal:11434/api/generate")
 
 @app.post("/suggest-llm-rules")
 async def passthrough_suggest_llm_rules(request: Request):
