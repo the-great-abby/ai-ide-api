@@ -3,22 +3,26 @@ import uuid
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from db import Base, Rule, Proposal, Feedback
 
-from db import Base, Rule
-
+# Use PostgreSQL for testing
+TEST_DATABASE_URL = "postgresql://postgres:postgres@db:5432/rulesdb_test"
 
 @pytest.fixture
-def in_memory_db():
-    engine = create_engine("sqlite:///:memory:")
+def engine():
+    engine = create_engine(TEST_DATABASE_URL)
     Base.metadata.create_all(engine)
+    yield engine
+    Base.metadata.drop_all(engine)
+
+@pytest.fixture
+def session(engine):
     Session = sessionmaker(bind=engine)
     session = Session()
     yield session
     session.close()
-    engine.dispose()
 
-
-def test_rule_model_creation(in_memory_db):
+def test_rule_model_creation(session):
     rule = Rule(
         id=str(uuid.uuid4()),
         rule_type="test_type",
@@ -28,8 +32,8 @@ def test_rule_model_creation(in_memory_db):
         submitted_by="tester",
         project="default",
     )
-    in_memory_db.add(rule)
-    in_memory_db.commit()
-    result = in_memory_db.query(Rule).filter_by(rule_type="test_type").first()
+    session.add(rule)
+    session.commit()
+    result = session.query(Rule).filter_by(rule_type="test_type").first()
     assert result is not None
     assert result.description == "A test rule"

@@ -21,7 +21,9 @@ ai-reject-rule:
 	curl -s -X POST http://localhost:$(PORT)/reject-rule-change/$(PROPOSAL_ID)
 
 ai-list-rules:
-	curl -s http://localhost:$(PORT)/rules
+	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM proposals;"
+	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM rules;"
+	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM feedback;"
 
 ai-list-rules-mdc:
 	curl -s http://localhost:$(PORT)/rules-mdc

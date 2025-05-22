@@ -1,13 +1,13 @@
 # Test-related targets extracted from Makefile.ai
 
 ai-test:
-	RUNNING_IN_DOCKER=1 docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
+	docker compose exec api python -m pytest
 
 ai-test-json:
-	docker-compose run --rm -e PYTHONPATH=/app test pytest --json-report --json-report-file=pytest-report.json tests/
+	docker compose exec api python -m pytest --json-report
 
 ai-test-one:
-	docker-compose run --rm -e PYTHONPATH=/app test pytest $(TEST) --disable-warnings --tb=short
+	docker compose exec api python -m pytest $(TEST)
 
 ai-test-unit:
 	docker-compose run --rm -e PYTHONPATH=/app test pytest -m unit $(PYTEST_ARGS)
@@ -22,6 +22,6 @@ ai-test-cli:
 	docker-compose run --rm -e PYTHONPATH=/app test pytest -m cli $(PYTEST_ARGS)
 
 ai-test-coverage:
-	docker-compose run --rm -e PYTHONPATH=/app test pytest --cov=. --cov-report=term-missing --cov-report=html tests/
+	docker compose exec api python -m pytest --cov=. --cov-report=term-missing
 
 .PHONY: ai-test ai-test-json ai-test-one ai-test-unit ai-test-integration ai-test-network ai-test-cli ai-test-coverage 
