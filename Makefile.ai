@@ -25,9 +25,13 @@ include Makefile.ai-memory
 ai-up:
 	docker-compose up -d api frontend
 	$(MAKE) -f Makefile.ai ai-api-wait
+	$(MAKE) -f Makefile.ai ai-up-ollama-functions
+	@echo "[ai-up] Core services (API, frontend, Ollama functions) are up!"
 
 ai-down:
 	docker-compose down
+	$(MAKE) -f Makefile.ai ai-down-ollama-functions
+	@echo "[ai-down] All services have been stopped."
 
 api-up:
 	docker compose up -d api db-test
