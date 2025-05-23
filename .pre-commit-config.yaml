@@ -10,4 +10,14 @@ repos:
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
-      - id: isort 
+      - id: isort
+  - repo: local
+    hooks:
+      - id: check-file-size
+        name: Check file size limit
+        entry: python3 scripts/check_file_size.py
+        language: system
+        types: [python, javascript]
+        pass_filenames: false
+        files: \.(py|js|ts)$
+ 

@@ -1,13 +1,22 @@
 # Test-related targets extracted from Makefile.ai
 
+# Removed duplicate targets:
+# ai-test:  # Already defined in Makefile.ai
+# ai-test-json:  # Already defined in Makefile.ai
+# ai-test-one:  # Already defined in Makefile.ai
+# ai-test-coverage:  # Already defined in Makefile.ai
+
 ai-test:
-	docker compose exec api python -m pytest
+	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
 
 ai-test-json:
-	docker compose exec api python -m pytest --json-report
+	docker-compose run --rm test pytest --json-report --json-report-file=pytest-report.json tests/
 
 ai-test-one:
-	docker compose exec api python -m pytest $(TEST)
+	docker-compose run --rm test pytest $(TEST) --disable-warnings --tb=short
+
+ai-test-coverage:
+	docker compose exec api python -m pytest --cov=. --cov-report=term-missing
 
 ai-test-unit:
 	docker-compose run --rm -e PYTHONPATH=/app test pytest -m unit $(PYTEST_ARGS)
@@ -21,7 +30,4 @@ ai-test-network:
 ai-test-cli:
 	docker-compose run --rm -e PYTHONPATH=/app test pytest -m cli $(PYTEST_ARGS)
 
-ai-test-coverage:
-	docker compose exec api python -m pytest --cov=. --cov-report=term-missing
-
-.PHONY: ai-test ai-test-json ai-test-one ai-test-unit ai-test-integration ai-test-network ai-test-cli ai-test-coverage 
+.PHONY: ai-test-unit ai-test-integration ai-test-network ai-test-cli 

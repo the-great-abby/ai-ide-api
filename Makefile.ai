@@ -45,6 +45,11 @@ ai-test-json:
 ai-test-one:
 	docker-compose run --rm test pytest $(TEST) --disable-warnings --tb=short
 
+ai-rebuild-test:
+	docker-compose up -d db-test
+	docker-compose build test
+	$(MAKE) -f Makefile.ai ai-test
+
 ai-env:
 	curl -s http://localhost:$(PORT)/env || echo '{"error": "API not running"}'
 
@@ -64,15 +69,6 @@ ai-list-bug-reports:
 # --- Logs and Admin Targets ---
 logs:
 	docker compose logs --tail=100 api db-test frontend || docker-compose logs --tail=100 api db-test frontend
-
-logs-api:
-	docker compose logs --tail=100 api || docker-compose logs --tail=100 api
-
-logs-db:
-	docker compose logs --tail=100 db-test || docker-compose logs --tail=100 db-test
-
-logs-frontend:
-	docker compose logs --tail=100 frontend || docker-compose logs --tail=100 frontend
 
 open-docs:
 	open http://localhost:$(PORT)/docs
@@ -236,6 +232,41 @@ ai-safe-shutdown:
 	$(MAKE) -f Makefile.ai-misc ai-safe-shutdown
 
 ai-logs-help:
-	$(MAKE) -f Makefile.ai-misc ai-logs-help
+	$(MAKE) -f Makefile.ai-admin ai-logs-help
 
 # --- End of Meta-targets ---
+
+ai-search-package:
+	docker-compose run --rm test pip-search $(query)
+
+# --- Test Setup Targets ---
+ai-test-setup:
+	docker compose up -d db-test
+	@echo "Waiting for database to be ready..."
+	@until docker compose exec db-test pg_isready -U postgres; do sleep 2; done
+	@echo "Checking database status..."
+	@if docker compose exec db-test psql -U postgres -t -c "SELECT 1 FROM pg_database WHERE datname='rulesdb'" | grep -q 1; then \
+		echo "Database 'rulesdb' detected - not creating"; \
+	else \
+		echo "Creating database 'rulesdb'..."; \
+		docker compose exec db-test psql -U postgres -c "CREATE DATABASE rulesdb"; \
+	fi
+	@echo "Running database migrations..."
+	docker compose exec api alembic upgrade head
+	@echo "Test database setup complete!"
+
+ai-test-with-setup: ai-test-setup
+	@echo "Running tests..."
+	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
+
+ai-test-with-setup-verbose: ai-test-setup
+	@echo "Running tests with verbose output..."
+	docker-compose run --rm test pytest tests/ -v --disable-warnings --tb=short
+
+ai-test-with-setup-coverage: ai-test-setup
+	@echo "Running tests with coverage..."
+	docker-compose run --rm test pytest tests/ --cov=. --cov-report=term-missing --disable-warnings --tb=short
+
+# Restart all main services (API, frontend, db-test, misc-scripts, ollama-functions)
+ai-restart:
+	docker compose restart

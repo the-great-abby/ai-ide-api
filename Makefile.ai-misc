@@ -21,9 +21,9 @@ ai-reject-rule:
 	curl -s -X POST http://localhost:$(PORT)/reject-rule-change/$(PROPOSAL_ID)
 
 ai-list-rules:
-	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM proposals;"
-	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM rules;"
-	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM feedback;"
+	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM proposals;" | cat
+	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM rules;" | cat
+	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM feedback;" | cat
 
 ai-list-rules-mdc:
 	curl -s http://localhost:$(PORT)/rules-mdc
@@ -170,16 +170,6 @@ ai-fdw-setup-script:
 	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "CREATE USER MAPPING FOR CURRENT_USER SERVER temp_restore_server OPTIONS (user='postgres');"
 	docker compose exec db-test psql -U postgres -d $(TARGET_DB) -c "IMPORT FOREIGN SCHEMA public FROM SERVER temp_restore_server INTO temp_schema;"
 
-ai-safe-shutdown:
-	@echo "[Safe Shutdown] Backing up rulesdb (data only)..."
-	$(MAKE) -f Makefile.ai ai-db-backup-data-only
-	@echo "[Safe Shutdown] Backing up memorydb (data only)..."
-	$(MAKE) -f Makefile.ai ai-memorydb-backup-data-only
-	@echo "[Safe Shutdown] (Optional) For full backup, run: make -f Makefile.ai ai-db-backup-all"
-	@echo "[Safe Shutdown] Stopping all services..."
-	$(MAKE) -f Makefile.ai ai-down
-	@echo "[Safe Shutdown] Done. See docs/user_stories/safe_shutdown.md for details."
-
 ai-logs-help:
 	@echo "\n==== Log Viewing Quick Reference ===="
 	@echo "Ollama backend logs:         make -f Makefile.ai ai-ollama-logs"
@@ -199,4 +189,17 @@ ai-remove-duplicate-makefile-targets:
 ai-enhancement-lifecycle-notify:
 	docker compose exec misc-scripts python3 /code/misc_scripts/enhancement_lifecycle_notify.py
 
-.PHONY: ai-export-rules ai-lint-rules ai-propose-rule ai-list-pending ai-approve-rule ai-reject-rule ai-list-rules ai-list-rules-mdc ai-review-code-files ai-review-code-snippet ai-scan-db ai-approve-all-pending ai-propose-makefile-rule ai-review-multiple-files ai-propose-rules ai-misc-install ai-misc-up ai-misc-update-rules ai-misc-generate-update-template ai-misc-mdc-to-json ai-misc-enrich-rules ai-misc-build ai-misc-update-missing-user-stories ai-misc-restart ai-propose-portable-rule ai-bug-report ai-bug-report-test ai-suggest-enhancement ai-suggest-enhancement-test ai-enhancement-to-proposal ai-proposal-to-enhancement ai-accept-enhancement ai-complete-enhancement ai-list-enhancements ai-onboarding-health ai-import-backup ai-search-user-stories ai-fdw-setup-script ai-safe-shutdown ai-logs-help ai-remove-duplicate-makefile-targets 
+ai-safe-shutdown:
+	@echo "[Safe Shutdown] Backing up rulesdb (data only)..."
+	$(MAKE) -f Makefile.ai ai-db-backup-data-only
+	@echo "[Safe Shutdown] Backing up memorydb (data only)..."
+	$(MAKE) -f Makefile.ai ai-memorydb-backup-data-only
+	@echo "[Safe Shutdown] (Optional) For full backup, run: make -f Makefile.ai ai-db-backup-all"
+	@echo "[Safe Shutdown] Stopping all services..."
+	$(MAKE) -f Makefile.ai ai-down
+	@echo "[Safe Shutdown] Done. See docs/user_stories/safe_shutdown.md for details."
+
+ai-auto-feedback:
+	docker compose exec misc-scripts python /code/misc_scripts/auto_feedback.py
+
+.PHONY: ai-list-pending ai-approve-rule ai-reject-rule ai-list-rules ai-list-rules-mdc ai-review-code-files ai-review-code-snippet ai-scan-db ai-approve-all-pending ai-propose-makefile-rule ai-review-multiple-files ai-propose-rules ai-misc-install ai-misc-up ai-misc-update-rules ai-misc-generate-update-template ai-misc-mdc-to-json ai-misc-enrich-rules ai-misc-build ai-misc-update-missing-user-stories ai-misc-restart ai-propose-portable-rule ai-bug-report ai-bug-report-test ai-suggest-enhancement ai-suggest-enhancement-test ai-enhancement-to-proposal ai-proposal-to-enhancement ai-accept-enhancement ai-complete-enhancement ai-list-enhancements ai-onboarding-health ai-import-backup ai-search-user-stories ai-fdw-setup-script ai-logs-help ai-remove-duplicate-makefile-targets ai-export-rules ai-lint-rules ai-propose-rule ai-safe-shutdown ai-auto-feedback 
