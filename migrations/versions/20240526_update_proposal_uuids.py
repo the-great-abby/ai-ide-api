@@ -22,6 +22,17 @@ def upgrade() -> None:
     bind = op.get_bind()
     inspector = inspect(bind)
 
+    # Ensure rules.id is UUID before creating the foreign key
+    if "rules" in inspector.get_table_names():
+        op.alter_column(
+            "rules",
+            "id",
+            type_=sa.UUID(as_uuid=True),
+            postgresql_using="id::uuid",
+            existing_type=sa.String(),
+            nullable=False,
+        )
+
     # Update proposals table
     if "proposals" in inspector.get_table_names():
         # Drop foreign key constraints first

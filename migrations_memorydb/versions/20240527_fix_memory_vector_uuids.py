@@ -12,7 +12,7 @@ from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = "20240527_fix_memory_vector_uuids"
-down_revision: Union[str, None] = "d82e291c4873"  # Points to the merge migration
+down_revision: Union[str, None] = None  # PATCH: Remove missing dependency for stamping
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

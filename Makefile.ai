@@ -37,7 +37,7 @@ api-up:
 	docker compose up -d api db-test
 
 ai-test:
-	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
+	docker-compose -f docker-compose.test.yml run --rm test pytest tests/ --disable-warnings --tb=short
 
 ai-test-json:
 	docker-compose run --rm test pytest --json-report --json-report-file=pytest-report.json tests/
@@ -241,24 +241,24 @@ ai-search-package:
 
 # --- Test Setup Targets ---
 ai-test-setup:
-	docker compose up -d db-test api
-	@echo "Waiting for database to be ready..."
-	@until docker compose exec db-test pg_isready -U postgres; do sleep 2; done
-	@echo "Checking database status..."
-	@if docker compose exec db-test psql -U postgres -t -c "SELECT 1 FROM pg_database WHERE datname='rulesdb'" | grep -q 1; then \
+	docker-compose -f docker-compose.test.yml up -d db-test test frontend misc-scripts ollama-functions worker
+	@echo "Waiting for test database to be ready..."
+	@until docker-compose -f docker-compose.test.yml exec db-test pg_isready -U postgres; do sleep 2; done
+	@echo "Checking test database status..."
+	@if docker-compose -f docker-compose.test.yml exec db-test psql -U postgres -t -c "SELECT 1 FROM pg_database WHERE datname='rulesdb'" | grep -q 1; then \
 		echo "Database 'rulesdb' detected - not creating"; \
 	else \
 		echo "Creating database 'rulesdb'..."; \
-		docker compose exec db-test psql -U postgres -c "CREATE DATABASE rulesdb"; \
+		docker-compose -f docker-compose.test.yml exec db-test psql -U postgres -c "CREATE DATABASE rulesdb"; \
 	fi
 	@echo "Running database migrations..."
-	docker compose exec api alembic upgrade head
-	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
+	docker-compose -f docker-compose.test.yml exec test alembic upgrade head
+	docker-compose -f docker-compose.test.yml exec test alembic -c alembic_memorydb.ini upgrade head
 	@echo "Test database setup complete!"
 
-ai-test-with-setup: ai-test-setup
+ai-test-with-setup: ai-test-setup ai-onboard-admin
 	@echo "Running tests..."
-	docker-compose run --rm test pytest tests/ --disable-warnings --tb=short
+	docker-compose -f docker-compose.test.yml run --rm test pytest tests/ --disable-warnings --tb=short
 
 ai-test-with-setup-verbose: ai-test-setup
 	@echo "Running tests with verbose output..."
@@ -273,12 +273,14 @@ ai-restart:
 	docker compose restart
 
 ai-test-clean:
-	docker-compose exec db-test bash -c "\
-	  psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'rulesdb' AND pid <> pg_backend_pid();\" && \
-	  psql -U postgres -c 'DROP DATABASE IF EXISTS rulesdb;' && \
-	  psql -U postgres -c 'CREATE DATABASE rulesdb;' && \
-	  psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'memorydb' AND pid <> pg_backend_pid();\" && \
-	  psql -U postgres -c 'DROP DATABASE IF EXISTS memorydb;' && \
-	  psql -U postgres -c 'CREATE DATABASE memorydb;'"
-	docker-compose exec api alembic upgrade head
-	docker-compose exec api alembic -c alembic_memorydb.ini upgrade head
+	docker-compose -f docker-compose.test.yml down -v
+	docker volume rm rules_postgres_data_test || true
+
+ai-rebuild-api:
+	docker-compose build api
+	docker-compose up -d api
+	$(MAKE) -f Makefile.ai ai-api-wait
+	@echo "[ai-rebuild-api] API rebuilt, restarted, and is healthy!"
+
+ai-onboard-admin:
+	python scripts/onboard_admin.py

@@ -11,7 +11,6 @@ services:
 
   api:
     build: .
-    # Use the PORT env var if set, otherwise default to 9103
     ports:
       - "${PORT:-9103}:8000"
     volumes:
@@ -21,45 +20,14 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
       - POSTGRES_DB=rulesdb
-      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/rulesdb
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/rulesdb
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
       - CORS_ORIGINS=*  # Allow all origins for debugging; restrict in production!
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
     depends_on:
-      - db-test
+      - db
       - rabbitmq
     command: ["uvicorn", "rule_api_server:app", "--host", "0.0.0.0", "--reload"]
-
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile.tests
-    volumes:
-      - .:/app
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONPATH=/app
-      - ENVIRONMENT=test
-      - POSTGRES_DB=rulesdb
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_HOST=db-test
-      - POSTGRES_PORT=5432
-      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/rulesdb
-      - MEMORY_DATABASE_URL=postgresql://postgres:postgres@db-test:5432/memorydb
-    depends_on:
-      db-test:
-        condition: service_healthy
-    command: ["./docker/initdb/wait-for-it.sh", "db-test", "pytest", "tests/"]
-
-  coverage:
-    build: .
-    volumes:
-      - .:/app
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONPATH=/app
-    command: ["pytest", "--cov=rule_api_server", "--cov-report=term-missing", "test_rule_api_server.py"]
 
   frontend:
     build:
@@ -86,7 +54,7 @@ services:
       - CI=true
     # No volume mount: tests the built image, not local code
 
-  db-test:
+  db:
     build:
       context: .
       dockerfile: Dockerfile.pgvector
@@ -95,7 +63,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_MULTIPLE_DATABASES: memorydb,rulesdb
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - rules_postgres_data:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d

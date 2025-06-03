@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision: str = "c8b957ff43ca"
@@ -108,7 +109,9 @@ def upgrade() -> None:
         existing_nullable=True,
         postgresql_using="project::uuid",
     )
-    op.drop_index(op.f("ix_rule_versions_project"), table_name="rule_versions")
+    # PATCH: Make index drop idempotent
+    bind = op.get_bind()
+    bind.execute(text("DROP INDEX IF EXISTS ix_rule_versions_project;"))
     op.alter_column(
         "rules",
         "project",

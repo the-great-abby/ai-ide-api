@@ -58,6 +58,9 @@ def auth_headers(test_token):
 @pytest.fixture
 def test_project_uuid():
     db = next(get_db())
+    project = db.query(Project).filter_by(name="Test Project").first()
+    if project:
+        return str(project.id)
     project = Project(
         name="Test Project",
         description="Test",
@@ -73,6 +76,9 @@ def test_project_uuid():
 @pytest.fixture
 def test_team_uuid():
     db = next(get_db())
+    team = db.query(Team).filter_by(name="Test Team").first()
+    if team:
+        return str(team.id)
     team = Team(name="Test Team", description="Test Team")
     db.add(team)
     db.commit()

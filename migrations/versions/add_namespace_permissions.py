@@ -9,7 +9,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import inspect
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 
 # revision identifiers, used by Alembic.
 revision: str = "add_namespace_permissions"
@@ -71,10 +71,21 @@ def upgrade() -> None:
             )
 
         if "allowed_namespaces" not in columns:
+            # Create as JSONB instead of ARRAY(String)
             op.add_column(
                 "api_access_tokens",
-                sa.Column("allowed_namespaces", ARRAY(sa.String()), nullable=True),
+                sa.Column("allowed_namespaces", JSONB, nullable=True),
             )
+        else:
+            # If already exists as ARRAY, alter to JSONB
+            col_type = [col for col in inspector.get_columns("api_access_tokens") if col["name"] == "allowed_namespaces"][0]["type"]
+            if isinstance(col_type, ARRAY):
+                op.alter_column(
+                    "api_access_tokens",
+                    "allowed_namespaces",
+                    type_=JSONB,
+                    postgresql_using="allowed_namespaces::jsonb",
+                )
 
         if "namespace_permissions" not in columns:
             op.add_column(

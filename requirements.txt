@@ -13,3 +13,4 @@ requests
 numpy
 markdown==3.5.2
 pyjwt 
+pika 

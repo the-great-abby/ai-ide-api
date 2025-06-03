@@ -24,6 +24,8 @@ def upgrade() -> None:
     bind = op.get_bind()
     inspector = inspect(bind)
     if "feedback" not in inspector.get_table_names():
+        # Drop the 'feedback' type if it exists to avoid duplicate key errors
+        op.execute("DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'feedback') THEN DROP TYPE feedback; END IF; END $$;")
         op.create_table(
             "feedback",
             sa.Column("id", sa.String(), nullable=False),
@@ -142,6 +144,9 @@ def upgrade() -> None:
         op.create_index(
             op.f("ix_rules_submitted_by"), "rules", ["submitted_by"], unique=False
         )
+    # Patch: Ensure alembic_version.version_num is VARCHAR(255) for long revision IDs
+    if "alembic_version" in inspector.get_table_names():
+        op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255);")
     # ### end Alembic commands ###
 
 

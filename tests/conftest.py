@@ -77,7 +77,16 @@ def memory_node():
 
 @pytest.fixture(autouse=True)
 def clean_db():
-    # Removed Base.metadata.drop_all(bind=engine) to avoid dropping all tables before each test
+    from db import get_db, ApiAccessToken, Project, Team, Proposal, Rule, RuleVersion, Feedback
+    with next(get_db()) as db:
+        db.query(ApiAccessToken).delete()
+        db.query(Proposal).delete()
+        db.query(RuleVersion).delete()
+        db.query(Rule).delete()
+        db.query(Feedback).delete()
+        db.query(Project).delete()
+        db.query(Team).delete()
+        db.commit()
     yield
 
 

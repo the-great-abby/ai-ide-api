@@ -48,4 +48,29 @@ As a developer or admin, I want to quickly recover from Alembic migration mismat
 
 ## References
 - Makefile.ai targets: `ai-db-stamp-head`, `ai-db-autorevision`, `ai-db-migrate`
-- Typical error: `Can't locate revision identified by ...` 
+- Typical error: `Can't locate revision identified by ...`
+
+## Stamping MemoryDB to Resolve Migration Divergence or Missing Revisions
+
+If you encounter errors like missing revision files, broken migration chains, or parallel migration histories in the memorydb (often due to development on multiple machines or lost files), you can stamp the memorydb to the latest available revision to resolve the issue.
+
+### Step-by-Step Recovery for MemoryDB
+
+1. **Identify the latest available revision in `migrations_memorydb/versions/`:**
+   - Example: `20240527_fix_memory_vector_uuids.py` → revision `20240527_fix_memory_vector_uuids`
+2. **Use the new Makefile target to stamp memorydb:**
+   ```bash
+   make -f Makefile.ai-db ai-memorydb-stamp REV=20240527_fix_memory_vector_uuids
+   ```
+   - This marks the memorydb as being at the specified revision, skipping any missing or broken migrations.
+3. **Re-run your setup or migrations as needed.**
+
+#### When to Use This
+- You see errors like `KeyError: '<revision>'` or `Revision <hash> is not present` during Alembic operations on memorydb.
+- You know your schema is correct or have reset the DB and want to move forward.
+- You need to resolve migration divergence after parallel development.
+
+#### Best Practices
+- Only use stamping if you are confident the DB schema matches the intended state.
+- After stamping, consider generating a new migration to capture any missing schema changes.
+- Document the use of stamping in your PRs or team notes for future reference. 

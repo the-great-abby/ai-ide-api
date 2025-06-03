@@ -69,6 +69,9 @@ def upgrade():
         "CREATE INDEX IF NOT EXISTS ix_memory_vectors_project_id ON memory_vectors (project_id);"
     )
 
+    # Patch: Ensure alembic_version.version_num is VARCHAR(255) for long revision IDs
+    op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255);")
+
 
 def downgrade():
     op.execute("DROP TABLE IF EXISTS memory_edges;")

@@ -105,4 +105,16 @@ ai-memorydb-nuke-only:
 	docker compose exec -T db-test psql -U postgres -c 'CREATE DATABASE memorydb;'
 	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
 
+ai-memorydb-stamp:
+	docker compose exec api alembic -c alembic_memorydb.ini stamp $(REV)
+
+ai-memorydb-heads:
+	docker compose exec api alembic -c alembic_memorydb.ini heads
+
+ai-memorydb-merge:
+	docker compose exec api alembic -c alembic_memorydb.ini merge -m "$(MSG)" $(HEADS)
+
+ai-memorydb-history:
+	docker compose exec api alembic -c alembic_memorydb.ini history --verbose
+
 .PHONY: ai-db-rollback ai-db-reset-migrations ai-db-heads ai-db-merge ai-db-history ai-db-stamp-head ai-db-migration-new ai-db-backup-data-only ai-db-backup-all ai-db-restore-data ai-db-restore-all ai-db-drop-statusenum ai-enable-fdw ai-fdw-setup-script ai-memorydb-backup-data-only ai-memorydb-schema-backup ai-db-migrate ai-db-revision ai-db-backup-full ai-db-restore-full ai-db-nuke-only ai-db-nuke-and-restore-data ai-db-drop-recreate ai-memorydb-backup ai-memorydb-restore 

@@ -1,0 +1,8 @@
+# --- Production/Dev Environment Lifecycle Targets ---
+ai-up:
+	docker-compose up -d api frontend misc-scripts ollama-functions worker
+	@echo "[ai-up] Production/dev environment is up!"
+
+ai-down:
+	docker-compose down
+	@echo "[ai-down] Production/dev environment stopped." 

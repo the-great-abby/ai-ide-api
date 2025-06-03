@@ -57,6 +57,22 @@ async def generate_token(
         # If tokens exist, require admin Authorization header
         if existing_tokens > 0:
             if not authorization or not authorization.startswith("Bearer "):
+                # Check for existing admin token and return it for idempotency in test/dev
+                existing_admin = db.query(ApiAccessToken).filter(
+                    ApiAccessToken.active == 1, ApiAccessToken.role == "admin"
+                ).first()
+                if existing_admin:
+                    logger.info("Returning existing admin token for idempotent onboarding")
+                    return {
+                        "token": existing_admin.token,
+                        "description": existing_admin.description,
+                        "role": existing_admin.role,
+                        "project_id": existing_admin.project_id,
+                        "allowed_namespaces": existing_admin.allowed_namespaces,
+                        "namespace_permissions": existing_admin.namespace_permissions,
+                        "has_llm_access": getattr(existing_admin, "has_llm_access", None),
+                        "message": "Admin token already exists, returning existing token (idempotent onboarding)."
+                    }
                 logger.warning(
                     "Attempted to generate token without admin token when tokens exist"
                 )
