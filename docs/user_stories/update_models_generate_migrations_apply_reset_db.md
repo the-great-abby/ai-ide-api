@@ -1,0 +1,72 @@
+# User Story: Update Models, Generate Migrations, Apply, and Reset DB
+
+## Motivation
+As a developer, I want a clear, repeatable workflow for updating database models, generating and applying Alembic migrations, and resetting the test database, so that schema changes are robust, testable, and easy to recover from.
+
+## Actors
+- Developer
+- System Administrator
+- CI/CD pipeline
+
+## Preconditions
+- The project uses SQLAlchemy models and Alembic for migrations.
+- The database runs in Docker Compose (e.g., `rulesdb`, `memorydb`).
+- Makefile targets are available for migration and DB management.
+
+## Step-by-Step Actions
+
+### 1. **Update Models**
+- Edit SQLAlchemy models (e.g., change column types, add/remove fields).
+- Example: Migrate all `id` and `project_id` columns to `UUID` type for consistency and future-proofing.
+
+### 2. **Generate Alembic Migration**
+- Ensure the database is up to date:
+  ```bash
+  make -f Makefile.ai-db ai-db-migrate
+  ```
+- Generate a new migration reflecting model changes:
+  ```bash
+  make -f Makefile.ai-db ai-db-revision MSG="Describe your schema change"
+  ```
+
+### 3. **Apply Migrations**
+- Apply all migrations to the database:
+  ```bash
+  make -f Makefile.ai-db ai-db-migrate
+  ```
+- If you encounter errors (e.g., type mismatches), resolve them in the models and migration scripts, then repeat.
+
+### 4. **Reset the Test Database**
+- Use the `ai-test-clean` target to drop, recreate, and migrate both `rulesdb` and `memorydb`:
+  ```bash
+  make -f Makefile.ai ai-test-clean
+  ```
+- This ensures a clean slate for tests and development.
+
+### 5. **Run Tests**
+- Run the full test suite to verify that the schema and migrations work as intended:
+  ```bash
+  make -f Makefile.ai ai-test-with-setup
+  ```
+
+## Expected Outcomes
+- Database schema matches the latest models.
+- All migrations are applied in order, with no errors.
+- Test database is clean and ready for use.
+- Tests pass, confirming schema and migration correctness.
+
+## Best Practices
+- Always apply outstanding migrations before generating new ones.
+- Use UUIDs for primary and foreign keys for consistency.
+- Use Makefile targets for all migration and DB operations.
+- Document new workflows and targets in user stories and onboarding docs.
+- Reference this user story in code reviews and onboarding.
+- **Note:** Alembic does not handle custom types like `vector(768)` (pgvector) well. For schema changes involving these columns, use raw SQL with `op.execute` and review generated migrations carefully.
+
+## Warnings
+- If you need to change a `vector(768)` column (pgvector), do not rely on Alembic's autogenerate. Write manual SQL in your migration, and be aware that autogenerate may not detect or handle these types correctly.
+
+## References
+- [Safe Schema Migrations](./safe_schema_migrations.md)
+- [Database Migration Recovery & Stamping](./db_migration_recovery_and_stamping.md)
+- [Checking and Applying Database Migrations](./database_migrations.md) 

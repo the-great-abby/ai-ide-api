@@ -131,7 +131,7 @@ function App() {
   const approveProposal = async (id) => {
     setApproving((prev) => ({ ...prev, [id]: true }));
     try {
-      await axios.post(`${API_BASE_URL}/approve-rule-change/${id}`);
+      await axios.put(`${API_BASE_URL}/rule-changes/${id}/approve`);
       setProposals((prev) => prev.filter((p) => p.id !== id));
       fetchAll(); // Refresh rules
     } catch (err) {

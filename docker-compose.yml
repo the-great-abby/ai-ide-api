@@ -1,5 +1,14 @@
 version: "3.8"
 services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+
   api:
     build: .
     # Use the PORT env var if set, otherwise default to 9103
@@ -7,6 +16,7 @@ services:
       - "${PORT:-9103}:8000"
     volumes:
       - .:/app
+      - /app/usr/local/lib/python3.11/site-packages
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
@@ -14,19 +24,33 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/rulesdb
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
       - CORS_ORIGINS=*  # Allow all origins for debugging; restrict in production!
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
     depends_on:
       - db-test
+      - rabbitmq
     command: ["uvicorn", "rule_api_server:app", "--host", "0.0.0.0", "--reload"]
 
   test:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.tests
     volumes:
       - .:/app
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
       - ENVIRONMENT=test
-    command: ["pytest", "test_rule_api_server.py"]
+      - POSTGRES_DB=rulesdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=db-test
+      - POSTGRES_PORT=5432
+      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/rulesdb
+      - MEMORY_DATABASE_URL=postgresql://postgres:postgres@db-test:5432/memorydb
+    depends_on:
+      db-test:
+        condition: service_healthy
+    command: ["./docker/initdb/wait-for-it.sh", "db-test", "pytest", "tests/"]
 
   coverage:
     build: .
@@ -67,12 +91,19 @@ services:
       context: .
       dockerfile: Dockerfile.pgvector
     environment:
-      POSTGRES_DB: rulesdb
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      POSTGRES_MULTIPLE_DATABASES: memorydb,rulesdb
+    ports:
+      - "5433:5432"
     volumes:
       - rules_postgres_data:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   misc-scripts:
     build:
@@ -103,12 +134,28 @@ services:
       context: .
       dockerfile: Dockerfile.ollama_functions
     environment:
+      - RUNNING_IN_DOCKER=1
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}
     depends_on:
       - api
     volumes:
       - .:/code
+
+  worker:
+    build: ./worker
+    environment:
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
+      - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
+    depends_on:
+      - rabbitmq
+      - ollama-functions
+    # ... merge with any existing worker config ...
+
+  valkey:
+    image: valkey/valkey:latest
+    ports:
+      - "6379:6379"
 
 volumes:
   rules_postgres_data: 

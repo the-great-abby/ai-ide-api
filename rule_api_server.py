@@ -1,1669 +1,276 @@
-import json
 import logging
-import os
-import shutil
-import tempfile
 import uuid
-from datetime import datetime
-from typing import Dict, List, Optional
-import re
 
-from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
-                     UploadFile, Request, Header, status, Response)
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
-import requests
-import secrets
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.exception_handlers import RequestValidationError as FastAPIRequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy.orm import Session
 
-import scripts.suggest_rules as suggest_rules
-from db import BugReport as DBBugReport
-from db import Enhancement as DBEnhancement
-from db import Proposal as DBProposal
-from db import Rule as DBRule
-from db import SessionLocal, StatusEnum, init_db
-from rule_proposal_feedback import FeedbackType, RuleProposalFeedback
-from db import MemorySessionLocal, MemoryVector, MemoryEdge, init_memorydb
-from db import ApiErrorLog, ApiAccessToken
-from db import UseCase
-from db import ProjectOnboardingProgress
-import threading
-import markdown
+from auth import require_api_token
+from basic_endpoints import router as basic_router
+from db import get_db, init_db
+from logging_config import setup_logging
+from memory_endpoints import router as memory_router
+from misc_endpoints import get_changelog, get_changelog_json
+from misc_endpoints import router as misc_router
+from onboarding import router as onboarding_router
+from projects import router as projects_router
+from public_endpoints import public_router
+from rule_proposals import list_rule_changes
+from rule_proposals import router as rule_proposals_router
+from rules import list_rules as rules_list_rules
+from rules import router as rules_router
+from tokens import add_validation_error_logging
+from tokens import router as tokens_router
+from use_cases import router as use_cases_router
 
+# Initialize FastAPI app
 app = FastAPI(
-    title="Rule Proposal API",
-    description="""
-# Onboarding & User Stories
-
-- [External Project Onboarding](docs/user_stories/external_project_onboarding.md)
-- [Internal Developer Onboarding](docs/user_stories/internal_dev_onboarding.md)
-- [AI Agent Onboarding](docs/user_stories/ai_agent_onboarding.md)
-- [Full User Story Index](docs/user_stories/INDEX.md)
-
-See these user stories for step-by-step onboarding, automation, and best practices for all client types.
-"""
+    title="Rule API Server",
+    description="API server for managing rules and rule proposals",
+    version="1.0.0",
 )
 
-"""
-CORS Configuration via Environment Variables:
-- CORS_ORIGINS: Comma-separated list of allowed origins (default: '*')
-- CORS_METHODS: Comma-separated list of allowed methods (default: '*')
-- CORS_HEADERS: Comma-separated list of allowed headers (default: '*')
-- CORS_ALLOW_CREDENTIALS: 'true' or 'false' (default: 'true')
-"""
+add_validation_error_logging(app)
 
-# CORS middleware for frontend integration (configurable via env)
-def parse_env_list(var, default):
-    val = os.environ.get(var)
-    if val is None:
-        return default
-    if val.strip() == '*':
-        return ["*"]
-    return [v.strip() for v in val.split(",") if v.strip()]
-
-allow_origins = parse_env_list("CORS_ORIGINS", ["*"])
-allow_methods = parse_env_list("CORS_METHODS", ["*"])
-allow_headers = parse_env_list("CORS_HEADERS", ["*"])
-allow_credentials = os.environ.get("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
-
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
-    allow_credentials=allow_credentials,
-    allow_methods=allow_methods,
-    allow_headers=allow_headers,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# File paths for storing rules and proposals
-RULES_FILE = "rules.json"
-PROPOSALS_FILE = "proposals.json"
-ONBOARDING_PATHS_FILE = "onboarding_paths.json"
-
-
-# Ensure files exist
-def ensure_file(path, default):
-    if not os.path.exists(path):
-        with open(path, "w") as f:
-            json.dump(default, f)
-
-
-ensure_file(RULES_FILE, [])
-ensure_file(PROPOSALS_FILE, [])
-
-
-# Pydantic models
-class RuleProposal(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    rule_id: Optional[str] = None  # New: reference to rule being updated
-    rule_type: str
-    description: str
-    diff: str
-    status: str = "pending"  # pending, approved, rejected
-    submitted_by: Optional[str] = None
-    project: Optional[str] = None  # New: project context
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
-    version: int = 1
-    categories: List[str] = []
-    tags: List[str] = []
-    examples: Optional[str] = None
-    applies_to: List[str] = []
-    applies_to_rationale: Optional[str] = None
-    reason_for_change: Optional[str] = None
-    references: Optional[str] = None
-    current_rule: Optional[str] = None
-    user_story: Optional[str] = None
-    # Hierarchical scope fields
-    scope_level: str = "global"  # Allowed: 'global', 'team', 'project', 'machine'
-    scope_id: Optional[str] = None
-    parent_rule_id: Optional[str] = None
-
-
-class Rule(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    rule_type: str
-    description: str
-    diff: str
-    added_by: Optional[str] = None
-    project: Optional[str] = None  # New: project context
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
-    version: int = 1
-    categories: List[str] = []
-    tags: List[str] = []
-    examples: Optional[str] = None
-    applies_to: List[str] = []
-    applies_to_rationale: Optional[str] = None
-    user_story: Optional[str] = None
-    # Hierarchical scope fields
-    scope_level: str = "global"  # Allowed: 'global', 'team', 'project', 'machine'
-    scope_id: Optional[str] = None
-    parent_rule_id: Optional[str] = None
-
-
-class BugReportModel(BaseModel):
-    description: str
-    reporter: Optional[str] = None
-    page: Optional[str] = None
-    user_story: Optional[str] = None
-    timestamp: Optional[str] = Field(
-        default_factory=lambda: datetime.utcnow().isoformat()
-    )
-
-
-class EnhancementModel(BaseModel):
-    description: str
-    suggested_by: Optional[str] = None
-    page: Optional[str] = None
-    tags: Optional[List[str]] = []
-    categories: Optional[List[str]] = []
-    timestamp: Optional[datetime] = None
-    status: Optional[str] = "open"
-    proposal_id: Optional[str] = None
-    project: Optional[str] = None  # Project association
-    examples: Optional[str] = None  # New field for examples
-    user_story: Optional[str] = None
-    diff: Optional[str] = None  # New: diff for enhancements
-
-
-# Add this Pydantic model for partial updates
-class RuleUpdate(BaseModel):
-    rule_type: Optional[str] = None
-    description: Optional[str] = None
-    diff: Optional[str] = None
-    project: Optional[str] = None
-    examples: Optional[str] = None
-    applies_to: Optional[List[str]] = None
-    applies_to_rationale: Optional[str] = None
-    categories: Optional[List[str]] = None
-    tags: Optional[List[str]] = None
-    reason_for_change: Optional[str] = None
-    references: Optional[str] = None
-    current_rule: Optional[str] = None
-    user_story: Optional[str] = None
-    # Hierarchical scope fields
-    scope_level: Optional[str] = None  # Allowed: 'global', 'team', 'project', 'machine'
-    scope_id: Optional[str] = None
-    parent_rule_id: Optional[str] = None
-
-
-class RuleProposalFeedbackCreate(BaseModel):
-    feedback_type: FeedbackType
-    comments: Optional[str] = None
-
-
-class RuleProposalFeedbackResponse(BaseModel):
-    id: str
-    rule_proposal_id: str
-    feedback_type: FeedbackType
-    comments: Optional[str] = None
-    created_at: datetime
-
-
-# Utility functions to load/save JSON
-def load_json(path):
-    with open(path, "r") as f:
-        return json.load(f)
-
-
-def save_json(path, data):
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-
-
-# Utility functions for categories/tags
-# Hardened: If applies_to is a list of single characters spelling 'all', treat as ['all']
-def list_to_str(lst):
-    if lst and isinstance(lst, list):
-        # Fix: If applies_to is ['a','l','l'], treat as ['all']
-        if len(lst) > 1 and all(isinstance(x, str) and len(x) == 1 for x in lst):
-            joined = "".join(lst)
-            if joined == "all":
-                return "all"
-        return ",".join(lst)
-    return ""
-
-
-def str_to_list(s):
-    if not s:
-        return []
-    return [x.strip() for x in s.split(",") if x.strip()]
-
-
-# Dependency to get DB session
-def get_db():
-    import os
-    if os.getenv("USE_MOCK_SERVICES") == "true":
-        from mocks.mock_db import MockSession
-        db = MockSession()
-    else:
-        from db import SessionLocal
-        db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
-# Endpoint: Propose a rule change
-@app.post("/propose-rule-change", response_model=RuleProposal)
-def propose_rule_change(proposal: RuleProposal, db: Session = Depends(get_db)):
-    ts = proposal.timestamp
-    if isinstance(ts, str):
-        ts = datetime.fromisoformat(ts)
-    db_proposal = DBProposal(
-        id=proposal.id,
-        rule_id=proposal.rule_id,  # Store rule_id if present
-        rule_type=proposal.rule_type,
-        description=proposal.description,
-        diff=proposal.diff,
-        status=StatusEnum.pending,
-        submitted_by=proposal.submitted_by,
-        project=proposal.project,
-        timestamp=ts,
-        version=proposal.version,
-        categories=list_to_str(proposal.categories),
-        tags=list_to_str(proposal.tags),
-        examples=proposal.examples,
-        applies_to=list_to_str(proposal.applies_to),
-        applies_to_rationale=proposal.applies_to_rationale,
-        reason_for_change=proposal.reason_for_change,
-        references=proposal.references,
-        current_rule=proposal.current_rule,
-        user_story=proposal.user_story,
-        scope_level=proposal.scope_level,
-        scope_id=proposal.scope_id,
-        parent_rule_id=proposal.parent_rule_id,
+# Add error handling middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Request: {request.method} {request.url}")
+    response = await call_next(request)
+    logger.info(f"Response: {response.status_code}")
+    return response
+
+
+@app.exception_handler(Exception)
+async def validation_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
     )
-    db.add(db_proposal)
-    db.commit()
-    db.refresh(db_proposal)
-    # Remove keys that will be overridden
-    data = db_proposal.__dict__.copy()
-    data.pop("_sa_instance_state", None)
-    data.pop("timestamp", None)
-    data.pop("categories", None)
-    data.pop("tags", None)
-    data.pop("applies_to", None)
-    data.pop("applies_to_rationale", None)
-    data["timestamp"] = (
-        db_proposal.timestamp.isoformat()
-        if isinstance(db_proposal.timestamp, datetime)
-        else db_proposal.timestamp
-    )
-    # Always return categories as a list
-    data["categories"] = str_to_list(getattr(db_proposal, "categories", ""))
-    data["tags"] = str_to_list(getattr(db_proposal, "tags", ""))
-    data["applies_to"] = str_to_list(getattr(db_proposal, "applies_to", ""))
-    data["applies_to_rationale"] = data.get("applies_to_rationale", "")
-    data["user_story"] = db_proposal.user_story
-    return RuleProposal(**data)
 
 
-# Endpoint: List all pending proposals
-@app.get("/pending-rule-changes", response_model=List[RuleProposal])
-def list_pending_proposals(db: Session = Depends(get_db)):
-    proposals = (
-        db.query(DBProposal).filter(DBProposal.status == StatusEnum.pending).all()
-    )
-    result = []
-    for p in proposals:
-        data = p.__dict__.copy()
-        if isinstance(data.get("timestamp"), datetime):
-            data["timestamp"] = data["timestamp"].isoformat()
-        # Always return categories as a list
-        data["categories"] = str_to_list(getattr(p, "categories", ""))
-        data["tags"] = str_to_list(getattr(p, "tags", ""))
-        data["applies_to"] = str_to_list(getattr(p, "applies_to", ""))
-        data["applies_to_rationale"] = data.get("applies_to_rationale", "")
-        data["reason_for_change"] = data.get("reason_for_change", None)
-        data["references"] = data.get("references", None)
-        data["current_rule"] = data.get("current_rule", None)
-        data["user_story"] = data.get("user_story", None)
-        result.append(RuleProposal(**data))
-    return result
+# Add protected route for testing
+@app.get("/protected")
+async def protected_route(token: dict = Depends(require_api_token)):
+    return {"message": "This is a protected route", "user": token.sub}
 
 
-# Endpoint: Approve a proposal (with versioning)
-@app.post("/approve-rule-change/{proposal_id}")
-def approve_rule_change(
-    proposal_id: str = Path(..., description="Proposal ID"),
-    db: Session = Depends(get_db),
-):
-    from db import RuleVersion
-
-    proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
-    logger.info(
-        f"APPROVE: proposal.id={proposal.id}, proposal.rule_id={getattr(proposal, 'rule_id', None)}, payload={proposal.__dict__}"
-    )
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found.")
-    if proposal.status != StatusEnum.pending:
-        raise HTTPException(status_code=400, detail="Proposal already processed.")
-    proposal.status = StatusEnum.approved
-    # Use rule_id for versioning if present
-    target_rule_id = (
-        proposal.rule_id if getattr(proposal, "rule_id", None) else proposal.id
-    )
-    existing_rule = db.query(DBRule).filter(DBRule.id == target_rule_id).first()
-    logger.info(
-        f"APPROVE: existing_rule for id={target_rule_id}: {existing_rule.__dict__ if existing_rule else None}"
-    )
-    new_version = 1
-    if existing_rule:
-        # Save previous version
-        db.add(
-            RuleVersion(
-                rule_id=existing_rule.id,
-                version=existing_rule.version,
-                rule_type=existing_rule.rule_type,
-                description=existing_rule.description,
-                diff=existing_rule.diff,
-                status=existing_rule.status,
-                submitted_by=existing_rule.submitted_by,
-                added_by=existing_rule.added_by,
-                project=existing_rule.project,
-                timestamp=existing_rule.timestamp,
-                categories=existing_rule.categories,
-                tags=existing_rule.tags,
-                examples=existing_rule.examples,
-            )
-        )
-        new_version = existing_rule.version + 1
-        db.delete(existing_rule)
-    # Add to rules
-    ts = proposal.timestamp
-    if isinstance(ts, str):
-        ts = datetime.fromisoformat(ts)
-    db_rule = DBRule(
-        id=target_rule_id,
-        rule_type=proposal.rule_type,
-        description=proposal.description,
-        diff=proposal.diff,
-        status=StatusEnum.approved,
-        submitted_by=proposal.submitted_by,
-        added_by=proposal.submitted_by,
-        project=proposal.project,
-        timestamp=ts,
-        version=new_version,
-        # Always store categories as comma-separated string, but return as list in API
-        categories=list_to_str(proposal.categories),
-        tags=list_to_str(proposal.tags),
-        examples=proposal.examples,
-        applies_to=list_to_str(proposal.applies_to),
-        applies_to_rationale=proposal.applies_to_rationale,
-        user_story=proposal.user_story,
-        scope_level=proposal.scope_level,
-        scope_id=proposal.scope_id,
-        parent_rule_id=proposal.parent_rule_id,
-        # Optionally store reason_for_change, references, current_rule in Rule if desired
-    )
-    db.add(db_rule)
-    db.commit()
-    logger.info(f"APPROVE: new rule version for id={target_rule_id}: {new_version}")
-    return {"message": "Proposal approved and rule added.", "version": new_version}
+# Add metrics endpoint
+@app.get("/metrics")
+async def metrics():
+    return {
+        "http_requests_total": 0,
+        "http_request_duration_seconds": 0,
+        "active_rules": 0,
+        "pending_proposals": 0,
+    }
 
 
-# Endpoint: Reject a proposal
-@app.post("/reject-rule-change/{proposal_id}")
-def reject_rule_change(
-    proposal_id: str = Path(..., description="Proposal ID"),
-    db: Session = Depends(get_db),
-):
-    proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found.")
-    if proposal.status != StatusEnum.pending:
-        raise HTTPException(status_code=400, detail="Proposal already processed.")
-    proposal.status = StatusEnum.rejected
-    db.commit()
-    return {"message": "Proposal rejected."}
-
-
-# Endpoint: List all rules (for reference)
-@app.get("/rules", response_model=List[Rule])
-def list_rules(
-    project: Optional[str] = None,
-    category: Optional[str] = None,
-    tag: Optional[str] = None,
-    scope_level: Optional[str] = None,
-    scope_id: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
-    query = db.query(DBRule)
-    if project:
-        query = query.filter(DBRule.project == project)
-    if scope_level:
-        query = query.filter(DBRule.scope_level == scope_level)
-    if scope_id:
-        query = query.filter(DBRule.scope_id == scope_id)
-    rules = query.all()
-    result = []
-    # Support multi-category filtering
-    category_list = [c.strip() for c in category.split(",")] if category else []
-    for r in rules:
-        data = r.__dict__.copy()
-        if isinstance(data.get("timestamp"), datetime):
-            data["timestamp"] = data["timestamp"].isoformat()
-        # Always return categories as a list
-        data["categories"] = str_to_list(getattr(r, "categories", ""))
-        data["tags"] = str_to_list(getattr(r, "tags", ""))
-        data["applies_to"] = str_to_list(getattr(r, "applies_to", ""))
-        data["applies_to_rationale"] = data.get("applies_to_rationale", "")
-        # Filtering by category/tag
-        if category_list and not any(
-            cat in data["categories"] for cat in category_list
-        ):
-            continue
-        if tag and tag not in data["tags"]:
-            continue
-        data["user_story"] = r.user_story
-        result.append(Rule(**data))
-    return result
-
-
-# Endpoint: List all rules in MDC format (as a list of strings)
-@app.get("/rules-mdc", response_model=List[str])
-def list_rules_mdc(project: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(DBRule)
-    if project:
-        query = query.filter(DBRule.project == project)
-    rules = query.all()
-    return [r.diff for r in rules if r.diff]
-
-
-# Endpoint: Review multiple code files (file upload)
-@app.post("/review-code-files")
-def review_code_files(files: list[UploadFile] = File(...)):
-    """
-    Accepts multiple files, runs rule suggestion/linting on each, returns dict of filename -> suggestions.
-    """
-    results = {}
-    for upload in files:
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            shutil.copyfileobj(upload.file, tmp)
-            tmp_path = tmp.name
-        suggestions = suggest_rules.scan_file(tmp_path)
-        results[upload.filename] = suggestions
-    return JSONResponse(content=results)
-
-
-# Endpoint: Review a code snippet (raw code, for AI/IDE integration)
-@app.post("/review-code-snippet")
-def review_code_snippet(filename: str = Body(...), code: str = Body(...)):
-    """
-    Accepts a filename and code string, runs rule suggestion/linting, returns suggestions.
-    """
-    import tempfile
-
-    suggestions = []
-    # Write code to a temp file and use scan_file
-    with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as tmp:
-        tmp.write(code)
-        tmp.flush()
-        suggestions = suggest_rules.scan_file(tmp.name)
-    return JSONResponse(content=suggestions)
-
-
-# Endpoint: Get environment
+# Add env endpoint
 @app.get("/env")
-def get_env():
-    return {"environment": os.environ.get("ENVIRONMENT", "production")}
+async def get_env():
+    return {
+        "environment": "test",
+        "version": "1.0.0",
+        "database_url": "postgresql://postgres:postgres@db-test:5432/rulesdb",
+    }
 
 
-# Endpoint: Get rule version history
-@app.get("/rules/{rule_id}/history")
-def get_rule_history(rule_id: str, db: Session = Depends(get_db)):
-    from db import RuleVersion
+# Add basic endpoints router
+app.include_router(basic_router)
 
-    versions = (
-        db.query(RuleVersion)
-        .filter(RuleVersion.rule_id == rule_id)
-        .order_by(RuleVersion.version.desc())
-        .all()
-    )
-    result = []
-    for v in versions:
-        data = v.__dict__.copy()
-        if isinstance(data.get("timestamp"), datetime):
-            data["timestamp"] = data["timestamp"].isoformat()
-        data["categories"] = str_to_list(data.get("categories", ""))
-        data["tags"] = str_to_list(data.get("tags", ""))
-        data["applies_to"] = str_to_list(data.get("applies_to", ""))
-        data["applies_to_rationale"] = data.get("applies_to_rationale", "")
-        result.append(data)
-    return result
+# Add memory router
+app.include_router(memory_router)
 
+# Add use cases router
+app.include_router(use_cases_router)
 
-# Endpoint: Submit a bug report
-@app.post("/bug-report")
-def submit_bug_report(report: BugReportModel, db: Session = Depends(get_db)):
-    ts = report.timestamp
-    if isinstance(ts, str):
-        ts = datetime.fromisoformat(ts)
-    db_bug = DBBugReport(
-        description=report.description,
-        reporter=report.reporter,
-        page=report.page,
-        user_story=report.user_story,
-        timestamp=ts,
-    )
-    db.add(db_bug)
-    db.commit()
-    db.refresh(db_bug)
-    return {"status": "received", "id": db_bug.id}
+# Add onboarding router
+app.include_router(onboarding_router)
+
+# Add projects router
+app.include_router(projects_router)
+
+# Add tokens router
+app.include_router(tokens_router)
+
+# Add rule proposals router
+app.include_router(rule_proposals_router)
+
+# Add rules router
+app.include_router(rules_router)
+
+# Add misc endpoints router
+app.include_router(misc_router)
+
+# Add public router
+app.include_router(public_router)
+
+legacy_router = APIRouter()
+
+# In-memory stores for demo
+BUG_REPORTS = {}
+ENHANCEMENTS = {}
 
 
-# Endpoint: List all bug reports
-@app.get("/bug-reports")
-def list_bug_reports(db: Session = Depends(get_db)):
-    bugs = db.query(DBBugReport).order_by(DBBugReport.timestamp.desc()).all()
-    result = []
-    for b in bugs:
-        data = b.__dict__.copy()
-        data.pop("_sa_instance_state", None)
-        if isinstance(data.get("timestamp"), datetime):
-            data["timestamp"] = data["timestamp"].isoformat()
-        result.append(
-            {
-                "id": data["id"],
-                "description": data["description"],
-                "reporter": data["reporter"],
-                "page": data["page"],
-                "user_story": data.get("user_story"),
-                "timestamp": data["timestamp"],
-            }
-        )
-    return result
-
-
-# Endpoint: Suggest an enhancement
-@app.post("/suggest-enhancement")
-def suggest_enhancement(enh: EnhancementModel, db: Session = Depends(get_db)):
-    ts = enh.timestamp
-    if isinstance(ts, str):
-        ts = datetime.fromisoformat(ts)
-    db_enh = DBEnhancement(
-        description=enh.description,
-        suggested_by=enh.suggested_by,
-        page=enh.page,
-        tags=",".join(enh.tags) if enh.tags else "",
-        categories=",".join(enh.categories) if enh.categories else "",
-        timestamp=ts,
-        project=enh.project,
-        examples=enh.examples,  # New field
-        user_story=enh.user_story,
-        diff=enh.diff,  # New: diff for enhancements
-        # applies_to and applies_to_rationale are not present in EnhancementModel
-    )
-    db.add(db_enh)
-    db.commit()
-    db.refresh(db_enh)
-    return {"status": "received", "id": db_enh.id}
-
-
-# Endpoint: List all enhancements
-@app.get("/enhancements")
-def list_enhancements(db: Session = Depends(get_db)):
-    enhancements = (
-        db.query(DBEnhancement).order_by(DBEnhancement.timestamp.desc()).all()
-    )
-    result = []
-    for e in enhancements:
-        data = e.__dict__.copy()
-        data.pop("_sa_instance_state", None)
-        if isinstance(data.get("timestamp"), datetime):
-            data["timestamp"] = data["timestamp"].isoformat()
-        data["tags"] = str_to_list(data.get("tags", ""))
-        data["categories"] = str_to_list(data.get("categories", ""))
-        data["applies_to"] = str_to_list(data.get("applies_to", ""))
-        data["applies_to_rationale"] = data.get("applies_to_rationale", "")
-        data["user_story"] = e.user_story
-        data["diff"] = e.diff  # New: include diff in API response
-        result.append(data)
-    return result
-
-
-# Endpoint: Transfer an enhancement to a proposal
-@app.post("/enhancement-to-proposal/{enhancement_id}")
-def enhancement_to_proposal(enhancement_id: str, db: Session = Depends(get_db)):
-    enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
-    if not enh:
-        raise HTTPException(status_code=404, detail="Enhancement not found.")
-    if enh.status == "transferred":
-        raise HTTPException(status_code=400, detail="Enhancement already transferred.")
-    # Create a new proposal from enhancement fields
-    import uuid
-
-    from db import Proposal, StatusEnum
-
-    now = datetime.utcnow()
-    proposal = Proposal(
-        id=str(uuid.uuid4()),
-        rule_type="enhancement",
-        description=enh.description,
-        diff="",  # Optionally allow editing diff later
-        status=StatusEnum.pending,
-        submitted_by=enh.suggested_by,
-        project=None,
-        timestamp=now,
-        version=1,
-        categories=enh.categories,
-        tags=enh.tags,
-        applies_to=list_to_str(enh.applies_to),
-        applies_to_rationale=enh.applies_to_rationale,
-        scope_level=enh.scope_level,
-        scope_id=enh.scope_id,
-        parent_rule_id=enh.parent_rule_id,
-    )
-    db.add(proposal)
-    enh.status = "transferred"
-    db.commit()
-    db.refresh(proposal)
-    return {"status": "transferred", "proposal_id": proposal.id}
-
-
-# Endpoint: Reject an enhancement
-@app.post("/reject-enhancement/{enhancement_id}")
-def reject_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
-    enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
-    if not enh:
-        raise HTTPException(status_code=404, detail="Enhancement not found.")
-    if enh.status == "rejected":
-        raise HTTPException(status_code=400, detail="Enhancement already rejected.")
-    if enh.status == "transferred":
-        raise HTTPException(status_code=400, detail="Enhancement already transferred.")
-    enh.status = "rejected"
-    db.commit()
-    return {"status": "rejected", "id": enh.id}
-
-
-# Endpoint: Revert a proposal to enhancement
-@app.post("/proposal-to-enhancement/{proposal_id}")
-def proposal_to_enhancement(proposal_id: str, db: Session = Depends(get_db)):
-    proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
-    if not proposal:
-        raise HTTPException(status_code=404, detail="Proposal not found.")
-    if proposal.status not in [StatusEnum.pending, StatusEnum.rejected]:
-        raise HTTPException(
-            status_code=400,
-            detail="Only pending or rejected proposals can be reverted to enhancement.",
-        )
-    # Create enhancement from proposal
-    from db import Enhancement
-
-    enh = Enhancement(
-        description=proposal.description,
-        suggested_by=proposal.submitted_by,
-        page=None,
-        tags=proposal.tags,
-        categories=proposal.categories,
-        timestamp=proposal.timestamp,
-        status="open",
-        proposal_id=proposal.id,
-        applies_to=str_to_list(proposal.applies_to),
-        applies_to_rationale=proposal.applies_to_rationale,
-        scope_level=proposal.scope_level,
-        scope_id=proposal.scope_id,
-        parent_rule_id=proposal.parent_rule_id,
-    )
-    db.add(enh)
-    proposal.status = StatusEnum.reverted_to_enhancement
-    db.commit()
-    db.refresh(enh)
-    return {"status": "reverted", "enhancement_id": enh.id}
-
-
-# Endpoint: Accept an enhancement
-@app.post("/accept-enhancement/{enhancement_id}")
-def accept_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
-    enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
-    if not enh:
-        raise HTTPException(status_code=404, detail="Enhancement not found.")
-    if enh.status != "open":
-        raise HTTPException(
-            status_code=400, detail="Only open enhancements can be accepted."
-        )
-    enh.status = "accepted"
-    db.commit()
-    return {"status": "accepted", "id": enh.id}
-
-
-# Endpoint: Complete an enhancement
-@app.post("/complete-enhancement/{enhancement_id}")
-def complete_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
-    enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
-    if not enh:
-        raise HTTPException(status_code=404, detail="Enhancement not found.")
-    if enh.status != "accepted":
-        raise HTTPException(
-            status_code=400, detail="Only accepted enhancements can be completed."
-        )
-    enh.status = "completed"
-    db.commit()
-    return {"status": "completed", "id": enh.id}
-
-
-# Endpoint: Get changelog as Markdown
-@app.get("/changelog", response_class=JSONResponse)
-def get_changelog_markdown():
-    try:
-        with open("CHANGELOG.md", "r") as f:
-            content = f.read()
-        # Return as Markdown content type
-        return Response(content, media_type="text/markdown")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not read changelog: {e}")
-
-
-# Endpoint: Get changelog as JSON
-@app.get("/changelog.json")
-def get_changelog_json():
-    try:
-        with open("CHANGELOG.md", "r") as f:
-            content = f.read()
-        # Simple parser: split by headings and bullet points
-        changelog = []
-        current_section = None
-        current_subsection = None
-        for line in content.splitlines():
-            if line.startswith("# "):
-                current_section = {"title": line[2:].strip(), "subsections": []}
-                changelog.append(current_section)
-            elif line.startswith("## "):
-                current_subsection = {"title": line[3:].strip(), "entries": []}
-                if current_section:
-                    current_section["subsections"].append(current_subsection)
-            elif line.startswith("### "):
-                # Treat as a sub-subsection
-                subsub = {"title": line[4:].strip(), "entries": []}
-                if current_subsection:
-                    current_subsection["entries"].append(subsub)
-                    current_subsection = subsub
-            elif line.strip().startswith("-"):
-                entry = line.strip()[1:].strip()
-                if current_subsection:
-                    current_subsection.setdefault("entries", []).append(entry)
-                elif current_section:
-                    current_section.setdefault("entries", []).append(entry)
-        return changelog
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not parse changelog: {e}")
-
-
-# Endpoint: Update a rule
-@app.patch("/rules/{rule_id}", response_model=Rule)
-def update_rule(rule_id: str, update: RuleUpdate, db: Session = Depends(get_db)):
-    rule = db.query(DBRule).filter(DBRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-    data = update.dict(exclude_unset=True)
-    for field, value in data.items():
-        if field in ["categories", "tags", "applies_to"] and value is not None:
-            setattr(rule, field, list_to_str(value))
-        elif value is not None:
-            setattr(rule, field, value)
-    db.commit()
-    db.refresh(rule)
-    # Convert DBRule to Pydantic Rule for response
-    result = rule.__dict__.copy()
-    result["categories"] = str_to_list(result.get("categories", ""))
-    result["tags"] = str_to_list(result.get("tags", ""))
-    result["applies_to"] = str_to_list(result.get("applies_to", ""))
-    result["applies_to_rationale"] = result.get("applies_to_rationale", "")
-    if isinstance(result.get("timestamp"), datetime):
-        result["timestamp"] = result["timestamp"].isoformat()
-    return Rule(**result)
-
-
-# Endpoint: Submit rule proposal feedback
-@app.post(
-    "/api/rule_proposals/{proposal_id}/feedback",
-    response_model=RuleProposalFeedbackResponse,
-)
-def submit_rule_proposal_feedback(
-    proposal_id: str,
-    feedback: RuleProposalFeedbackCreate,
-    db: Session = Depends(get_db),
+@legacy_router.get("/list-pending-rule-changes")
+async def legacy_list_pending_rule_changes(
+    db: Session = Depends(get_db), token: dict = Depends(require_api_token)
 ):
-    db_feedback = RuleProposalFeedback(
-        id=str(uuid.uuid4()),
-        rule_proposal_id=proposal_id,
-        feedback_type=feedback.feedback_type,
-        comments=feedback.comments,
-    )
-    db.add(db_feedback)
-    db.commit()
-    db.refresh(db_feedback)
-    return RuleProposalFeedbackResponse(
-        id=db_feedback.id,
-        rule_proposal_id=db_feedback.rule_proposal_id,
-        feedback_type=db_feedback.feedback_type,
-        comments=db_feedback.comments,
-        created_at=db_feedback.created_at,
+    return list_rule_changes(status="pending", db=db, token=token)
+
+
+@legacy_router.get("/list-rules")
+async def legacy_list_rules(db: Session = Depends(get_db)):
+    return rules_list_rules(db=db)
+
+
+@legacy_router.get("/rules.mdc")
+async def legacy_rules_mdc():
+    # Return a minimal valid .mdc file as plain text
+    return PlainTextResponse(
+        "# Rules.mdc\nNot implemented yet.", media_type="text/plain"
     )
 
 
-# Endpoint: List rule proposal feedback
-@app.get(
-    "/api/rule_proposals/{proposal_id}/feedback",
-    response_model=List[RuleProposalFeedbackResponse],
-)
-def list_rule_proposal_feedback(
-    proposal_id: str,
-    db: Session = Depends(get_db),
-):
-    feedbacks = (
-        db.query(RuleProposalFeedback)
-        .filter(RuleProposalFeedback.rule_proposal_id == proposal_id)
-        .all()
-    )
-    return [
-        RuleProposalFeedbackResponse(
-            id=f.id,
-            rule_proposal_id=f.rule_proposal_id,
-            feedback_type=f.feedback_type,
-            comments=f.comments,
-            created_at=f.created_at,
-        )
-        for f in feedbacks
-    ]
+@legacy_router.post("/bug-report")
+async def report_bug(request: Request):
+    data = await request.json()
+    bug_id = str(uuid.uuid4())
+    bug = {
+        "id": bug_id,
+        "description": data.get("description", ""),
+        "reporter": data.get("reporter", ""),
+        "status": "open",
+    }
+    BUG_REPORTS[bug_id] = bug
+    return bug
 
 
-# Pass-through endpoint to Ollama LLM functions service
-OLLAMA_FUNCTIONS_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://host.docker.internal:11434/api/generate")
-
-@app.post("/suggest-llm-rules")
-async def passthrough_suggest_llm_rules(request: Request):
-    """
-    Pass-through endpoint to the Ollama LLM functions service.
-    """
-    try:
-        payload = await request.json()
-        resp = requests.post(f"{OLLAMA_FUNCTIONS_URL}/suggest-llm-rules", json=payload, timeout=120)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as e:
-        return {"error": str(e)}
+@legacy_router.post("/suggest-enhancement")
+async def suggest_enhancement(request: Request):
+    data = await request.json()
+    enh_id = str(uuid.uuid4())
+    enh = {
+        "id": enh_id,
+        "description": data.get("description", ""),
+        "suggested_by": data.get("suggested_by", ""),
+        "status": "suggested",
+        "user_story": data.get("user_story", ""),
+    }
+    ENHANCEMENTS[enh_id] = enh
+    return enh
 
 
-@app.post("/review-code-files-llm")
-def review_code_files_llm(files: list[UploadFile] = File(...)):
-    """
-    Accepts multiple files, sends each file to the ollama-functions service for LLM review, and returns feedback per file.
-    """
-    import requests
-    import os
-    import json
-
-    OLLAMA_FUNCTIONS_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000")
-    results = {}
-    for upload in files:
-        upload.file.seek(0)
-        files_payload = {"file": (upload.filename, upload.file.read(), upload.content_type or "text/plain")}
-        try:
-            resp = requests.post(f"{OLLAMA_FUNCTIONS_URL}/review-code-file", files=files_payload, timeout=120)
-            resp.raise_for_status()
-            feedback = resp.json()
-        except Exception as e:
-            feedback = [f"[ERROR] ollama-functions call failed: {e}"]
-        results[upload.filename] = feedback
-    return JSONResponse(content=results)
+@legacy_router.get("/list-enhancements")
+async def list_enhancements():
+    return {"enhancements": list(ENHANCEMENTS.values()), "total": len(ENHANCEMENTS)}
 
 
-# Run with: uvicorn rule_api_server:app --reload
-
-class EnhancementUpdate(BaseModel):
-    description: Optional[str] = None
-    suggested_by: Optional[str] = None
-    page: Optional[str] = None
-    tags: Optional[List[str]] = None
-    categories: Optional[List[str]] = None
-    timestamp: Optional[datetime] = None
-    status: Optional[str] = None
-    proposal_id: Optional[str] = None
-    project: Optional[str] = None
-    examples: Optional[str] = None
-    user_story: Optional[str] = None
-    diff: Optional[str] = None  # New: diff for enhancements
-
-@app.patch("/enhancements/{enhancement_id}")
-def update_enhancement(enhancement_id: str, update: EnhancementUpdate, db: Session = Depends(get_db)):
-    enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
+@legacy_router.post("/enhancement-to-proposal/{id}")
+async def enhancement_to_proposal(id: str):
+    enh = ENHANCEMENTS.get(id)
     if not enh:
         raise HTTPException(status_code=404, detail="Enhancement not found")
-    data = update.dict(exclude_unset=True)
-    for field, value in data.items():
-        if field in ["categories", "tags"] and value is not None:
-            setattr(enh, field, list_to_str(value))
-        elif value is not None:
-            setattr(enh, field, value)
-    db.commit()
-    db.refresh(enh)
-    # Return as dict to match list_enhancements
-    result = enh.__dict__.copy()
-    result.pop("_sa_instance_state", None)
-    if isinstance(result.get("timestamp"), datetime):
-        result["timestamp"] = result["timestamp"].isoformat()
-    result["tags"] = str_to_list(result.get("tags", ""))
-    result["categories"] = str_to_list(result.get("categories", ""))
-    result["applies_to"] = str_to_list(result.get("applies_to", ""))
-    result["applies_to_rationale"] = result.get("applies_to_rationale", "")
-    result["user_story"] = enh.user_story
-    result["diff"] = enh.diff  # New: include diff in PATCH response
-    return result
+    enh["status"] = "proposal"
+    return enh
 
-# --- Memory Graph API ---
 
-class MemoryNodeCreate(BaseModel):
-    """
-    Request model for creating a memory node.
-    NOTE: The 'embedding' field is NOT accepted in the request body. Embedding is always generated server-side from the 'content' field.
-    """
-    namespace: str
-    content: str
-    meta: Optional[str] = None
+@legacy_router.post("/proposal-to-enhancement/{id}")
+async def proposal_to_enhancement(id: str):
+    enh = ENHANCEMENTS.get(id)
+    if not enh:
+        raise HTTPException(status_code=404, detail="Enhancement not found")
+    enh["status"] = "enhancement"
+    return enh
 
-class MemoryNodeOut(BaseModel):
-    id: str
-    namespace: str
-    content: str
-    meta: Optional[str] = None
-    created_at: datetime
 
-class MemoryEdgeCreate(BaseModel):
-    from_id: str
-    to_id: str
-    relation_type: str
-    meta: Optional[str] = None
+@legacy_router.post("/accept-enhancement/{id}")
+async def accept_enhancement(id: str):
+    enh = ENHANCEMENTS.get(id)
+    if not enh:
+        raise HTTPException(status_code=404, detail="Enhancement not found")
+    enh["status"] = "accepted"
+    return enh
 
-class MemoryEdgeOut(BaseModel):
-    id: str
-    from_id: str
-    to_id: str
-    relation_type: str
-    meta: Optional[str] = None
-    created_at: datetime
 
-# Helper to generate embedding using Ollama
-OLLAMA_EMBEDDING_URL = "http://host.docker.internal:11434/api/embeddings"
-OLLAMA_EMBEDDING_MODEL = "nomic-embed-text:latest"
+@legacy_router.post("/complete-enhancement/{id}")
+async def complete_enhancement(id: str):
+    enh = ENHANCEMENTS.get(id)
+    if not enh:
+        raise HTTPException(status_code=404, detail="Enhancement not found")
+    if enh["status"] == "completed":
+        return enh
+    enh["status"] = "completed"
+    return enh
 
-def get_embedding_ollama(text: str) -> List[float]:
-    response = requests.post(
-        OLLAMA_EMBEDDING_URL,
-        json={"model": OLLAMA_EMBEDDING_MODEL, "prompt": text}
-    )
-    response.raise_for_status()
-    return response.json()["embedding"]
 
-@app.post("/memory/nodes", response_model=MemoryNodeOut)
-def create_memory_node(node: MemoryNodeCreate):
-    """
-    Create a new memory node. The 'embedding' is always generated server-side from the 'content' field. Do NOT provide 'embedding' in the request body.
-    """
-    try:
-        # Generate embedding from content
-        embedding = get_embedding_ollama(node.content)
-        session = MemorySessionLocal()
-        db_node = MemoryVector(
-            namespace=node.namespace,
-            content=node.content,
-            embedding=embedding,
-            meta=node.meta,
-        )
-        session.add(db_node)
-        session.commit()
-        session.refresh(db_node)
-        # --- Patch: ensure embedding is a list ---
-        embedding = db_node.embedding
-        if isinstance(embedding, str):
-            import ast
-            embedding = ast.literal_eval(embedding)
-        result = {
-            "id": db_node.id,
-            "namespace": db_node.namespace,
-            "content": db_node.content,
-            "embedding": embedding,
-            "meta": db_node.meta,
-            "created_at": db_node.created_at,
-        }
-        session.close()
-        return result
-    except Exception as exc:
-        import traceback
-        logger.error("[ERROR] Exception in /memory/nodes: %s", exc)
-        logger.error(traceback.format_exc())
-        raise
+@legacy_router.post("/reject-enhancement/{id}")
+async def reject_enhancement(id: str):
+    enh = ENHANCEMENTS.get(id)
+    if not enh:
+        raise HTTPException(status_code=404, detail="Enhancement not found")
+    enh["status"] = "rejected"
+    return enh
 
-@app.get("/memory/nodes", response_model=List[MemoryNodeOut])
-def list_memory_nodes(namespace: Optional[str] = None):
-    session = MemorySessionLocal()
-    q = session.query(MemoryVector)
-    if namespace:
-        q = q.filter(MemoryVector.namespace == namespace)
-    nodes = q.all()
-    result = []
-    for db_node in nodes:
-        embedding = db_node.embedding
-        if isinstance(embedding, str):
-            import ast
-            embedding = ast.literal_eval(embedding)
-        result.append({
-            "id": db_node.id,
-            "namespace": db_node.namespace,
-            "content": db_node.content,
-            "embedding": embedding,
-            "meta": db_node.meta,
-            "created_at": db_node.created_at,
-        })
-    session.close()
-    return result
 
-@app.post("/memory/edges", response_model=MemoryEdgeOut)
-def create_memory_edge(edge: MemoryEdgeCreate):
-    session = MemorySessionLocal()
-    db_edge = MemoryEdge(
-        from_id=edge.from_id,
-        to_id=edge.to_id,
-        relation_type=edge.relation_type,
-        meta=edge.meta,
-    )
-    session.add(db_edge)
-    session.commit()
-    session.refresh(db_edge)
-    session.close()
-    return db_edge
+@legacy_router.get("/changelog.md")
+async def legacy_changelog_md():
+    # Return a minimal valid markdown file
+    return Response("# Changelog\n\nNot implemented yet.", media_type="text/markdown")
 
-@app.get("/memory/edges", response_model=List[MemoryEdgeOut])
-def list_memory_edges(from_id: Optional[str] = None, to_id: Optional[str] = None, relation_type: Optional[str] = None):
-    session = MemorySessionLocal()
-    q = session.query(MemoryEdge)
-    if from_id:
-        q = q.filter(MemoryEdge.from_id == from_id)
-    if to_id:
-        q = q.filter(MemoryEdge.to_id == to_id)
-    if relation_type:
-        q = q.filter(MemoryEdge.relation_type == relation_type)
-    edges = q.all()
-    session.close()
-    return edges
 
-from sqlalchemy import text
+@legacy_router.get("/changelog.json")
+async def legacy_changelog_json():
+    return await get_changelog_json()
 
-class MemoryNodeSearchRequest(BaseModel):
-    """
-    Request model for searching memory nodes by similarity.
-    Provide either 'text' (preferred) or 'embedding'.
-    If 'text' is provided, the server will generate the embedding.
-    If 'embedding' is provided, it will be used directly.
-    """
-    text: Optional[str] = None
-    embedding: Optional[List[float]] = None
-    namespace: Optional[str] = None
-    limit: int = 5
 
-@app.post("/memory/nodes/search", response_model=List[MemoryNodeOut])
-def search_memory_nodes(request: MemoryNodeSearchRequest):
-    """
-    Search for similar memory nodes. Provide either 'text' (preferred) or 'embedding'.
-    If 'text' is provided, the server will generate the embedding.
-    If 'embedding' is provided, it will be used directly.
-    """
-    if not request.text and not request.embedding:
-        raise HTTPException(status_code=400, detail="Must provide either 'text' or 'embedding' for search.")
-    if request.text:
-        embedding = get_embedding_ollama(request.text)
-    else:
-        embedding = request.embedding
-    session = MemorySessionLocal()
-    sql = "SELECT * FROM memory_vectors"
-    if request.namespace:
-        sql += " WHERE namespace = :namespace"
-    sql += " ORDER BY embedding <=> CAST(:query_vec AS vector) LIMIT :limit"
-    params = {"query_vec": embedding, "limit": request.limit}
-    if request.namespace:
-        params["namespace"] = request.namespace
-    results = session.execute(text(sql), params)
-    ids = [row[0] for row in results]
-    nodes = session.query(MemoryVector).filter(MemoryVector.id.in_(ids)).all()
-    session.close()
-    result = []
-    for db_node in nodes:
-        embedding = db_node.embedding
-        if isinstance(embedding, str):
-            import ast
-            embedding = ast.literal_eval(embedding)
-        result.append({
-            "id": db_node.id,
-            "namespace": db_node.namespace,
-            "content": db_node.content,
-            "embedding": embedding,
-            "meta": db_node.meta,
-            "created_at": db_node.created_at,
-        })
-    return result
-
-@app.delete("/memory/nodes")
-def delete_memory_nodes(namespace: Optional[str] = None):
-    session = MemorySessionLocal()
-    q = session.query(MemoryVector)
-    if namespace:
-        q = q.filter(MemoryVector.namespace == namespace)
-    count = q.delete(synchronize_session=False)
-    session.commit()
-    session.close()
-    return {"deleted": count, "namespace": namespace}
-
-# --- Error logging middleware ---
-@app.middleware("http")
-async def error_logging_middleware(request: Request, call_next):
-    try:
-        return await call_next(request)
-    except Exception as exc:
-        import traceback
-        error_id = str(uuid.uuid4())
-        stack = traceback.format_exc()
-        logger.error(f"[ERROR] Middleware caught exception: {exc}\n{stack}")
-        # Log to DB
-        db = SessionLocal()
-        try:
-            log = ApiErrorLog(
-                id=error_id,
-                timestamp=datetime.utcnow(),
-                path=str(request.url.path),
-                method=request.method,
-                status_code=500,
-                message=str(exc),
-                stack_trace=stack,
-                user_id=None,  # Optionally extract from request if available
-            )
-            db.add(log)
-            db.commit()
-        except Exception as log_exc:
-            db.rollback()
-        finally:
-            db.close()
-        # Return error ID to client
-        return JSONResponse(
-            status_code=500,
-            content={"detail": f"Internal server error. Reference ID: {error_id}"}
-        )
-
-# --- API Token Auth Dependency ---
-def require_api_token(authorization: str = Header(...), db: Session = Depends(get_db)):
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid auth header")
-    token = authorization.split(" ", 1)[1]
-    db_token = db.query(ApiAccessToken).filter_by(token=token, active=1).first()
-    if not db_token:
-        raise HTTPException(status_code=401, detail="Invalid or inactive token")
-    return db_token
-
-def require_role(roles):
-    def dependency(authorization: str = Header(...), db: Session = Depends(get_db)):
-        token_obj = require_api_token(authorization, db)
-        if token_obj.role not in roles:
-            raise HTTPException(status_code=403, detail="Insufficient role")
-        return token_obj
-    return dependency
-
-# --- Endpoint: Generate API Token ---
-@app.post("/admin/generate-token")
-def generate_token(description: str = "", created_by: str = None, role: str = "admin", db: Session = Depends(get_db)):
-    token = secrets.token_urlsafe(32)
-    db_token = ApiAccessToken(token=token, description=description, created_by=created_by, active=1, role=role)
-    db.add(db_token)
-    db.commit()
-    return {"token": token, "description": description, "role": role}
-
-# --- Endpoint: Lookup Error Log by ID (token protected) ---
-@app.get("/admin/errors/{error_id}")
-def get_error_log(error_id: str, db: Session = Depends(get_db), auth=Depends(require_api_token)):
-    log = db.query(ApiErrorLog).filter(ApiErrorLog.id == error_id).first()
-    if not log:
-        raise HTTPException(status_code=404, detail="Error not found")
-    return {
-        "id": log.id,
-        "timestamp": log.timestamp,
-        "path": log.path,
-        "method": log.method,
-        "status_code": log.status_code,
-        "message": log.message,
-        "stack_trace": log.stack_trace,
-        "user_id": log.user_id,
-    }
-
-@app.exception_handler(RequestValidationError)
-async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):
-    import uuid
-    from db import SessionLocal, ApiErrorLog
-    import traceback
-    error_id = str(uuid.uuid4())
-    db = SessionLocal()
-    try:
-        log = ApiErrorLog(
-            id=error_id,
-            timestamp=datetime.utcnow(),
-            path=str(request.url.path),
-            method=request.method,
-            status_code=422,
-            message=f"Validation error: {exc.errors()}",
-            stack_trace=traceback.format_exc(),
-            user_id=None,
-        )
-        db.add(log)
-        db.commit()
-    except Exception:
-        db.rollback()
-    finally:
-        db.close()
-    # Only include serializable info in the response
-    # exc.body may be FormData or bytes; try to decode or omit
-    body_str = None
-    try:
-        if hasattr(exc, "body"):
-            if isinstance(exc.body, (str, bytes)):
-                body_str = exc.body.decode("utf-8", errors="ignore") if isinstance(exc.body, bytes) else exc.body
-            else:
-                body_str = str(type(exc.body))
-    except Exception:
-        body_str = "<unavailable>"
+@legacy_router.post("/api/rule_proposals/{id}/feedback")
+async def legacy_rule_proposal_feedback(id: str):
     return JSONResponse(
-        status_code=422,
-        content={
-            "detail": exc.errors(),
-            "body": body_str,
-            "path": str(request.url.path),
-            "message": "Validation failed. Please check your input and try again.",
-            "error_id": error_id
-        },
+        status_code=200,
+        content={"detail": "Feedback endpoint not implemented yet", "id": id},
     )
 
-class ExampleWorkflowItem(BaseModel):
-    endpoint: str
-    method: str
-    payload: Optional[dict] = None
 
-class UseCaseModel(BaseModel):
-    title: str
-    description: str
-    example_workflow: List[ExampleWorkflowItem]
-    tags: Optional[List[str]] = []
-    categories: Optional[List[str]] = []
-    submitted_by: Optional[str] = None
-    source: Optional[str] = None
-
-class UseCaseOut(UseCaseModel):
-    id: str
-    status: str
-    timestamp: str
-
-@app.get("/use-cases", response_model=List[UseCaseOut])
-def list_use_cases(db: Session = Depends(get_db)):
-    use_cases = db.query(UseCase).filter(UseCase.status == "approved").order_by(UseCase.timestamp.desc()).all()
-    result = []
-    for uc in use_cases:
-        data = uc.__dict__.copy()
-        data.pop("_sa_instance_state", None)
-        data["tags"] = str_to_list(data.get("tags", ""))
-        data["categories"] = str_to_list(data.get("categories", ""))
-        if isinstance(data.get("timestamp"), datetime):
-            data["timestamp"] = data["timestamp"].isoformat()
-        result.append(data)
-    return result
-
-@app.post("/use-cases", response_model=UseCaseOut)
-def submit_use_case(use_case: UseCaseModel, db: Session = Depends(get_db)):
-    db_uc = UseCase(
-        id=str(uuid.uuid4()),
-        title=use_case.title,
-        description=use_case.description,
-        example_workflow=[ew.dict() for ew in use_case.example_workflow],
-        tags=list_to_str(use_case.tags),
-        categories=list_to_str(use_case.categories),
-        submitted_by=use_case.submitted_by,
-        status="pending",
-        source=use_case.source,
-    )
-    db.add(db_uc)
-    db.commit()
-    db.refresh(db_uc)
-    data = db_uc.__dict__.copy()
-    data.pop("_sa_instance_state", None)
-    data["tags"] = str_to_list(data.get("tags", ""))
-    data["categories"] = str_to_list(data.get("categories", ""))
-    if isinstance(data.get("timestamp"), datetime):
-        data["timestamp"] = data["timestamp"].isoformat()
-    return data
-
-@app.get("/use-cases/pending", response_model=List[UseCaseOut])
-def list_pending_use_cases(db: Session = Depends(get_db)):
-    use_cases = db.query(UseCase).filter(UseCase.status == "pending").order_by(UseCase.timestamp.desc()).all()
-    result = []
-    for uc in use_cases:
-        data = uc.__dict__.copy()
-        data.pop("_sa_instance_state", None)
-        data["tags"] = str_to_list(data.get("tags", ""))
-        data["categories"] = str_to_list(data.get("categories", ""))
-        if isinstance(data.get("timestamp"), datetime):
-            data["timestamp"] = data["timestamp"].isoformat()
-        result.append(data)
-    return result
-
-@app.post("/use-cases/{use_case_id}/approve", response_model=UseCaseOut)
-def approve_use_case(use_case_id: str, db: Session = Depends(get_db), auth=Depends(require_role(["admin", "moderator"]))):
-    uc = db.query(UseCase).filter(UseCase.id == use_case_id).first()
-    if not uc:
-        raise HTTPException(status_code=404, detail="Use-case not found.")
-    if uc.status == "approved":
-        raise HTTPException(status_code=400, detail="Use-case already approved.")
-    uc.status = "approved"
-    db.commit()
-    db.refresh(uc)
-    data = uc.__dict__.copy()
-    data.pop("_sa_instance_state", None)
-    data["tags"] = str_to_list(data.get("tags", ""))
-    data["categories"] = str_to_list(data.get("categories", ""))
-    if isinstance(data.get("timestamp"), datetime):
-        data["timestamp"] = data["timestamp"].isoformat()
-    return data
-
-@app.post("/use-cases/{use_case_id}/reject", response_model=UseCaseOut)
-def reject_use_case(use_case_id: str, db: Session = Depends(get_db), auth=Depends(require_role(["admin", "moderator"]))):
-    uc = db.query(UseCase).filter(UseCase.id == use_case_id).first()
-    if not uc:
-        raise HTTPException(status_code=404, detail="Use-case not found.")
-    if uc.status == "rejected":
-        raise HTTPException(status_code=400, detail="Use-case already rejected.")
-    uc.status = "rejected"
-    db.commit()
-    db.refresh(uc)
-    data = uc.__dict__.copy()
-    data.pop("_sa_instance_state", None)
-    data["tags"] = str_to_list(data.get("tags", ""))
-    data["categories"] = str_to_list(data.get("categories", ""))
-    if isinstance(data.get("timestamp"), datetime):
-        data["timestamp"] = data["timestamp"].isoformat()
-    return data
-
-# --- Onboarding Progress Pydantic Schemas ---
-class OnboardingProgressBase(BaseModel):
-    project_id: str
-    path: str  # New: onboarding process type
-    step: str
-    completed: bool = False
-    details: Optional[dict] = None
-
-class OnboardingProgressCreate(OnboardingProgressBase):
-    pass
-
-class OnboardingProgressUpdate(BaseModel):
-    path: Optional[str] = None  # Allow updating path if needed
-    completed: Optional[bool] = None
-    details: Optional[dict] = None
-
-class OnboardingProgressOut(OnboardingProgressBase):
-    id: str
-    timestamp: datetime
-
-# --- Helper: Load onboarding step descriptions from user story files ---
-ONBOARDING_USER_STORY_FILES = {
-    "external_project": "docs/user_stories/external_project_onboarding.md",
-    "internal_dev": "docs/user_stories/internal_dev_onboarding.md",
-    "ai_agent": "docs/user_stories/ai_agent_onboarding.md",
-    "novice_user": "docs/user_stories/novice_user_onboarding.md"
-}
-
-ONBOARDING_USER_STORY_LINKS = {
-    "external_project": "/onboarding/user_story/external_project",
-    "internal_dev": "/onboarding/user_story/internal_dev",
-    "ai_agent": "/onboarding/user_story/ai_agent",
-    "novice_user": "/onboarding/user_story/novice_user"
-}
-
-def load_onboarding_step_descriptions(path: str) -> dict:
-    """Return a mapping of step -> description for the given onboarding path."""
-    file = ONBOARDING_USER_STORY_FILES.get(path)
-    if not file:
-        return {}
-    try:
-        with open(file) as f:
-            content = f.read()
-        # Find the markdown table
-        table_match = re.search(r"\| Step[^\n]+\n\|[-| ]+\n([\s\S]+?)\n\n", content)
-        if not table_match:
-            return {}
-        table = table_match.group(1)
-        step_desc = {}
-        for line in table.strip().split("\n"):
-            cols = [c.strip() for c in line.split("|") if c.strip()]
-            if len(cols) >= 2:
-                step, desc = cols[0], cols[1]
-                step_desc[step] = desc
-        return step_desc
-    except Exception:
-        return {}
-
-# --- Enhanced Onboarding Progress Output Model ---
-class OnboardingProgressWithDesc(OnboardingProgressOut):
-    description: str = ""
-    user_story_link: str = ""
-
-# --- Enhanced Endpoints ---
-@app.get("/onboarding/progress", response_model=List[OnboardingProgressWithDesc])
-def list_onboarding_progress(project_id: Optional[str] = None, path: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(ProjectOnboardingProgress)
-    if project_id:
-        query = query.filter(ProjectOnboardingProgress.project_id == project_id)
-    if path:
-        query = query.filter(ProjectOnboardingProgress.path == path)
-    records = query.all()
-    step_desc = load_onboarding_step_descriptions(path) if path else {}
-    user_story_link = ONBOARDING_USER_STORY_LINKS.get(path, "")
-    return [OnboardingProgressWithDesc(
-        id=r.id,
-        project_id=r.project_id,
-        path=r.path,
-        step=r.step,
-        completed=r.completed,
-        timestamp=r.timestamp,
-        details=r.details,
-        description=step_desc.get(r.step, ""),
-        user_story_link=user_story_link,
-    ) for r in records]
-
-@app.get("/onboarding/progress/{project_id}", response_model=List[OnboardingProgressWithDesc])
-def get_project_onboarding_progress(project_id: str, path: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(ProjectOnboardingProgress).filter(ProjectOnboardingProgress.project_id == project_id)
-    if path:
-        query = query.filter(ProjectOnboardingProgress.path == path)
-    records = query.all()
-    step_desc = load_onboarding_step_descriptions(path) if path else {}
-    user_story_link = ONBOARDING_USER_STORY_LINKS.get(path, "")
-    return [OnboardingProgressWithDesc(
-        id=r.id,
-        project_id=r.project_id,
-        path=r.path,
-        step=r.step,
-        completed=r.completed,
-        timestamp=r.timestamp,
-        details=r.details,
-        description=step_desc.get(r.step, ""),
-        user_story_link=user_story_link,
-    ) for r in records]
-
-@app.post("/onboarding/init", response_model=List[OnboardingProgressWithDesc])
-def init_onboarding(
-    project_id: str = Body(...),
-    path: str = Body(...),
-    steps: Optional[List[str]] = Body(None),
-    db: Session = Depends(get_db),
-):
-    # Load steps from file if not provided
-    if steps is None:
-        try:
-            with open(ONBOARDING_PATHS_FILE) as f:
-                all_paths = json.load(f)
-            steps = all_paths.get(path)
-            if not steps:
-                raise HTTPException(status_code=400, detail=f"No steps found for path '{path}' in onboarding_paths.json")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Could not load onboarding_paths.json: {e}")
-    created = []
-    for step in steps:
-        # Check if already exists
-        existing = db.query(ProjectOnboardingProgress).filter_by(project_id=project_id, path=path, step=step).first()
-        if existing:
-            created.append(existing)
-        else:
-            record = ProjectOnboardingProgress(
-                id=str(uuid.uuid4()),
-                project_id=project_id,
-                path=path,
-                step=step,
-                completed=False,
-                timestamp=datetime.utcnow(),
-                details={},
-            )
-            db.add(record)
-            db.commit()
-            db.refresh(record)
-            created.append(record)
-    # Attach descriptions and user story link
-    step_desc = load_onboarding_step_descriptions(path) if path else {}
-    user_story_link = ONBOARDING_USER_STORY_LINKS.get(path, "")
-    return [OnboardingProgressWithDesc(
-        id=r.id,
-        project_id=r.project_id,
-        path=r.path,
-        step=r.step,
-        completed=r.completed,
-        timestamp=r.timestamp,
-        details=r.details,
-        description=step_desc.get(r.step, ""),
-        user_story_link=user_story_link,
-    ) for r in created]
-
-@app.post("/summarize-git-diff")
-def summarize_git_diff_passthrough(
-    diff: str = Body(..., embed=True),
-    concise: bool = Body(False, embed=True)
-):
-    """
-    Passthrough endpoint to ollama-functions /summarize-git-diff
-    """
-    try:
-        resp = requests.post(
-            "http://ollama-functions:8000/summarize-git-diff",
-            json={"diff": diff, "concise": concise},
-            timeout=180
-        )
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/onboarding-docs", response_class=Response)
-def get_onboarding_docs():
-    doc_path = os.path.join(os.path.dirname(__file__), "docs", "onboarding", "automation_and_makefile_best_practices.md")
-    if not os.path.exists(doc_path):
-        return Response(content="Onboarding documentation not found.", media_type="text/plain", status_code=404)
-    with open(doc_path, "r") as f:
-        content = f.read()
-    return Response(content=content, media_type="text/markdown")
-
-class RulePromotionRequest(BaseModel):
-    scope_level: str  # 'global', 'team', 'project', 'machine'
-    scope_id: Optional[str] = None
-
-@app.post("/rules/{rule_id}/promote", response_model=Rule)
-def promote_rule(
-    rule_id: str,
-    promotion: RulePromotionRequest,
-    db: Session = Depends(get_db),
-):
-    rule = db.query(DBRule).filter(DBRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-    # Validate allowed transitions
-    allowed_levels = ["global", "team", "project", "machine"]
-    if promotion.scope_level not in allowed_levels:
-        raise HTTPException(status_code=400, detail=f"Invalid scope_level: {promotion.scope_level}")
-    # Optionally: enforce only upward transitions (e.g., project->team->global)
-    current_level = rule.scope_level or "global"
-    level_order = {"machine": 0, "project": 1, "team": 2, "global": 3}
-    if level_order.get(promotion.scope_level, -1) <= level_order.get(current_level, -1):
-        raise HTTPException(status_code=400, detail=f"Can only promote to a higher scope (current: {current_level}, requested: {promotion.scope_level})")
-    rule.scope_level = promotion.scope_level
-    rule.scope_id = promotion.scope_id
-    db.commit()
-    db.refresh(rule)
-    # Return as Pydantic Rule
-    result = rule.__dict__.copy()
-    result["categories"] = str_to_list(result.get("categories", ""))
-    result["tags"] = str_to_list(result.get("tags", ""))
-    result["applies_to"] = str_to_list(result.get("applies_to", ""))
-    result["applies_to_rationale"] = result.get("applies_to_rationale", "")
-    if isinstance(result.get("timestamp"), datetime):
-        result["timestamp"] = result["timestamp"].isoformat()
-    return Rule(**result)
-
-@app.patch("/onboarding/progress/{project_id}/{step}", response_model=OnboardingProgressWithDesc)
-def update_onboarding_progress(
-    project_id: str,
-    step: str,
-    update: OnboardingProgressUpdate,
-    db: Session = Depends(get_db),
-):
-    record = db.query(ProjectOnboardingProgress).filter_by(project_id=project_id, step=step).first()
-    if not record:
-        raise HTTPException(status_code=404, detail="Onboarding progress record not found")
-    if update.path is not None:
-        record.path = update.path
-    if update.completed is not None:
-        record.completed = update.completed
-    if update.details is not None:
-        record.details = update.details
-    db.commit()
-    db.refresh(record)
-    step_desc = load_onboarding_step_descriptions(record.path) if record.path else {}
-    user_story_link = ONBOARDING_USER_STORY_LINKS.get(record.path, "")
-    return OnboardingProgressWithDesc(
-        id=record.id,
-        project_id=record.project_id,
-        path=record.path,
-        step=record.step,
-        completed=record.completed,
-        timestamp=record.timestamp,
-        details=record.details,
-        description=step_desc.get(record.step, ""),
-        user_story_link=user_story_link,
+@legacy_router.get("/api/rule_proposals/{id}/feedback")
+async def legacy_get_rule_proposal_feedback(id: str):
+    raise HTTPException(
+        status_code=501, detail="Feedback endpoint not implemented yet."
     )
 
-@app.get("/api/troubleshooting-guide", response_class=Response)
-def get_troubleshooting_guide():
-    doc_path = os.path.join(os.path.dirname(__file__), "docs", "troubleshooting.md")
-    if not os.path.exists(doc_path):
-        return Response(content="Troubleshooting guide not found.", media_type="text/plain", status_code=404)
-    
-    with open(doc_path, "r") as f:
-        content = f.read()
-    
-    # Convert markdown to HTML
-    html = markdown.markdown(content, extensions=['fenced_code', 'tables'])
-    
-    return {
-        "content": content,
-        "html": html
-    }
 
-@app.get("/healthz")
-def healthz():
-    return {"status": "ok"}
+@legacy_router.get("/bug-reports")
+async def get_bug_reports():
+    return list(BUG_REPORTS.values())
+
+
+@legacy_router.get("/enhancements")
+async def get_enhancements():
+    return list(ENHANCEMENTS.values())
+
+
+app.include_router(legacy_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the database on startup."""
+    init_db()

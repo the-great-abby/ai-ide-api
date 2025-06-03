@@ -64,6 +64,75 @@ As an external project owner or integrator, I want a simple, automated way to in
 
 ---
 
+## 🏗️ Project Setup and Security
+
+### 1. Create Project Namespace
+Before using the memory system, you need to create and secure your project's namespace:
+
+```bash
+# 1. Create a namespace permission (requires admin token)
+curl -X POST http://localhost:9103/admin/namespace-permissions \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "namespace": "your-project/private",
+    "project_id": "your-project-uuid",
+    "allowed_project_id": "your-project-uuid",
+    "permission_type": "write"
+  }'
+
+# 2. Create a project-specific API token with namespace access
+curl -X POST http://localhost:9103/admin/generate-token \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Your project development token",
+    "project_id": "your-project-uuid",
+    "allowed_namespaces": ["your-project/private"],
+    "namespace_permissions": {
+      "your-project/private": "write"
+    }
+  }'
+```
+
+### Understanding API Tokens and Namespace Access
+
+1. **API Tokens**:
+   - Basic authentication tokens for API access
+   - Required for all API calls
+   - Can have different roles (admin, moderator, user)
+   - Obtained through the `obtain_api_token` step
+
+2. **Namespace-Scoped API Tokens**:
+   - These are API tokens with additional namespace permissions
+   - Created after setting up namespace permissions
+   - Have specific access to certain namespaces
+   - More secure than general API tokens
+   - Created through the `create_namespace_token` step
+
+3. **How They Work Together**:
+   - First, you get a general API token for basic access
+   - Then, you create namespace permissions for your project
+   - Finally, you create a namespace-scoped API token for secure access to your project's data
+   - Use the namespace-scoped token for all memory operations
+
+### Best Practices
+1. **Token Usage**:
+   - Use general API tokens only for administrative tasks
+   - Use namespace-scoped tokens for regular development
+   - Never share admin tokens
+   - Rotate tokens regularly
+
+2. **Namespace Structure**:
+   - Use `project/private` for sensitive data
+   - Use `project/public` for shared information
+   - Use `project/feature/*` for feature-specific data
+
+3. **Access Control**:
+   - Keep sensitive data in private namespaces
+   - Use public namespaces for shared knowledge
+   - Regularly audit namespace permissions
+
 ## 🧠 Saving and Using Memories (Memory Graph API)
 
 External projects can use the memory graph API to store, relate, and search ideas, notes, and code snippets using semantic embeddings and relationships.

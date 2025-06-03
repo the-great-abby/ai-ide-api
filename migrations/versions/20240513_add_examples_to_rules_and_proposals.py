@@ -8,6 +8,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = "20240513_add_examples"
@@ -17,8 +18,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("rules", sa.Column("examples", sa.Text(), nullable=True))
-    op.add_column("proposals", sa.Column("examples", sa.Text(), nullable=True))
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    if "rules" in inspector.get_table_names():
+        columns = [c["name"] for c in inspector.get_columns("rules")]
+        if "examples" not in columns:
+            op.add_column("rules", sa.Column("examples", sa.Text(), nullable=True))
+    if "proposals" in inspector.get_table_names():
+        columns = [c["name"] for c in inspector.get_columns("proposals")]
+        if "examples" not in columns:
+            op.add_column("proposals", sa.Column("examples", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:

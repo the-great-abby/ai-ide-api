@@ -16,21 +16,40 @@ def check_direct_pytest_usage(
     Suggest a rule if direct pytest usage is found (not via Makefile.ai).
     """
     suggestions = []
+    suggestion = {
+        "rule_type": "pytest_execution",
+        "description": f"Direct pytest usage found in {file_path}. Suggest enforcing Makefile.ai for all pytest runs.",
+        "diff": (
+            "# Rule: pytest_execution\n\n"
+            "## Description\nAll pytest runs must use Makefile.ai.\n\n"
+            "## Enforcement\n- Use Makefile.ai targets for all test execution.\n- Do not run pytest directly.\n\n"
+            '## Example\n``bash\nmake -f Makefile.ai ai-test PYTEST_ARGS="-x"\n``\n'
+        ),
+        "submitted_by": "ai-rule-suggester",
+    }
+    # Regex for CLI usage
     if re.search(r"(^|\s)(pytest|python -m pytest)(\s|$)", content):
-        suggestion = {
-            "rule_type": "pytest_execution",
-            "description": f"Direct pytest usage found in {file_path}. Suggest enforcing Makefile.ai for all pytest runs.",
-            "diff": (
-                "# Rule: pytest_execution\n\n"
-                "## Description\nAll pytest runs must use Makefile.ai.\n\n"
-                "## Enforcement\n- Use Makefile.ai targets for all test execution.\n- Do not run pytest directly.\n\n"
-                '## Example\n``bash\nmake -f Makefile.ai ai-test PYTEST_ARGS="-x"\n``\n'
-            ),
-            "submitted_by": "ai-rule-suggester",
-        }
         if project:
             suggestion["project"] = project
         suggestions.append(suggestion)
+    # AST for programmatic usage
+    try:
+        tree = ast.parse(content)
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and hasattr(node.func, "attr")
+                and node.func.attr == "main"
+                and hasattr(node.func, "value")
+                and getattr(node.func.value, "id", None) == "pytest"
+            ):
+                if project:
+                    suggestion["project"] = project
+                if suggestion not in suggestions:
+                    suggestions.append(suggestion)
+                break
+    except Exception:
+        pass
     return suggestions
 
 

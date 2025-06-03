@@ -1,15 +1,48 @@
-ai-memory-utils-build
-ai-memory-add-node
-ai-memory-add-edge
-ai-memory-list-nodes
-ai-memory-list-edges
-ai-memory-traverse-single-hop
-ai-memory-traverse-multi-hop
-ai-memory-traverse-by-relation
-ai-memory-export-dot
-ai-memory-delete-nodes
-ai-memory-create
-ai-memory-log-git-diff
-ai-memory-list-nodes-summary
-ai-memory-search-text
-ai-memory-search-embedding 
+
+  ai-api-restart-wait
+  ai-api-wait
+  ai-build
+  ai-build-ollama-functions-service
+  ai-db-autorevision
+  ai-db-backup
+  ai-db-backup-data-only
+  ai-db-drop-recreate
+  ai-db-drop-statusenum
+  ai-db-heads
+  ai-db-history
+  ai-db-merge-heads
+  ai-db-migrate
+  ai-db-nuke
+  ai-db-nuke-and-restore-data
+  ai-db-reset-migrations
+  ai-db-restore
+  ai-db-restore-data
+  ai-db-revision
+  ai-db-rollback
+  ai-down
+  ai-env
+  ai-list-bug-reports
+  ai-memory-search-embedding
+  ai-memorydb-migrate
+  ai-ollama-kill
+  ai-ollama-logs
+  ai-ollama-pull-model
+  ai-ollama-restart-docker-gateway
+  ai-ollama-restart-docker-gateway-bg
+  ai-ollama-serve-docker-gateway
+  ai-restart-all
+  ai-run-ollama-functions-service
+  ai-status
+  ai-test
+  ai-test-json
+  ai-test-one
+  ai-up
+  api-up
+  logs
+  logs-api
+  logs-db
+  logs-frontend
+  open-admin
+  open-docs
+  submit-rule
+  update-project-map

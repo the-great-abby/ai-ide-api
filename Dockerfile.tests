@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY . /app
+
+RUN pip install --upgrade pip && \
+    pip install -r requirements-test.txt && \
+    pip install pipx && \
+    pipx install pip-search && \
+    apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/root/.local/bin:${PATH}"
+
+CMD ["pytest", "test_rule_api_server.py"] 

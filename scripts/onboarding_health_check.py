@@ -1,7 +1,7 @@
 import os
 import re
-import sys
 import subprocess
+import sys
 
 yaml_pattern = re.compile(r"^---\s*([\s\S]+?)---", re.MULTILINE)
 
@@ -121,6 +121,14 @@ def check_whats_new():
     else:
         print("[ERROR] 'What's New' section missing or empty in ONBOARDING.md")
         ok = False
+
+
+def parse_env_list(var: str, default=None):
+    """Parse a comma-separated environment variable into a list."""
+    val = os.environ.get(var)
+    if val is None:
+        return default if default is not None else []
+    return [x.strip() for x in val.split(",") if x.strip()]
 
 
 def main():

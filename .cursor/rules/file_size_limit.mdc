@@ -1,0 +1,32 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# File Size Limit Rule
+
+- **Rationale:**
+  - Large files degrade update model performance, slow development, and increase maintenance burden.
+  - Modular, smaller files are easier to test, refactor, and understand.
+  - See [file_size_limit.md](mdc:../docs/user_stories/file_size_limit.md) for user story and motivation.
+
+- **Enforcement:**
+  - No single source file (e.g., `.py`, `.js`, `.ts`, etc.) may exceed 500 KB (configurable per language/project).
+  - Automated checks (CI, pre-commit hooks, or linters) should warn or block commits that introduce oversized files.
+  - Code reviews must flag and require refactoring for files that approach or exceed the limit.
+
+- **Required Actions:**
+  - When a file nears the limit, refactor by splitting into smaller, focused modules or components.
+  - Document major refactors in commit messages and PRs.
+  - Regularly review code organization to prevent file bloat.
+
+- **Best Practices:**
+  - Set language-appropriate file size limits (e.g., 500 KB for Python, 1 MB for markdown/docs).
+  - Use tools (e.g., pre-commit, CI scripts) to enforce file size rules.
+  - Refactor early—don't wait for files to become unmanageable.
+  - Favor composition and modularity over monolithic files.
+  - Document major refactors for future maintainers.
+
+- **References:**
+  - [docs/user_stories/file_size_limit.md](mdc:../docs/user_stories/file_size_limit.md)
+

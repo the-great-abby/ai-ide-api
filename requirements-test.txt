@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pytest
+httpx
+pytest-cov
+pytest-json-report
+sqlalchemy
+python-multipart
+alembic
+python-dateutil
+psycopg2-binary
+requests
+numpy
+markdown==3.5.2
+pyjwt 

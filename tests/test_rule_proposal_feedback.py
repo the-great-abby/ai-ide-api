@@ -1,46 +1,71 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
+
 from rule_api_server import app
 
 client = TestClient(app)
 
-def test_submit_and_list_feedback():
+
+def test_submit_and_list_feedback(admin_headers):
     # First create a rule proposal
     proposal = {
-        "rule_type": "test_feedback",
-        "description": "Test rule for feedback",
-        "diff": "Test diff",
+        "rule_type": "feedback_test",
+        "description": "Feedback test rule",
+        "diff": "# Rule: Feedback Test\n## Description\nFeedback test rule\n## Enforcement\nTesting feedback.",
         "submitted_by": "tester",
         "categories": ["test"],
-        "tags": ["feedback"]
+        "tags": ["feedback"],
+        "examples": ["Example 1"],
+        "applies_to": ["python"],
+        "applies_to_rationale": "For Python code",
+        "user_story": "Test user story",
+        "reason_for_change": "Testing feedback flow.",
+        "references": "Test reference.",
     }
-    
+
     # Create the proposal
-    prop_response = client.post("/propose-rule-change", json=proposal)
+    prop_response = client.post(
+        "/propose-rule-change", json=proposal, headers=admin_headers
+    )
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
-    
+
     # Submit feedback
     feedback = {
         "feedback_type": "suggestion",
-        "comments": "This rule could be improved by adding more examples."
+        "comments": "This rule could be improved by adding more examples.",
     }
-    feedback_response = client.post(f"/api/rule_proposals/{proposal_id}/feedback", json=feedback)
+    feedback_response = client.post(
+        f"/api/rule_proposals/{proposal_id}/feedback",
+        json=feedback,
+        headers=admin_headers,
+    )
     assert feedback_response.status_code == 200
     feedback_data = feedback_response.json()
     assert feedback_data["feedback_type"] == "suggestion"
-    assert feedback_data["comments"] == "This rule could be improved by adding more examples."
+    assert (
+        feedback_data["comments"]
+        == "This rule could be improved by adding more examples."
+    )
     assert feedback_data["rule_proposal_id"] == proposal_id
-    
+
     # List feedback
-    list_response = client.get(f"/api/rule_proposals/{proposal_id}/feedback")
+    list_response = client.get(
+        f"/api/rule_proposals/{proposal_id}/feedback", headers=admin_headers
+    )
     assert list_response.status_code == 200
     feedback_list = list_response.json()
     assert len(feedback_list) == 1
     assert feedback_list[0]["feedback_type"] == "suggestion"
-    assert feedback_list[0]["comments"] == "This rule could be improved by adding more examples."
+    assert (
+        feedback_list[0]["comments"]
+        == "This rule could be improved by adding more examples."
+    )
 
-def test_multiple_feedback_entries():
+
+def test_multiple_feedback_entries(admin_headers):
     # Create a rule proposal
     proposal = {
         "rule_type": "test_multiple_feedback",
@@ -48,58 +73,67 @@ def test_multiple_feedback_entries():
         "diff": "Test diff",
         "submitted_by": "tester",
         "categories": ["test"],
-        "tags": ["feedback"]
+        "tags": ["feedback"],
+        "examples": ["Example 1"],
+        "applies_to": ["python"],
+        "applies_to_rationale": "For Python code",
+        "user_story": "Test user story",
+        "reason_for_change": "Testing feedback flow.",
+        "references": "Test reference.",
     }
-    
-    prop_response = client.post("/propose-rule-change", json=proposal)
+
+    prop_response = client.post(
+        "/propose-rule-change", json=proposal, headers=admin_headers
+    )
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
-    
+
     # Submit multiple feedback entries
     feedback_entries = [
-        {
-            "feedback_type": "suggestion",
-            "comments": "First suggestion"
-        },
-        {
-            "feedback_type": "question",
-            "comments": "How will this be enforced?"
-        },
-        {
-            "feedback_type": "concern",
-            "comments": "This might be too restrictive"
-        }
+        {"feedback_type": "suggestion", "comments": "First suggestion"},
+        {"feedback_type": "question", "comments": "How will this be enforced?"},
+        {"feedback_type": "concern", "comments": "This might be too restrictive"},
     ]
-    
+
     for feedback in feedback_entries:
-        response = client.post(f"/api/rule_proposals/{proposal_id}/feedback", json=feedback)
+        response = client.post(
+            f"/api/rule_proposals/{proposal_id}/feedback",
+            json=feedback,
+            headers=admin_headers,
+        )
         assert response.status_code == 200
-    
+
     # List all feedback
-    list_response = client.get(f"/api/rule_proposals/{proposal_id}/feedback")
+    list_response = client.get(
+        f"/api/rule_proposals/{proposal_id}/feedback", headers=admin_headers
+    )
     assert list_response.status_code == 200
     feedback_list = list_response.json()
     assert len(feedback_list) == 3
-    
+
     # Verify all feedback types are present
     feedback_types = {f["feedback_type"] for f in feedback_list}
     assert feedback_types == {"suggestion", "question", "concern"}
 
-def test_feedback_on_nonexistent_proposal():
-    # Try to submit feedback for a non-existent proposal
-    feedback = {
-        "feedback_type": "suggestion",
-        "comments": "Test feedback"
-    }
-    response = client.post("/api/rule_proposals/nonexistent-id/feedback", json=feedback)
-    assert response.status_code == 404
-    
-    # Try to list feedback for a non-existent proposal
-    list_response = client.get("/api/rule_proposals/nonexistent-id/feedback")
-    assert list_response.status_code == 200
-    assert list_response.json() == []
 
-def test_invalid_feedback_type():
+@pytest.mark.negative
+def test_feedback_on_nonexistent_proposal(admin_headers):
+    # Try to submit feedback for a non-existent proposal
+    feedback = {"feedback_type": "suggestion", "comments": "Test feedback"}
+    fake_id = str(uuid.uuid4())
+    response = client.post(
+        f"/api/rule_proposals/{fake_id}/feedback", json=feedback, headers=admin_headers
+    )
+    assert response.status_code == 404
+    # Try to list feedback for a non-existent proposal
+    list_response = client.get(
+        f"/api/rule_proposals/{fake_id}/feedback", headers=admin_headers
+    )
+    assert list_response.status_code == 404
+
+
+@pytest.mark.negative
+def test_invalid_feedback_type(admin_headers):
     # Create a rule proposal
     proposal = {
         "rule_type": "test_invalid_feedback",
@@ -107,17 +141,39 @@ def test_invalid_feedback_type():
         "diff": "Test diff",
         "submitted_by": "tester",
         "categories": ["test"],
-        "tags": ["feedback"]
+        "tags": ["feedback"],
+        "examples": ["Example 1"],
+        "applies_to": ["python"],
+        "applies_to_rationale": "For Python code",
+        "user_story": "Test user story",
+        "reason_for_change": "Testing feedback flow.",
+        "references": "Test reference.",
     }
-    
-    prop_response = client.post("/propose-rule-change", json=proposal)
+
+    prop_response = client.post(
+        "/propose-rule-change", json=proposal, headers=admin_headers
+    )
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
-    
+
     # Submit feedback with invalid type
-    invalid_feedback = {
-        "feedback_type": "invalid_type",
-        "comments": "Test feedback"
-    }
-    response = client.post(f"/api/rule_proposals/{proposal_id}/feedback", json=invalid_feedback)
-    assert response.status_code == 422  # Validation error 
+    invalid_feedback = {"feedback_type": "invalid_type", "comments": "Test feedback"}
+    response = client.post(
+        f"/api/rule_proposals/{proposal_id}/feedback",
+        json=invalid_feedback,
+        headers=admin_headers,
+    )
+    assert response.status_code == 422  # Validation error
+
+    # Create the proposal
+    prop_response = client.post(
+        "/propose-rule-change", json=proposal, headers=admin_headers
+    )
+    assert prop_response.status_code == 200
+    proposal_id = prop_response.json()["id"]
+
+    # Approve the proposal
+    approve_response = client.put(
+        f"/rule-changes/{proposal_id}/approve", headers=admin_headers
+    )
+    assert approve_response.status_code == 200

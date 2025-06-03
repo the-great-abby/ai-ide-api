@@ -1,0 +1,19 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Memory Server Usage Guidelines
+
+## Overview
+The memory server provides a robust system for storing and retrieving information across different projects and namespaces. For detailed information about security and privacy features, see [Memory System Security and Privacy Guide](mdc:docs/user_stories/memory_security_and_privacy.md).
+
+## Security and Privacy
+The memory system implements comprehensive security controls to protect sensitive information:
+
+1. **Authentication**: All operations require valid API tokens
+2. **Project Isolation**: Data is isolated by project and namespace
+3. **Access Control**: Fine-grained permissions for read/write operations
+4. **Token Scoping**: Tokens can be restricted to specific projects and namespaces
+
+For detailed information about security features and best practices, refer to the [Security and Privacy Guide](mdc:docs/user_stories/memory_security_and_privacy.md).

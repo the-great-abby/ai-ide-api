@@ -1,10 +1,40 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
+
+from db import Project, Team, get_db
 from rule_api_server import app
 
 client = TestClient(app)
 
-def test_rule_filtering_by_category():
+
+@pytest.fixture
+def test_project_uuid():
+    db = next(get_db())
+    project = Project(
+        name=f"Test Project {uuid.uuid4()}",
+        description="Test",
+        default_namespace=f"test{uuid.uuid4()}/private",
+        namespace_prefix=f"test{uuid.uuid4()}",
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return str(project.id)
+
+
+@pytest.fixture
+def test_team_uuid():
+    db = next(get_db())
+    team = Team(name=f"Test Team {uuid.uuid4()}", description="Test Team")
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+    return str(team.id)
+
+
+def test_rule_filtering_by_category(admin_headers):
     # Create rules with different categories
     rules = [
         {
@@ -13,7 +43,13 @@ def test_rule_filtering_by_category():
             "diff": "Test diff 1",
             "submitted_by": "tester",
             "categories": ["category1"],
-            "tags": ["test"]
+            "tags": ["test"],
+            "examples": ["Example 1"],
+            "applies_to": ["python"],
+            "applies_to_rationale": "For Python code",
+            "user_story": "Test user story",
+            "reason_for_change": "Testing filtering flow.",
+            "references": "Test reference.",
         },
         {
             "rule_type": "test_category_2",
@@ -21,7 +57,15 @@ def test_rule_filtering_by_category():
             "diff": "Test diff 2",
             "submitted_by": "tester",
             "categories": ["category2"],
-            "tags": ["test"]
+            "tags": ["test"],
+            "examples": ["Example 2"],
+            "applies_to": ["javascript"],
+            "applies_to_rationale": "For JavaScript code",
+            "user_story": "Test user story 2",
+            "reason_for_change": "Testing filtering flow 2.",
+            "references": "Test reference 2.",
+            "current_rule": "Current rule text 2.",
+            "project": "test-project-2",
         },
         {
             "rule_type": "test_category_3",
@@ -29,33 +73,49 @@ def test_rule_filtering_by_category():
             "diff": "Test diff 3",
             "submitted_by": "tester",
             "categories": ["category1", "category2"],
-            "tags": ["test"]
-        }
+            "tags": ["test"],
+            "examples": ["Example 3"],
+            "applies_to": ["python", "javascript"],
+            "applies_to_rationale": "For Python and JavaScript code",
+            "user_story": "Test user story 3",
+            "reason_for_change": "Testing filtering flow 3.",
+            "references": "Test reference 3.",
+            "current_rule": "Current rule text 3.",
+            "project": "test-project-3",
+        },
     ]
-    
+
     # Create and approve all rules
     for rule in rules:
-        prop_response = client.post("/propose-rule-change", json=rule)
+        prop_response = client.post(
+            "/propose-rule-change", json=rule, headers=admin_headers
+        )
         assert prop_response.status_code == 200
         proposal_id = prop_response.json()["id"]
-        approve_response = client.post(f"/approve-rule-change/{proposal_id}")
+        approve_response = client.put(
+            f"/rule-changes/{proposal_id}/approve", headers=admin_headers
+        )
         assert approve_response.status_code == 200
-    
+
     # Test filtering by single category
-    response = client.get("/rules?category=category1")
+    response = client.get("/rules?category=category1", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 2
     assert all("category1" in r["categories"] for r in filtered_rules)
-    
+
     # Test filtering by multiple categories
-    response = client.get("/rules?category=category1,category2")
+    response = client.get("/rules?category=category1,category2", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 3
-    assert all(any(cat in r["categories"] for cat in ["category1", "category2"]) for r in filtered_rules)
+    assert all(
+        any(cat in r["categories"] for cat in ["category1", "category2"])
+        for r in filtered_rules
+    )
 
-def test_rule_filtering_by_tag():
+
+def test_rule_filtering_by_tag(admin_headers):
     # Create rules with different tags
     rules = [
         {
@@ -64,7 +124,13 @@ def test_rule_filtering_by_tag():
             "diff": "Test diff 1",
             "submitted_by": "tester",
             "categories": ["test"],
-            "tags": ["tag1"]
+            "tags": ["tag1"],
+            "examples": ["Example 4"],
+            "applies_to": ["python"],
+            "applies_to_rationale": "For Python code",
+            "user_story": "Test user story 4",
+            "reason_for_change": "Testing filtering flow 4.",
+            "references": "Test reference 4.",
         },
         {
             "rule_type": "test_tag_2",
@@ -72,7 +138,13 @@ def test_rule_filtering_by_tag():
             "diff": "Test diff 2",
             "submitted_by": "tester",
             "categories": ["test"],
-            "tags": ["tag2"]
+            "tags": ["tag2"],
+            "examples": ["Example 5"],
+            "applies_to": ["javascript"],
+            "applies_to_rationale": "For JavaScript code",
+            "user_story": "Test user story 5",
+            "reason_for_change": "Testing filtering flow 5.",
+            "references": "Test reference 5.",
         },
         {
             "rule_type": "test_tag_3",
@@ -80,26 +152,37 @@ def test_rule_filtering_by_tag():
             "diff": "Test diff 3",
             "submitted_by": "tester",
             "categories": ["test"],
-            "tags": ["tag1", "tag2"]
-        }
+            "tags": ["tag1", "tag2"],
+            "examples": ["Example 6"],
+            "applies_to": ["python", "javascript"],
+            "applies_to_rationale": "For Python and JavaScript code",
+            "user_story": "Test user story 6",
+            "reason_for_change": "Testing filtering flow 6.",
+            "references": "Test reference 6.",
+        },
     ]
-    
+
     # Create and approve all rules
     for rule in rules:
-        prop_response = client.post("/propose-rule-change", json=rule)
+        prop_response = client.post(
+            "/propose-rule-change", json=rule, headers=admin_headers
+        )
         assert prop_response.status_code == 200
         proposal_id = prop_response.json()["id"]
-        approve_response = client.post(f"/approve-rule-change/{proposal_id}")
+        approve_response = client.put(
+            f"/rule-changes/{proposal_id}/approve", headers=admin_headers
+        )
         assert approve_response.status_code == 200
-    
+
     # Test filtering by tag
-    response = client.get("/rules?tag=tag1")
+    response = client.get("/rules?tag=tag1", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 2
     assert all("tag1" in r["tags"] for r in filtered_rules)
 
-def test_rule_filtering_by_scope():
+
+def test_rule_filtering_by_scope(admin_headers, test_project_uuid, test_team_uuid):
     # Create rules with different scopes
     rules = [
         {
@@ -110,7 +193,13 @@ def test_rule_filtering_by_scope():
             "categories": ["test"],
             "tags": ["test"],
             "scope_level": "project",
-            "scope_id": "project-1"
+            "scope_id": test_project_uuid,
+            "examples": ["Example 7"],
+            "applies_to": ["python"],
+            "applies_to_rationale": "For Python code",
+            "user_story": "Test user story 7",
+            "reason_for_change": "Testing filtering flow 7.",
+            "references": "Test reference 7.",
         },
         {
             "rule_type": "test_scope_2",
@@ -120,7 +209,13 @@ def test_rule_filtering_by_scope():
             "categories": ["test"],
             "tags": ["test"],
             "scope_level": "team",
-            "scope_id": "team-1"
+            "scope_id": test_team_uuid,
+            "examples": ["Example 8"],
+            "applies_to": ["javascript"],
+            "applies_to_rationale": "For JavaScript code",
+            "user_story": "Test user story 8",
+            "reason_for_change": "Testing filtering flow 8.",
+            "references": "Test reference 8.",
         },
         {
             "rule_type": "test_scope_3",
@@ -129,33 +224,47 @@ def test_rule_filtering_by_scope():
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["test"],
-            "scope_level": "global"
-        }
+            "scope_level": "global",
+            "examples": ["Example 9"],
+            "applies_to": ["python", "javascript"],
+            "applies_to_rationale": "For Python and JavaScript code",
+            "user_story": "Test user story 9",
+            "reason_for_change": "Testing filtering flow 9.",
+            "references": "Test reference 9.",
+        },
     ]
-    
+
     # Create and approve all rules
     for rule in rules:
-        prop_response = client.post("/propose-rule-change", json=rule)
+        prop_response = client.post(
+            "/propose-rule-change", json=rule, headers=admin_headers
+        )
         assert prop_response.status_code == 200
         proposal_id = prop_response.json()["id"]
-        approve_response = client.post(f"/approve-rule-change/{proposal_id}")
+        approve_response = client.put(
+            f"/rule-changes/{proposal_id}/approve", headers=admin_headers
+        )
         assert approve_response.status_code == 200
-    
+
     # Test filtering by scope level
-    response = client.get("/rules?scope_level=project")
+    response = client.get("/rules?scope_level=project", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 1
     assert filtered_rules[0]["scope_level"] == "project"
-    
-    # Test filtering by scope ID
-    response = client.get("/rules?scope_level=project&scope_id=project-1")
+
+    # Test filtering by scope ID (use the known UUID)
+    response = client.get(
+        f"/rules?scope_level=project&scope_id={test_project_uuid}",
+        headers=admin_headers,
+    )
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 1
-    assert filtered_rules[0]["scope_id"] == "project-1"
+    assert filtered_rules[0]["scope_id"] == test_project_uuid
 
-def test_rule_filtering_combinations():
+
+def test_rule_filtering_combinations(admin_headers, test_project_uuid, test_team_uuid):
     # Create rules with various combinations
     rules = [
         {
@@ -166,7 +275,13 @@ def test_rule_filtering_combinations():
             "categories": ["cat1"],
             "tags": ["tag1"],
             "scope_level": "project",
-            "scope_id": "project-1"
+            "scope_id": test_project_uuid,
+            "examples": ["Example 10"],
+            "applies_to": ["python"],
+            "applies_to_rationale": "For Python code",
+            "user_story": "Test user story 10",
+            "reason_for_change": "Testing filtering flow 10.",
+            "references": "Test reference 10.",
         },
         {
             "rule_type": "test_comb_2",
@@ -176,7 +291,13 @@ def test_rule_filtering_combinations():
             "categories": ["cat1", "cat2"],
             "tags": ["tag1", "tag2"],
             "scope_level": "team",
-            "scope_id": "team-1"
+            "scope_id": test_team_uuid,
+            "examples": ["Example 11"],
+            "applies_to": ["javascript"],
+            "applies_to_rationale": "For JavaScript code",
+            "user_story": "Test user story 11",
+            "reason_for_change": "Testing filtering flow 11.",
+            "references": "Test reference 11.",
         },
         {
             "rule_type": "test_comb_3",
@@ -185,20 +306,32 @@ def test_rule_filtering_combinations():
             "submitted_by": "tester",
             "categories": ["cat2"],
             "tags": ["tag2"],
-            "scope_level": "global"
-        }
+            "scope_level": "global",
+            "examples": ["Example 12"],
+            "applies_to": ["python", "javascript"],
+            "applies_to_rationale": "For Python and JavaScript code",
+            "user_story": "Test user story 12",
+            "reason_for_change": "Testing filtering flow 12.",
+            "references": "Test reference 12.",
+        },
     ]
-    
+
     # Create and approve all rules
     for rule in rules:
-        prop_response = client.post("/propose-rule-change", json=rule)
+        prop_response = client.post(
+            "/propose-rule-change", json=rule, headers=admin_headers
+        )
         assert prop_response.status_code == 200
         proposal_id = prop_response.json()["id"]
-        approve_response = client.post(f"/approve-rule-change/{proposal_id}")
+        approve_response = client.put(
+            f"/rule-changes/{proposal_id}/approve", headers=admin_headers
+        )
         assert approve_response.status_code == 200
-    
+
     # Test multiple filter combinations
-    response = client.get("/rules?category=cat1&tag=tag1&scope_level=project")
+    response = client.get(
+        "/rules?category=cat1&tag=tag1&scope_level=project", headers=admin_headers
+    )
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 1
@@ -207,7 +340,8 @@ def test_rule_filtering_combinations():
     assert "tag1" in rule["tags"]
     assert rule["scope_level"] == "project"
 
-def test_rule_search():
+
+def test_rule_search(admin_headers):
     # Create rules with searchable content
     rules = [
         {
@@ -216,7 +350,13 @@ def test_rule_search():
             "diff": "Enforce PEP 8 style guide",
             "submitted_by": "tester",
             "categories": ["style"],
-            "tags": ["python"]
+            "tags": ["python"],
+            "examples": ["Example 13"],
+            "applies_to": ["python"],
+            "applies_to_rationale": "For Python code",
+            "user_story": "Test user story 13",
+            "reason_for_change": "Testing filtering flow 13.",
+            "references": "Test reference 13.",
         },
         {
             "rule_type": "test_search_2",
@@ -224,7 +364,13 @@ def test_rule_search():
             "diff": "Enforce ESLint rules",
             "submitted_by": "tester",
             "categories": ["style"],
-            "tags": ["javascript"]
+            "tags": ["javascript"],
+            "examples": ["Example 14"],
+            "applies_to": ["javascript"],
+            "applies_to_rationale": "For JavaScript code",
+            "user_story": "Test user story 14",
+            "reason_for_change": "Testing filtering flow 14.",
+            "references": "Test reference 14.",
         },
         {
             "rule_type": "test_search_3",
@@ -232,35 +378,48 @@ def test_rule_search():
             "diff": "Enforce consistent code style",
             "submitted_by": "tester",
             "categories": ["style"],
-            "tags": ["general"]
-        }
+            "tags": ["general"],
+            "examples": ["Example 15"],
+            "applies_to": ["python", "javascript"],
+            "applies_to_rationale": "For Python and JavaScript code",
+            "user_story": "Test user story 15",
+            "reason_for_change": "Testing filtering flow 15.",
+            "references": "Test reference 15.",
+        },
     ]
-    
+
     # Create and approve all rules
     for rule in rules:
-        prop_response = client.post("/propose-rule-change", json=rule)
+        prop_response = client.post(
+            "/propose-rule-change", json=rule, headers=admin_headers
+        )
         assert prop_response.status_code == 200
         proposal_id = prop_response.json()["id"]
-        approve_response = client.post(f"/approve-rule-change/{proposal_id}")
+        approve_response = client.put(
+            f"/rule-changes/{proposal_id}/approve", headers=admin_headers
+        )
         assert approve_response.status_code == 200
-    
+
     # Test search by description
-    response = client.get("/rules?search=Python")
+    response = client.get("/rules?search=Python", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 1
     assert "Python" in filtered_rules[0]["description"]
-    
+
     # Test search by diff content
-    response = client.get("/rules?search=ESLint")
+    response = client.get("/rules?search=ESLint", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 1
     assert "ESLint" in filtered_rules[0]["diff"]
-    
+
     # Test search with multiple terms
-    response = client.get("/rules?search=style")
+    response = client.get("/rules?search=style", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
     assert len(filtered_rules) == 3
-    assert all("style" in r["description"].lower() or "style" in r["diff"].lower() for r in filtered_rules) 
+    assert all(
+        "style" in r["description"].lower() or "style" in r["diff"].lower()
+        for r in filtered_rules
+    )

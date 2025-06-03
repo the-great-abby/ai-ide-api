@@ -1,21 +1,27 @@
-import requests
-import os
 import json
+import os
 import subprocess
 import sys
 
+import requests
+
 # Determine API base URL based on environment
+
 
 def get_default_api_base():
     if os.environ.get("RUNNING_IN_DOCKER") == "1":
         return "http://api:8000"
     return "http://localhost:9103"
 
+
 def get_api_base():
     return os.environ.get("API_BASE", get_default_api_base())
 
+
 API_BASE = os.environ.get("API_BASE", get_default_api_base())
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_URL", "http://host.docker.internal:11434/api/generate"
+)
 MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
 
 
@@ -40,11 +46,10 @@ def llm_feedback(proposal):
     import io
     import json
 
-    prompt = (
-        """
+    prompt = """
 Given the following rule proposal, suggest feedback (accept, reject, needs_changes) and a brief comment as JSON: {"feedback_type": "accept|reject|needs_changes", "comments": "..."}
-"""
-        + json.dumps(proposal, indent=2)
+""" + json.dumps(
+        proposal, indent=2
     )
     payload = json.dumps({"model": MODEL, "prompt": prompt})
     resp = requests.post(
@@ -71,8 +76,12 @@ Given the following rule proposal, suggest feedback (accept, reject, needs_chang
 
     # Try to parse JSON from LLM output
     try:
-        feedback = json.loads(response_text[response_text.find("{"):response_text.rfind("}")+1])
-        return feedback.get("feedback_type", "needs_changes"), feedback.get("comments", response_text)
+        feedback = json.loads(
+            response_text[response_text.find("{") : response_text.rfind("}") + 1]
+        )
+        return feedback.get("feedback_type", "needs_changes"), feedback.get(
+            "comments", response_text
+        )
     except Exception:
         # Fallback: look for keywords
         if "accept" in response_text.lower():
@@ -86,18 +95,14 @@ Given the following rule proposal, suggest feedback (accept, reject, needs_chang
 
 def submit_feedback(proposal_id, feedback_type, comments):
     feedback = {"feedback_type": feedback_type, "comments": comments}
-    resp = requests.post(f"{get_api_base()}/api/rule_proposals/{proposal_id}/feedback", json=feedback)
+    resp = requests.post(
+        f"{get_api_base()}/api/rule_proposals/{proposal_id}/feedback", json=feedback
+    )
     print(f"Submitted feedback for {proposal_id}: {feedback_type} ({comments[:60]})")
     return resp
 
 
 def main():
-    # Check for input file argument if present
-    if len(sys.argv) > 1 and sys.argv[0].endswith('auto_feedback.py'):
-        input_file = sys.argv[1]
-        if not os.path.exists(input_file):
-            print(f"Error: Input file '{input_file}' does not exist.")
-            sys.exit(1)
     try:
         proposals = get_pending_proposals()
     except Exception as e:
@@ -117,5 +122,6 @@ def main():
             sys.exit(1)
         print(f"AI suggested: {feedback_type} - {comments}\n{'-'*40}")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

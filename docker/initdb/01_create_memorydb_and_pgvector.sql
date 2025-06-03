@@ -1,10 +1,12 @@
 -- 01_create_memorydb.sql
+-- Create the databases if they don't exist
+CREATE DATABASE rulesdb;
 CREATE DATABASE memorydb;
 
--- Install pgvector in rulesdb (if not already present)
-\connect rulesdb
+-- Connect to rulesdb to install pgvector
+\connect rulesdb;
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Install pgvector in memorydb
-\connect memorydb
+-- Connect to memorydb to install pgvector
+\connect memorydb;
 CREATE EXTENSION IF NOT EXISTS vector; 

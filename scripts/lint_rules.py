@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-from lint_rule import validate_rule
+from scripts.lint_rule import validate_rule
 
 RULES_FILE = "rules.json"
 
