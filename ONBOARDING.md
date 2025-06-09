@@ -863,4 +863,29 @@ Follow these steps to get up and running in under 5 minutes:
 - Docker not running? Start Docker Desktop.
 - Port in use? Use the `PORT` variable as shown above.
 - Permission errors? Try `sudo chown -R $USER:$USER .` in the project directory.
-- Still stuck? See the [Troubleshooting Guide](docs/onboarding/troubleshooting.md). 
+- Still stuck? See the [Troubleshooting Guide](docs/onboarding/troubleshooting.md).
+
+### Troubleshooting: update-project-map & misc-scripts
+
+If you encounter issues running the update-project-map workflow, follow these steps:
+
+1. **Make sure Docker is running.**
+2. **Ensure the `misc-scripts` container is up:**
+    ```bash
+    docker compose ps | grep misc-scripts
+    ```
+3. **If not running, start it with:**
+    ```bash
+    make dev-up
+    ```
+4. **Check logs for errors:**
+    ```bash
+    docker compose logs misc-scripts
+    ```
+5. **Try running the update manually:**
+    ```bash
+    make -f Makefile.ai update-project-map
+    ```
+6. **If the problem persists, check for Python or dependency errors in `scripts/update_project_map.py`.**
+
+This ensures you are using the new profile-based workflow and the correct Makefile target for bringing up the required service. 
