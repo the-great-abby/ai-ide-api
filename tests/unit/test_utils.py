@@ -107,6 +107,6 @@ def test_get_default_url_env(monkeypatch):
 
 def test_get_default_api_base_env(monkeypatch):
     monkeypatch.setenv("RUNNING_IN_DOCKER", "1")
-    assert get_default_api_base() == "http://api:8000"
+    assert get_default_api_base() == "http://test-api:8000"
     monkeypatch.delenv("RUNNING_IN_DOCKER", raising=False)
-    assert get_default_api_base() == "http://localhost:9103"
+    assert get_default_api_base() == "http://localhost:9104"

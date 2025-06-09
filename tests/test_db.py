@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from db import Base, Feedback, Proposal, Rule
 
 # Use PostgreSQL for testing
-TEST_DATABASE_URL = "postgresql://postgres:postgres@db-test:5432/rulesdb"
+TEST_DATABASE_URL = "postgresql://postgres:postgres@test-db:5432/rulesdb"
 
 
 @pytest.fixture

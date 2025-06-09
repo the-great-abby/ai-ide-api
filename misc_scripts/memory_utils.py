@@ -7,7 +7,7 @@ from typing import Optional, Dict, List, Any
 # Use Docker service names when running in Docker, otherwise use localhost
 API_URL = os.environ.get(
     "MEMORY_API_URL",
-    "http://api:8000/memory/nodes" if os.environ.get("RUNNING_IN_DOCKER") else "http://localhost:9103/memory/nodes"
+    "http://test-api:8000/memory/nodes" if os.environ.get("RUNNING_IN_DOCKER") else "http://localhost:9104/memory/nodes"
 )
 
 def add_node(namespace: str, content: str, meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

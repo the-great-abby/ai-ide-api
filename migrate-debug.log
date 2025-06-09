@@ -1,0 +1,2 @@
+DEBUG: Inspector tables at start of migration: ['alembic_version', 'feedback', 'proposals', 'rule_versions', 'rules']
+DEBUG: Inspector default schema: public

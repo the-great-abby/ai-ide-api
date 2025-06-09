@@ -11,7 +11,7 @@ def test_dry_run(mock_connect, mock_run, tmp_path, monkeypatch):
     # Set required env vars
     monkeypatch.setenv('PGUSER', 'postgres')
     monkeypatch.setenv('PGPASSWORD', 'postgres')
-    monkeypatch.setenv('PGHOST', 'db-test')
+    monkeypatch.setenv('PGHOST', 'test-db')
     monkeypatch.setenv('PGPORT', '5432')
     # Create a dummy backup file
     backup_file = tmp_path / 'dummy.sql'
@@ -41,7 +41,7 @@ def test_invalid_backup_file(mock_connect, mock_run, tmp_path, monkeypatch):
     # Set required env vars
     monkeypatch.setenv('PGUSER', 'postgres')
     monkeypatch.setenv('PGPASSWORD', 'postgres')
-    monkeypatch.setenv('PGHOST', 'db-test')
+    monkeypatch.setenv('PGHOST', 'test-db')
     monkeypatch.setenv('PGPORT', '5432')
     # Pass a non-existent file
     sys.argv = ['smart_merge_backup.py', str(tmp_path / 'notfound.sql'), '--dry-run']

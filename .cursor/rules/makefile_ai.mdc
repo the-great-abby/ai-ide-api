@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
 # AI-Optimized Makefile Targets
@@ -80,3 +80,35 @@ alwaysApply: false
   - [pytest_execution.mdc](mdc:.cursor/rules/pytest_execution.mdc) for test execution details
   - [environments.mdc](mdc:.cursor/rules/environments.mdc) for environment setup
   - [docker.mdc](mdc:.cursor/rules/docker.mdc) for container configuration
+
+# Makefile Structure: Slim Main, Specialized Sub-Makefiles
+
+🏴‍☠️ **Pirate Warning: Keep the Captain's Log Lean!**
+
+- The main `Makefile.ai` should be kept as slim as possible—just high-level aliases and `include` statements for sub-Makefiles.
+- All specialized targets and real logic should live in sub-Makefiles (e.g., `Makefile.ai-test`, `Makefile.ai-llm`, `Makefile.ai-db`, etc.).
+- This prevents the main Makefile from hitting file size limits and crashing the build system (as happened in the Great Shipwreck of '24).
+- Sub-Makefiles can grow and specialize as needed, without bloating the main file.
+- If a target is defined in a sub-Makefile, do NOT redefine it in the main file—let the sub-crews handle their own cargo!
+- Leave a warning comment at the top of `Makefile.ai` to remind future pirates of this rule.
+
+**Example:**
+```makefile
+# In Makefile.ai (the captain's log):
+include Makefile.ai-test
+include Makefile.ai-llm
+# ...
+# Only high-level aliases here!
+
+# In Makefile.ai-test (the test crew's domain):
+ai-test:
+	# ... test logic ...
+```
+
+**Rationale:**
+- Keeps the main Makefile discoverable and maintainable
+- Avoids catastrophic build failures due to file size
+- Lets each crew (test, LLM, DB, admin) own their own Makefile domain
+- Makes it easy for new pirates to find the right map for the job
+
+**If you break this rule, the kraken will eat your CI pipeline!**

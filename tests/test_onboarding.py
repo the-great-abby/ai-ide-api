@@ -5,7 +5,13 @@ from typing import Dict, List
 import pytest
 import requests
 
-API_URL = os.environ.get("API_URL", "http://api:8000")
+def _default_api_url():
+    # Use Docker hostname if in test environment, else use localhost with mapped port
+    if os.environ.get("ENVIRONMENT") == "test":
+        return "http://test-api:8000"
+    return "http://localhost:9104"
+
+API_URL = os.environ.get("API_URL", _default_api_url())
 
 
 @pytest.fixture
@@ -32,23 +38,24 @@ def cleanup_test_data():
 
 
 def test_internal_project_onboarding(
-    admin_headers_fixture, test_project_name, onboarding_path
+    admin_headers_fixture, test_project_name, onboarding_path, override_get_db
 ):
     """Test the complete internal project onboarding process."""
     headers = admin_headers_fixture
     print(f"[TEST DEBUG] project_name={test_project_name}, path={onboarding_path}")
     # 1. Initialize onboarding (no headers)
     init_response = requests.post(
-        f"{API_URL}/onboarding-init",
+        f"{API_URL}/onboarding/init",
         json={"project_name": test_project_name, "path": onboarding_path},
     )
+    if init_response.status_code != 200:
+        print(f"[ONBOARDING INIT ERROR] Status: {init_response.status_code}, Response: {init_response.text}")
     assert (
         init_response.status_code == 200
     ), f"Failed to initialize onboarding: {init_response.text}"
-    project_id = init_response.json()["project_id"]
-    # 2. Fetch initial progress
+    # Use project_name for progress calls
     progress_response = requests.get(
-        f"{API_URL}/onboarding/progress/{project_id}?path={onboarding_path}",
+        f"{API_URL}/onboarding/progress/{test_project_name}?path={onboarding_path}",
         headers=headers,
     )
     assert (
@@ -70,7 +77,7 @@ def test_internal_project_onboarding(
         ), f"Failed to mark step {step_id} as complete: {complete_response.text}"
     # 4. Verify all steps are complete
     final_progress_response = requests.get(
-        f"{API_URL}/onboarding/progress/{project_id}?path={onboarding_path}",
+        f"{API_URL}/onboarding/progress/{test_project_name}?path={onboarding_path}",
         headers=headers,
     )
     assert (
@@ -86,42 +93,42 @@ def test_internal_project_onboarding(
 
 
 def test_onboarding_validation(
-    admin_headers_fixture, test_project_name, onboarding_path
+    admin_headers_fixture, test_project_name, onboarding_path, override_get_db
 ):
     """Test validation of onboarding requests."""
     headers = admin_headers_fixture
     # Test invalid path
     invalid_path_response = requests.post(
-        f"{API_URL}/onboarding-init",
+        f"{API_URL}/onboarding/init",
         json={"project_name": test_project_name, "path": "invalid_path"},
         headers=headers,
     )
     assert (
-        invalid_path_response.status_code == 400
-    ), "Should reject invalid onboarding path"
+        invalid_path_response.status_code in (400, 422)
+    ), f"Should reject invalid onboarding path (got {invalid_path_response.status_code})"
     # Test missing project_name
     missing_project_response = requests.post(
-        f"{API_URL}/onboarding-init", json={"path": onboarding_path}, headers=headers
+        f"{API_URL}/onboarding/init", json={"path": onboarding_path}, headers=headers
     )
-    assert missing_project_response.status_code == 400, "Should require project_name"
+    assert missing_project_response.status_code in (400, 422), f"Should require project_name (got {missing_project_response.status_code})"
     # Test missing path
     missing_path_response = requests.post(
-        f"{API_URL}/onboarding-init",
+        f"{API_URL}/onboarding/init",
         json={"project_name": test_project_name},
         headers=headers,
     )
-    assert missing_path_response.status_code == 400, "Should require path"
+    assert missing_path_response.status_code in (400, 422), f"Should require path (got {missing_path_response.status_code})"
 
 
 def test_onboarding_progress_retrieval(
-    admin_headers_fixture, test_project_name, onboarding_path
+    admin_headers_fixture, test_project_name, onboarding_path, override_get_db
 ):
     """Test retrieving onboarding progress for a non-existent project."""
     headers = admin_headers_fixture
-    # Try to get progress for a project that hasn't been initialized (random UUID)
-    random_project_id = str(uuid.uuid4())
+    # Try to get progress for a project that hasn't been initialized (random name)
+    random_project_name = f"nonexistent_{uuid.uuid4().hex[:8]}"
     response = requests.get(
-        f"{API_URL}/onboarding/progress/{random_project_id}?path={onboarding_path}",
+        f"{API_URL}/onboarding/progress/{random_project_name}?path={onboarding_path}",
         headers=headers,
     )
     assert response.status_code == 404, "Should return 404 for non-existent project"

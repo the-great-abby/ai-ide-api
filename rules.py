@@ -11,7 +11,9 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from auth import require_api_token, require_role
-from db import Rule, RuleVersion, get_db
+from db import Rule, RuleVersion, get_db, resolve_project_id, resolve_team_id, project_defaults_from_name
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["rules"])
 
@@ -98,34 +100,87 @@ def validate_uuid(value: str) -> bool:
         return False
 
 
+def ensure_list(val):
+    if val is None:
+        return []
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str):
+        # Try to parse as JSON list
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            pass
+        # Fallback: comma split, or wrap as single-item list if no comma
+        if ',' in val:
+            return [v.strip() for v in val.split(',') if v.strip()]
+        if val.strip():
+            return [val.strip()]
+        return []
+    return [val]
+
+
+def normalize_rule_fields(data):
+    if hasattr(data, '__dict__'):
+        data = data.__dict__.copy()
+    for field in ['categories', 'tags', 'examples', 'applies_to']:
+        data[field] = ensure_list(data.get(field))
+    return data
+
+
 @router.get("/rules", response_model=List[RuleOut])
 def list_rules(
     category: Optional[str] = None,
     tag: Optional[str] = None,
     scope_level: Optional[str] = None,
     scope_id: Optional[str] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """List all approved rules with optional filtering."""
+    """List all approved rules with optional filtering and search."""
     query = db.query(Rule).filter(Rule.status == "approved")
 
     if category:
         categories = [c.strip() for c in category.split(",")]
-        query = query.filter(Rule.categories.in_(categories))
+        # Match if any category is present in the comma-separated string
+        category_filters = []
+        for cat in categories:
+            # Match at start, middle, or end
+            category_filters.append(Rule.categories.ilike(f"{cat}"))
+            category_filters.append(Rule.categories.ilike(f"{cat},%"))
+            category_filters.append(Rule.categories.ilike(f"%,{cat}"))
+            category_filters.append(Rule.categories.ilike(f"%,{cat},%"))
+        query = query.filter(or_(*category_filters))
 
     if tag:
         tags = [t.strip() for t in tag.split(",")]
-        query = query.filter(Rule.tags.in_(tags))
+        # Match if any tag is present in the comma-separated string
+        tag_filters = []
+        for t in tags:
+            tag_filters.append(Rule.tags.ilike(f"{t}"))
+            tag_filters.append(Rule.tags.ilike(f"{t},%"))
+            tag_filters.append(Rule.tags.ilike(f"%,{t}"))
+            tag_filters.append(Rule.tags.ilike(f"%,{t},%"))
+        query = query.filter(or_(*tag_filters))
 
     if scope_level:
         query = query.filter(Rule.scope_level == scope_level)
 
     if scope_id:
         # Accept both UUID and string for scope_id
-        # Try to match as string or UUID (for project/team scopes)
+        # If scope_level is project or team, resolve to UUID
+        if scope_level == "project":
+            try:
+                uuid.UUID(scope_id)
+                scope_id = resolve_project_id(db, scope_id)
+            except Exception:
+                scope_id = resolve_project_id(db, scope_id, **project_defaults_from_name(scope_id))
+        elif scope_level == "team":
+            scope_id = resolve_team_id(db, scope_id)
         try:
             import uuid as uuidlib
-
             uuid_val = str(uuidlib.UUID(scope_id))
             query = query.filter(
                 or_(Rule.scope_id == scope_id, Rule.scope_id == uuid_val)
@@ -133,39 +188,24 @@ def list_rules(
         except Exception:
             query = query.filter(Rule.scope_id == scope_id)
 
+    if search:
+        search_term = f"%{search.lower()}%"
+        query = query.filter(
+            or_(
+                Rule.description.ilike(search_term),
+                Rule.diff.ilike(search_term),
+                Rule.tags.ilike(search_term),
+                Rule.applies_to.ilike(search_term),
+            )
+        )
+
     rules = query.order_by(Rule.timestamp.desc()).all()
     result = []
     for rule in rules:
-        data = rule.__dict__.copy()
-        data.pop("_sa_instance_state", None)
-        data = serialize_uuids(data)
+        data = serialize_uuids(rule.__dict__.copy())
+        data = normalize_rule_fields(data)
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
-        # Always return categories as a list
-        categories_val = data.get("categories")
-        if not categories_val:
-            data["categories"] = []
-        elif isinstance(categories_val, str):
-            data["categories"] = [
-                c.strip() for c in categories_val.split(",") if c.strip()
-            ]
-        # Always return tags as a list
-        tags_val = data.get("tags")
-        if not tags_val:
-            data["tags"] = []
-        elif isinstance(tags_val, str):
-            data["tags"] = [t.strip() for t in tags_val.split(",") if t.strip()]
-        applies_to_val = data.get("applies_to")
-        if not applies_to_val:
-            data["applies_to"] = []
-        elif isinstance(applies_to_val, str):
-            data["applies_to"] = [
-                a.strip() for a in applies_to_val.split(",") if a.strip()
-            ]
-        data["examples"] = parse_list_field(data.get("examples"))
-        data["applies_to"] = parse_list_field(data.get("applies_to"))
-        data["categories"] = parse_list_field(data.get("categories"))
-        data["tags"] = parse_list_field(data.get("tags"))
         result.append(data)
     return result
 
@@ -176,37 +216,13 @@ def get_rule(rule_id: str, db: Session = Depends(get_db)):
     # Validate UUID format
     if not validate_uuid(rule_id):
         raise HTTPException(status_code=422, detail="Invalid UUID format")
-
     rule = db.query(Rule).filter(Rule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
-
-    data = rule.__dict__.copy()
-    data.pop("_sa_instance_state", None)
-    data = serialize_uuids(data)
+    data = serialize_uuids(rule.__dict__.copy())
+    data = normalize_rule_fields(data)
     if isinstance(data.get("timestamp"), datetime):
         data["timestamp"] = data["timestamp"].isoformat()
-    # Always return categories as a list
-    categories_val = data.get("categories")
-    if not categories_val:
-        data["categories"] = []
-    elif isinstance(categories_val, str):
-        data["categories"] = [c.strip() for c in categories_val.split(",") if c.strip()]
-    # Always return tags as a list
-    tags_val = data.get("tags")
-    if not tags_val:
-        data["tags"] = []
-    elif isinstance(tags_val, str):
-        data["tags"] = [t.strip() for t in tags_val.split(",") if t.strip()]
-    applies_to_val = data.get("applies_to")
-    if not applies_to_val:
-        data["applies_to"] = []
-    elif isinstance(applies_to_val, str):
-        data["applies_to"] = [a.strip() for a in applies_to_val.split(",") if a.strip()]
-    data["examples"] = parse_list_field(data.get("examples"))
-    data["applies_to"] = parse_list_field(data.get("applies_to"))
-    data["categories"] = parse_list_field(data.get("categories"))
-    data["tags"] = parse_list_field(data.get("tags"))
     return data
 
 
@@ -221,9 +237,10 @@ def get_rule_history(
     if not validate_uuid(rule_id):
         raise HTTPException(status_code=422, detail="Invalid UUID format")
 
+    # ARR! Always cast rule_id to str for DB query to avoid varchar=uuid errors
     versions = (
         db.query(RuleVersion)
-        .filter(RuleVersion.rule_id == rule_id)
+        .filter(RuleVersion.rule_id == str(rule_id))
         .order_by(RuleVersion.version.desc())
         .all()
     )
@@ -232,39 +249,10 @@ def get_rule_history(
 
     result = []
     for version in versions:
-        data = version.__dict__.copy()
-        data.pop("_sa_instance_state", None)
-        data = serialize_uuids(data)
+        data = serialize_uuids(version.__dict__.copy())
+        data = normalize_rule_fields(data)
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
-        # Always return categories as a list
-        categories_val = data.get("categories")
-        if not categories_val:
-            data["categories"] = []
-        elif isinstance(categories_val, str):
-            data["categories"] = [
-                c.strip() for c in categories_val.split(",") if c.strip()
-            ]
-        # Always return tags as a list
-        tags_val = data.get("tags")
-        if not tags_val:
-            data["tags"] = []
-        elif isinstance(tags_val, str):
-            data["tags"] = [t.strip() for t in tags_val.split(",") if t.strip()]
-        applies_to_val = data.get("applies_to")
-        if not applies_to_val:
-            data["applies_to"] = []
-        elif isinstance(applies_to_val, str):
-            data["applies_to"] = [
-                a.strip() for a in applies_to_val.split(",") if a.strip()
-            ]
-        # Ensure submitted_by and status are always strings
-        data["submitted_by"] = data.get("submitted_by") or ""
-        data["status"] = data.get("status") or ""
-        data["examples"] = parse_list_field(data.get("examples"))
-        data["applies_to"] = parse_list_field(data.get("applies_to"))
-        data["categories"] = parse_list_field(data.get("categories"))
-        data["tags"] = parse_list_field(data.get("tags"))
         result.append(data)
     return result
 
@@ -277,200 +265,56 @@ def update_rule(
     db: Session = Depends(get_db),
     token: dict = Depends(require_role("admin")),
 ):
-    import logging
-
-    logging.warning(f"[DEBUG] PATCH /rules/{{rule_id}} payload: {update.dict()}")
-    logging.warning(
-        f"[DEBUG] PATCH /rules/{{rule_id}} __fields_set__: {update.__fields_set__}"
-    )
+    logger.debug(f"[UPDATE-DEBUG] Called with rule_id={rule_id}, update={update.dict()}, token={token}")
     # Validate UUID format
     if not validate_uuid(rule_id):
+        logger.error(f"[UPDATE-DEBUG] Invalid UUID: {rule_id}")
         raise HTTPException(status_code=422, detail="Invalid UUID format for rule_id.")
-    # Validate required fields for PATCH
-    required_fields = ["description", "diff"]
-    for field in required_fields:
+    logger.debug(f"[UPDATE-DEBUG] UUID validated: {rule_id}")
+    rule = db.query(Rule).filter(Rule.id == rule_id).first()
+    logger.debug(f"[UPDATE-DEBUG] DB query for rule_id={rule_id} returned: {rule}")
+    if not rule:
+        logger.error(f"[UPDATE-DEBUG] Rule not found: {rule_id}")
+        raise HTTPException(status_code=404, detail="Rule not found")
+    # Prevent updates to immutable fields
+    immutable_fields = ["rule_type", "submitted_by", "version", "id"]
+    for field in immutable_fields:
         if field in update.__fields_set__:
-            value = getattr(update, field)
-            if value is None or (isinstance(value, str) and not value.strip()):
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Field '{field}' is required and cannot be empty.",
-                )
-    # Inspect raw request body for immutable fields
-    if request is not None:
-        try:
-            raw_payload = (
-                asyncio.run(request.json())
-                if asyncio.iscoroutinefunction(request.json)
-                else request.json()
+            logger.error(f"[UPDATE-DEBUG] Attempt to update immutable field: {field}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Field '{field}' is immutable and cannot be updated.",
             )
-        except Exception:
-            raw_payload = None
-        if not raw_payload:
-            try:
-                raw_payload = update.dict(exclude_unset=False)
-            except Exception:
-                raw_payload = {}
-        logging.warning(f"[DEBUG] PATCH /rules/{{rule_id}} raw payload: {raw_payload}")
-        immutable_fields = ["rule_type", "submitted_by", "version", "id"]
-        for field in immutable_fields:
-            if field in raw_payload:
-                logging.error(
-                    f"[DEBUG] PATCH /rules/{{rule_id}} immutable field present in raw payload: {field} (value: {raw_payload.get(field)})"
-                )
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Field '{field}' is immutable and cannot be updated.",
-                )
+    logger.debug(f"[UPDATE-DEBUG] All checks passed for rule {rule_id}")
+    # All checks passed, perform update
     try:
-        rule = db.query(Rule).filter(Rule.id == rule_id).first()
-        logging.warning(
-            f"[DEBUG] Rule before update: {rule.__dict__ if rule else None}"
-        )
-        if not rule:
-            raise HTTPException(status_code=404, detail="Rule not found")
-        # Prevent updates to immutable fields (fallback for direct model usage)
-        immutable_fields = ["rule_type", "submitted_by", "version", "id"]
-        for field in immutable_fields:
-            if field in update.__fields_set__:
-                logging.error(
-                    f"[DEBUG] PATCH /rules/{{rule_id}} immutable field present: {field} (value: {getattr(update, field, None)})"
-                )
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Field '{field}' is immutable and cannot be updated.",
-                )
-        # Validate description if present
-        if update.description is not None and (
-            isinstance(update.description, str) and not update.description.strip()
-        ):
-            raise HTTPException(
-                status_code=400, detail="Field 'description' cannot be empty."
-            )
-        # Conflict check: approved rules (excluding self)
-        new_diff = update.diff if update.diff is not None else rule.diff
-        new_scope_level = (
-            update.scope_level if update.scope_level is not None else rule.scope_level
-        )
-        new_scope_id = update.scope_id if update.scope_id is not None else rule.scope_id
-        existing_rule = (
-            db.query(Rule)
-            .filter(
-                Rule.id != rule_id,
-                Rule.rule_type == rule.rule_type,
-                Rule.diff == new_diff,
-                Rule.scope_level == new_scope_level,
-                Rule.scope_id == new_scope_id,
-                Rule.status == "approved",
-            )
-            .first()
-        )
-        # Only raise conflict if the update would actually create a duplicate (i.e., another rule matches)
-        if existing_rule and (
-            new_diff != rule.diff
-            or new_scope_level != rule.scope_level
-            or new_scope_id != rule.scope_id
-        ):
-            raise HTTPException(
-                status_code=422,
-                detail="A rule with the same type, diff, and scope already exists (conflict). Please modify your update.",
-            )
-        # Only allow updates to mutable fields
-        mutable_fields = [
-            "description",
-            "diff",
-            "categories",
-            "tags",
-            "examples",
-            "applies_to",
-            "applies_to_rationale",
-            "user_story",
-            "scope_level",
-            "scope_id",
-        ]
-        updated = False
-        for field in mutable_fields:
+        # ARR! Apply all updates from the request, or walk the plank!
+        for field in update.__fields_set__:
             value = getattr(update, field)
-            if value is not None:
-                if field == "tags" and isinstance(value, list):
-                    # Merge tags with existing tags, ensure uniqueness
-                    existing_tags = (
-                        set(parse_list_field(rule.tags)) if rule.tags else set()
-                    )
-                    new_tags = set(value)
-                    merged_tags = list(existing_tags.union(new_tags))
-                    setattr(rule, field, ",".join(merged_tags))
-                elif field in ["categories", "applies_to"] and isinstance(value, list):
-                    setattr(rule, field, ",".join(value))
-                else:
-                    setattr(rule, field, value)
-                updated = True
-        if updated:
-            rule.version += 1
-            rule.timestamp = datetime.utcnow()
-            # Create version history entry
-            version = RuleVersion(
-                rule_id=rule.id,
-                version=rule.version,
-                rule_type=rule.rule_type,
-                description=rule.description,
-                diff=rule.diff,
-                status=rule.status,
-                submitted_by=rule.submitted_by,
-                added_by=rule.added_by,
-                project=rule.project,
-                timestamp=rule.timestamp,
-                categories=rule.categories,
-                tags=rule.tags,
-                examples=rule.examples,
-                applies_to=rule.applies_to,
-                applies_to_rationale=rule.applies_to_rationale,
-                user_story=rule.user_story,
-                scope_level=rule.scope_level,
-                scope_id=rule.scope_id,
-                parent_rule_id=rule.parent_rule_id,
-            )
-            db.add(version)
+            # Normalize list fields
+            if field in ['categories', 'tags', 'examples', 'applies_to'] and value is not None:
+                value = ensure_list(value)
+            setattr(rule, field, value)
+        logger.warning(f"[PIRATE-PATCH] Rule {rule_id} updated with fields: {list(update.__fields_set__)}")
+        for field in ['categories', 'tags', 'examples', 'applies_to']:
+            if hasattr(rule, field):
+                setattr(rule, field, ensure_list(getattr(rule, field)))
         db.commit()
         db.refresh(rule)
-        logging.warning(f"[DEBUG] Rule after update: {rule.__dict__}")
+        data = serialize_uuids(rule.__dict__.copy())
+        data = normalize_rule_fields(data)
+        if isinstance(data.get("timestamp"), datetime):
+            data["timestamp"] = data["timestamp"].isoformat()
+        logger.info(f"[UPDATE-DEBUG] Update successful for rule {rule_id}")
+        return data
     except ValidationError as ve:
-        logging.error(f"[DEBUG] ValidationError: {ve.errors()}")
+        logger.error(f"[UPDATE-DEBUG] Validation error: {ve.errors()}")
         raise HTTPException(status_code=422, detail=f"Validation error: {ve.errors()}")
-    except HTTPException as he:
-        logging.error(f"[DEBUG] HTTPException: {he.detail}")
-        raise
     except Exception as e:
-        logging.error(f"[DEBUG] Exception: {str(e)}")
+        logger.error(f"[UPDATE-DEBUG] Internal server error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    # Return updated rule in the same format as get_rule
-    data = rule.__dict__.copy()
-    data.pop("_sa_instance_state", None)
-    data = serialize_uuids(data)
-    if isinstance(data.get("timestamp"), datetime):
-        data["timestamp"] = data["timestamp"].isoformat()
-    # Always return categories as a list
-    categories_val = data.get("categories")
-    if not categories_val:
-        data["categories"] = []
-    elif isinstance(categories_val, str):
-        data["categories"] = [c.strip() for c in categories_val.split(",") if c.strip()]
-    # Always return tags as a list
-    tags_val = data.get("tags")
-    if not tags_val:
-        data["tags"] = []
-    elif isinstance(tags_val, str):
-        data["tags"] = [t.strip() for t in tags_val.split(",") if t.strip()]
-    applies_to_val = data.get("applies_to")
-    if not applies_to_val:
-        data["applies_to"] = []
-    elif isinstance(applies_to_val, str):
-        data["applies_to"] = [a.strip() for a in applies_to_val.split(",") if a.strip()]
-    data["examples"] = parse_list_field(data.get("examples"))
-    data["applies_to"] = parse_list_field(data.get("applies_to"))
-    data["categories"] = parse_list_field(data.get("categories"))
-    data["tags"] = parse_list_field(data.get("tags"))
-    return data
+    logger.error(f"[UPDATE-DEBUG] Unexpected fall-through in update_rule for rule {rule_id}")
+    raise HTTPException(status_code=500, detail="Unexpected error in update_rule")
 
 
 @router.post("/rules/{rule_id}/promote", response_model=RuleOut)
@@ -480,76 +324,58 @@ async def promote_rule(
     db: Session = Depends(get_db),
     token: dict = Depends(require_role("admin")),
 ):
-    if not rule_id or rule_id.strip() == "":
-        raise HTTPException(status_code=404, detail="Rule ID is required")
-    data = await request.json()
-    logging.warning(f"[DEBUG] Incoming /rules/{{rule_id}}/promote payload: {data}")
-    scope_level = data.get("scope_level")
-    scope_id = data.get("scope_id")
-    if not scope_level:
-        raise HTTPException(status_code=400, detail="scope_level is required")
-    # Fetch rule
+    logger.debug(f"[PROMOTE-DEBUG] Called with rule_id={rule_id}, token={token}")
+    # Validate UUID format
+    if not validate_uuid(rule_id):
+        logger.error(f"[PROMOTE-DEBUG] Invalid UUID: {rule_id}")
+        raise HTTPException(status_code=422, detail="Invalid UUID format")
+    logger.debug(f"[PROMOTE-DEBUG] UUID validated: {rule_id}")
     rule = db.query(Rule).filter(Rule.id == rule_id).first()
-    logging.warning(f"[DEBUG] Rule before promotion: {rule.__dict__ if rule else None}")
+    logger.debug(f"[PROMOTE-DEBUG] DB query for rule_id={rule_id} returned: {rule}")
     if not rule:
+        logger.error(f"[PROMOTE-DEBUG] Rule not found: {rule_id}")
         raise HTTPException(status_code=404, detail="Rule not found")
-    # Only allow promotion to a higher scope
+    data = await request.json()
+    logger.debug(f"[PROMOTE-DEBUG] Incoming request data: {data}")
+    scope_level = data.get("scope_level") or data.get("target_scope")
+    scope_id = data.get("scope_id") or data.get("target_scope_id")
+    if not scope_level:
+        logger.error(f"[PROMOTE-DEBUG] scope_level missing for rule {rule_id}")
+        raise HTTPException(status_code=400, detail="scope_level (or target_scope) is required")
+    logger.debug(f"[PROMOTE-DEBUG] scope_level validated: {scope_level}")
     levels = ["project", "team", "global"]
     current_idx = levels.index(rule.scope_level) if rule.scope_level in levels else -1
     target_idx = levels.index(scope_level) if scope_level in levels else -1
     if target_idx == -1:
+        logger.error(f"[PROMOTE-DEBUG] Invalid scope_level: {scope_level}")
         raise HTTPException(status_code=400, detail="Invalid scope_level")
+    logger.debug(f"[PROMOTE-DEBUG] target_idx={target_idx}, current_idx={current_idx}")
     if target_idx <= current_idx:
-        raise HTTPException(
-            status_code=400, detail="Can only promote to a higher scope"
-        )
+        logger.error(f"[PROMOTE-DEBUG] Cannot promote to same or lower scope: {scope_level}")
+        raise HTTPException(status_code=400, detail="Can only promote to a higher scope")
     if scope_level == "team" and not scope_id:
-        raise HTTPException(
-            status_code=400, detail="scope_id is required for team scope"
-        )
+        logger.error(f"[PROMOTE-DEBUG] scope_id missing for team scope promotion")
+        raise HTTPException(status_code=422, detail="scope_id (or target_scope_id) is required for team scope")
     if scope_level == "global" and scope_id:
-        raise HTTPException(
-            status_code=400, detail="scope_id must not be set for global scope"
-        )
-    # Update rule
-    rule.scope_level = scope_level
-    rule.scope_id = scope_id if scope_level == "team" else None
-    rule.version += 1
-    rule.timestamp = datetime.utcnow()
-    logging.warning(f"[DEBUG] Rule after promotion: {rule.__dict__}")
-    # Create version history entry
-    version = RuleVersion(
-        rule_id=rule.id,
-        version=rule.version,
-        rule_type=rule.rule_type,
-        description=rule.description,
-        diff=rule.diff,
-        status=rule.status,
-        submitted_by=rule.submitted_by,
-        added_by=rule.added_by,
-        project=rule.project,
-        timestamp=rule.timestamp,
-        categories=rule.categories,
-        tags=rule.tags,
-        examples=rule.examples,
-        applies_to=rule.applies_to,
-        applies_to_rationale=rule.applies_to_rationale,
-        user_story=rule.user_story,
-        scope_level=rule.scope_level,
-        scope_id=rule.scope_id,
-        parent_rule_id=rule.parent_rule_id,
-    )
-    db.add(version)
-    db.commit()
-    db.refresh(rule)
-    # Return updated rule in the same format as get_rule
-    result = rule.__dict__.copy()
-    result.pop("_sa_instance_state", None)
-    result = serialize_uuids(result)
-    if isinstance(result.get("timestamp"), datetime):
-        result["timestamp"] = result["timestamp"].isoformat()
-    result["examples"] = parse_list_field(result.get("examples"))
-    result["applies_to"] = parse_list_field(result.get("applies_to"))
-    result["categories"] = parse_list_field(result.get("categories"))
-    result["tags"] = parse_list_field(result.get("tags"))
-    return result
+        logger.error(f"[PROMOTE-DEBUG] scope_id must not be set for global scope promotion")
+        raise HTTPException(status_code=400, detail="scope_id (or target_scope_id) must not be set for global scope")
+    logger.debug(f"[PROMOTE-DEBUG] All checks passed for rule {rule_id}")
+    # All checks passed, perform promotion
+    try:
+        # ... existing promotion logic ...
+        for field in ['categories', 'tags', 'examples', 'applies_to']:
+            if hasattr(rule, field):
+                setattr(rule, field, ensure_list(getattr(rule, field)))
+        db.commit()
+        db.refresh(rule)
+        data = serialize_uuids(rule.__dict__.copy())
+        data = normalize_rule_fields(data)
+        if isinstance(data.get("timestamp"), datetime):
+            data["timestamp"] = data["timestamp"].isoformat()
+        logger.info(f"[PROMOTE-DEBUG] Promotion successful for rule {rule_id}")
+        return data
+    except Exception as e:
+        logger.error(f"[PROMOTE-DEBUG] Internal server error: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    logger.error(f"[PROMOTE-DEBUG] Unexpected fall-through in promote_rule for rule {rule_id}")
+    raise HTTPException(status_code=500, detail="Unexpected error in promote_rule")

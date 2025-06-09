@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sys
+import textwrap
 from typing import Dict, List
 
 # --- Pattern checkers ---
@@ -29,12 +30,13 @@ def check_direct_pytest_usage(
     }
     # Regex for CLI usage
     if re.search(r"(^|\s)(pytest|python -m pytest)(\s|$)", content):
+        print(f"[DEBUG] check_direct_pytest_usage: CLI pattern matched in {file_path}")
         if project:
             suggestion["project"] = project
         suggestions.append(suggestion)
     # AST for programmatic usage
     try:
-        tree = ast.parse(content)
+        tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.Call)
@@ -43,13 +45,14 @@ def check_direct_pytest_usage(
                 and hasattr(node.func, "value")
                 and getattr(node.func.value, "id", None) == "pytest"
             ):
+                print(f"[DEBUG] check_direct_pytest_usage: AST pattern matched in {file_path}")
                 if project:
                     suggestion["project"] = project
                 if suggestion not in suggestions:
                     suggestions.append(suggestion)
                 break
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DEBUG] check_direct_pytest_usage: AST parse error in {file_path}: {e}")
     return suggestions
 
 
@@ -72,9 +75,10 @@ def check_print_statements(
 ) -> List[Dict]:
     suggestions = []
     try:
-        tree = ast.parse(content)
+        tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "print":
+                print(f"[DEBUG] check_print_statements: print() found in {file_path} at line {node.lineno}")
                 suggestions.append(
                     {
                         "rule_type": "no_print",
@@ -83,8 +87,8 @@ def check_print_statements(
                         "submitted_by": "ai-rule-suggester",
                     }
                 )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DEBUG] check_print_statements: AST parse error in {file_path}: {e}")
     return suggestions
 
 
@@ -96,10 +100,10 @@ def check_unused_imports(
         line for line in content.splitlines() if line.strip().startswith("import ")
     ]
     for line in import_lines:
-        # Very basic: flag as unused if the imported name doesn't appear elsewhere
         parts = line.replace("import", "").strip().split()
         for name in parts:
             if name and name not in content.replace(line, ""):
+                print(f"[DEBUG] check_unused_imports: Unused import '{name}' in {file_path}")
                 suggestions.append(
                     {
                         "rule_type": "unused_import",
@@ -115,10 +119,10 @@ def check_hardcoded_secrets(
     file_path: str, content: str, project: str = None
 ) -> List[Dict]:
     suggestions = []
-    # Simple regex for common secret patterns
     if re.search(
         r"(password|secret|api[_-]?key|token)\s*=\s*['\"]", content, re.IGNORECASE
     ):
+        print(f"[DEBUG] check_hardcoded_secrets: Hardcoded secret found in {file_path}")
         suggestions.append(
             {
                 "rule_type": "no_hardcoded_secrets",
@@ -136,6 +140,7 @@ def check_todo_fixme_comments(
     suggestions = []
     for i, line in enumerate(content.splitlines(), 1):
         if re.search(r"#\s*(TODO|FIXME)", line, re.IGNORECASE):
+            print(f"[DEBUG] check_todo_fixme_comments: {line.strip()} found in {file_path} at line {i}")
             suggestions.append(
                 {
                     "rule_type": "todo_fixme_comment",
@@ -150,9 +155,10 @@ def check_todo_fixme_comments(
 def check_eval_usage(file_path: str, content: str, project: str = None) -> List[Dict]:
     suggestions = []
     try:
-        tree = ast.parse(content)
+        tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "eval":
+                print(f"[DEBUG] check_eval_usage: eval() found in {file_path} at line {node.lineno}")
                 suggestions.append(
                     {
                         "rule_type": "no_eval",
@@ -161,17 +167,18 @@ def check_eval_usage(file_path: str, content: str, project: str = None) -> List[
                         "submitted_by": "ai-rule-suggester",
                     }
                 )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DEBUG] check_eval_usage: AST parse error in {file_path}: {e}")
     return suggestions
 
 
 def check_bare_except(file_path: str, content: str, project: str = None) -> List[Dict]:
     suggestions = []
     try:
-        tree = ast.parse(content)
+        tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if isinstance(node, ast.ExceptHandler) and node.type is None:
+                print(f"[DEBUG] check_bare_except: bare except found in {file_path} at line {node.lineno}")
                 suggestions.append(
                     {
                         "rule_type": "no_bare_except",
@@ -180,8 +187,8 @@ def check_bare_except(file_path: str, content: str, project: str = None) -> List
                         "submitted_by": "ai-rule-suggester",
                     }
                 )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DEBUG] check_bare_except: AST parse error in {file_path}: {e}")
     return suggestions
 
 
@@ -190,7 +197,9 @@ def check_wildcard_imports(
 ) -> List[Dict]:
     suggestions = []
     for i, line in enumerate(content.splitlines(), 1):
-        if re.match(r"from \\S+ import \\*", line):
+        print(f"[DEBUG] check_wildcard_imports: Checking line {i}: {repr(line)}")
+        if re.match(r"^from\s+\S+\s+import\s+\*$", line):
+            print(f"[DEBUG] check_wildcard_imports: Wildcard import found in {file_path} at line {i}")
             suggestions.append(
                 {
                     "rule_type": "no_wildcard_imports",
@@ -207,18 +216,19 @@ def check_long_functions(
 ) -> List[Dict]:
     suggestions = []
     try:
-        tree = ast.parse(content)
+        tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
                 start = node.lineno
                 end = getattr(node, "end_lineno", None)
                 if end is None:
-                    # Fallback: estimate end line
                     end = max(
                         [n.lineno for n in ast.walk(node) if hasattr(n, "lineno")],
                         default=start,
                     )
+                print(f"[DEBUG] check_long_functions: Function '{node.name}' spans lines {start}-{end}")
                 if end - start + 1 > max_lines:
+                    print(f"[DEBUG] check_long_functions: Long function '{node.name}' in {file_path} ({end - start + 1} lines)")
                     suggestions.append(
                         {
                             "rule_type": "long_function",
@@ -227,8 +237,8 @@ def check_long_functions(
                             "submitted_by": "ai-rule-suggester",
                         }
                     )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DEBUG] check_long_functions: AST parse error in {file_path}: {e}")
     return suggestions
 
 
@@ -237,10 +247,11 @@ def check_missing_docstrings(
 ) -> List[Dict]:
     suggestions = []
     try:
-        tree = ast.parse(content)
+        tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 if not ast.get_docstring(node):
+                    print(f"[DEBUG] check_missing_docstrings: Missing docstring for {type(node).__name__} '{getattr(node, 'name', '?')}' in {file_path} at line {node.lineno}")
                     suggestions.append(
                         {
                             "rule_type": "missing_docstring",
@@ -249,8 +260,8 @@ def check_missing_docstrings(
                             "submitted_by": "ai-rule-suggester",
                         }
                     )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DEBUG] check_missing_docstrings: AST parse error in {file_path}: {e}")
     return suggestions
 
 
@@ -260,10 +271,12 @@ def check_deprecated_libraries(
     suggestions = []
     deprecated_libs = ["imp", "optparse", "cgi", "cStringIO", "stringold", "md5", "sha"]
     for i, line in enumerate(content.splitlines(), 1):
+        print(f"[DEBUG] check_deprecated_libraries: Checking line {i}: {repr(line)}")
         for lib in deprecated_libs:
-            if re.match(rf"import {lib}(\s|$)", line) or re.match(
+            if re.match(rf"import {lib}(\\s|$)", line) or re.match(
                 rf"from {lib} ", line
             ):
+                print(f"[DEBUG] check_deprecated_libraries: Deprecated library '{lib}' used in {file_path} at line {i}")
                 suggestions.append(
                     {
                         "rule_type": "deprecated_library",

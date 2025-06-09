@@ -2,36 +2,109 @@
 
 # --- Test Environment Lifecycle Targets ---
 ai-test-up:
-	docker-compose -f docker-compose.test.yml up -d db-test test frontend misc-scripts ollama-functions worker
+	docker-compose -f docker-compose.test.yml up -d test-db test test-frontend test-misc-scripts test-ollama-functions test-worker
 	@echo "[ai-test-up] Test environment is up!"
 
 ai-test-down:
 	docker-compose -f docker-compose.test.yml down
 	@echo "[ai-test-down] Test environment stopped."
 
-ai-test:
-	docker-compose -f docker-compose.test.yml  run --rm -e PYTHONPATH=/app test pytest tests/ --disable-warnings --tb=short
+# ai-test:
+# ai-test-coverage:
+# test-db-reset:
 
 ai-test-json:
-	docker-compose -f docker-compose.test.yml  run --rm -e PYTHONPATH=/app test pytest --json-report --json-report-file=pytest-report.json tests/
+	docker-compose -f docker-compose.test.yml  run --rm -e SKIP_TOKEN_POLLUTION_GUARD=1 -e PYTHONPATH=/app test pytest --json-report --json-report-file=pytest-report.json tests/
 
 ai-test-one:
-	docker-compose -f docker-compose.test.yml  run --rm -e PYTHONPATH=/app test pytest $(TEST) --disable-warnings --tb=short
+	docker-compose -f docker-compose.test.yml  run --rm -e SKIP_TOKEN_POLLUTION_GUARD=1 -e PYTHONPATH=/app test pytest $(TEST) --disable-warnings --tb=short
 
 ai-test-unit:
 	exit 0
 	#docker-compose -f docker-compose.test.yml run --rm -e PYTHONPATH=/app test pytest -m unit $(PYTEST_ARGS)
 
 ai-test-integration:
-	docker-compose -f docker-compose.test.yml  run --rm -e PYTHONPATH=/app test pytest -m integration $(PYTEST_ARGS)
+	docker-compose -f docker-compose.test.yml  run --rm -e SKIP_TOKEN_POLLUTION_GUARD=1 -e PYTHONPATH=/app test pytest -m integration $(PYTEST_ARGS)
 
 ai-test-network:
-	docker-compose -f docker-compose.test.yml  run --rm -e PYTHONPATH=/app test pytest -m network $(PYTEST_ARGS)
+	docker-compose -f docker-compose.test.yml  run --rm -e SKIP_TOKEN_POLLUTION_GUARD=1 -e PYTHONPATH=/app test pytest -m network $(PYTEST_ARGS)
 
 ai-test-cli:
-	docker-compose -f docker-compose.test.yml  run --rm -e PYTHONPATH=/app test pytest -m cli $(PYTEST_ARGS)
+	docker-compose -f docker-compose.test.yml  run --rm -e SKIP_TOKEN_POLLUTION_GUARD=1 -e PYTHONPATH=/app test pytest -m cli $(PYTEST_ARGS)
 
-ai-test-coverage:
-	docker-compose -f docker-compose.test.yml  run --rm -e PYTHONPATH=/app test pytest --cov=. --cov-report=term-missing --cov-report=html tests/
+ai-test-rebuild:
+	docker-compose -f docker-compose.test.yml build test-db test-api test test-frontend test-misc-scripts test-ollama-functions test-worker
+	@echo "[ai-test-rebuild] All test containers rebuilt!"
 
-.PHONY: ai-test ai-test-json ai-test-one ai-test-unit ai-test-integration ai-test-network ai-test-cli ai-test-coverage 
+ai-test-rebuild-with-setup: ai-test-rebuild ai-test-up
+	$(MAKE) -f Makefile.ai ai-test-setup
+	@echo "[ai-test-rebuild-with-setup] Test containers rebuilt and environment set up!"
+
+# --- Test DB Alembic Migration Targets ---
+test-db-migrate:
+	docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+	docker-compose -f docker-compose.test.yml exec test-api alembic -c alembic_memorydb.ini upgrade head
+
+test-db-revision:
+	docker-compose -f docker-compose.test.yml exec test-api alembic revision --autogenerate -m "$(MSG)"
+
+test-db-heads:
+	docker-compose -f docker-compose.test.yml exec test-api alembic heads
+
+test-db-history:
+	docker-compose -f docker-compose.test.yml exec test-api alembic history --verbose
+
+test-db-stamp-head:
+	docker-compose -f docker-compose.test.yml exec test-api alembic stamp head
+
+test-memorydb-revision:
+	docker-compose -f docker-compose.test.yml exec test-api alembic -c alembic_memorydb.ini revision --autogenerate -m "$(MSG)"
+
+# --- Log Targets for Test Containers ---
+test-api-logs:
+	docker-compose -f docker-compose.test.yml logs --tail=100 test-api | cat
+
+test-db-logs:
+	docker-compose -f docker-compose.test.yml logs --tail=100 test-db | cat
+
+test-ollama-functions-logs:
+	docker-compose -f docker-compose.test.yml logs --tail=100 test-ollama-functions | cat
+
+# --- Ollama Functions Test Service Targets ---
+test-ollama-functions-up:
+	docker-compose -f docker-compose.test.yml up -d test-ollama-functions
+
+test-ollama-functions-down:
+	docker-compose -f docker-compose.test.yml stop test-ollama-functions
+
+# --- Alembic Utility Targets for Test DB ---
+test-db-current:
+	docker-compose -f docker-compose.test.yml exec test-api alembic current
+
+# Run a SQL query against the test Postgres DB (AI-friendly)
+ai-pg-query:
+	@echo "Usage: make -f Makefile.ai-test ai-pg-query QUERY='<SQL>'"
+	@if [ -z "$$QUERY" ]; then \
+	  echo 'Error: Please provide a SQL query using QUERY=\"...\"'; \
+	  exit 1; \
+	fi; \
+	docker-compose -f docker-compose.test.yml exec test-db psql -U postgres -d postgres -c "$$QUERY" | cat
+
+# Example:
+#   make -f Makefile.ai-test ai-pg-query QUERY='SELECT * FROM api_access_tokens LIMIT 5;'
+
+# Start the test ollama functions server (required for LLM-related tests)
+ai-up-test-ollama-functions:
+	docker compose -f docker-compose.test.yml up -d test-ollama-functions
+
+# Stop the test ollama functions server
+aio-down-test-ollama-functions:
+	docker compose -f docker-compose.test.yml down test-ollama-functions
+
+# Note: LLM-related tests require the ollama functions server to be running.
+# See docs/llm_testing.md (Doc the Medic maintains this doc)
+
+ai-test:
+	docker-compose -f docker-compose.test.yml run --rm -e SKIP_TOKEN_POLLUTION_GUARD=1 -e ENVIRONMENT=test -e PYTHONPATH=/app test pytest tests/ --disable-warnings --tb=short $(PYTEST_ARGS)
+
+.PHONY: ai-test ai-test-json ai-test-one ai-test-unit ai-test-integration ai-test-network ai-test-cli ai-test-coverage ai-test-rebuild ai-test-rebuild-with-setup test-db-migrate test-db-revision test-db-heads test-db-history test-db-stamp-head test-memorydb-revision test-api-logs test-db-logs test-ollama-functions-up test-ollama-functions-down test-ollama-functions-logs test-db-current 

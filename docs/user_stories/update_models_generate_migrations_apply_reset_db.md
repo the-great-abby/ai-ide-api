@@ -13,6 +13,15 @@ As a developer, I want a clear, repeatable workflow for updating database models
 - The database runs in Docker Compose (e.g., `rulesdb`, `memorydb`).
 - Makefile targets are available for migration and DB management.
 
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.
+
 ## Step-by-Step Actions
 
 ### 1. **Update Models**
@@ -45,7 +54,7 @@ As a developer, I want a clear, repeatable workflow for updating database models
 
 ### 5. **Set Up Database, Onboard Admin, and Run Tests (Preferred)**
 - Use the `ai-test-with-setup` target to:
-  - Start required services (db-test, api)
+  - Start required services (test-db, api)
   - Wait for the database to be ready
   - Create the `rulesdb` database if missing
   - Run all migrations (main and memorydb)

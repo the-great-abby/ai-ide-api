@@ -6,7 +6,7 @@ import sys
 
 def get_default_url(port, path):
     if os.environ.get("RUNNING_IN_DOCKER") == "1":
-        host = "host.docker.internal"
+        host = "test-api"
     else:
         host = "localhost"
     return f"http://{host}:{port}{path}"

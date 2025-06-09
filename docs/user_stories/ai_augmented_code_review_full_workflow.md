@@ -11,8 +11,17 @@ As a developer, reviewer, or rule maintainer, I want to leverage automated linti
 
 ## Preconditions
 - The repository is up to date with the latest code, rules, and models.
-- Docker Compose is running with all required services (`api`, `db-test`, `misc-scripts`, etc.).
+- Docker Compose is running with all required services (`api`, `test-db`, `misc-scripts`, etc.).
 - The Ollama LLM service is running and accessible to containers.
+
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.
 
 ## Steps (Full End-to-End Workflow)
 

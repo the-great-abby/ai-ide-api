@@ -1,4 +1,4 @@
-.PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down frontend generate-knowledge-graph simulate-onboarding create-user-story-memory setup-memory-hook
+.PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down frontend generate-knowledge-graph simulate-onboarding create-user-story-memory setup-memory-hook clean-pycache ai-test-cleanup
 
 PORT ?= 9103
 
@@ -21,6 +21,8 @@ help:
 	@echo "  simulate-onboarding  Run onboarding simulation script inside misc-scripts container"
 	@echo "  create-user-story-memory  Create a memory node from a user story markdown file (with frontmatter)"
 	@echo "  setup-memory-hook  Set up the memory scanning git hook"
+	@echo "  clean-pycache  Remove all __pycache__ directories and .pyc files recursively"
+	@echo "  ai-test-cleanup  Clean up the test environment"
 	@echo ""
 	@echo "You can override the port with: make up PORT=9000"
 	@echo "To run a specific test: make test-one TEST=test_rule_api_server.py::test_docs_endpoint"
@@ -96,4 +98,13 @@ setup-memory-hook:
 		echo "Memory scanning hook installed successfully!"; \
 	else \
 		echo "Memory scanning hook already exists. Skipping installation."; \
-	fi 
+	fi
+
+clean-pycache:
+	find . -type d -name '__pycache__' -exec rm -rf {} +
+	find . -type f -name '*.pyc' -delete
+
+ai-test-cleanup:
+	make down || true
+	docker compose -f docker-compose.test.yml down || true
+	make clean-pycache 

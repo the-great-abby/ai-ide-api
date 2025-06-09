@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Rule: Pirate Flag Celebration for Major Victories
+
+## Motivation
+Major victories in software development—like conquering migration hell, completing a gnarly refactor, or passing a full test suite—deserve to be celebrated. To boost morale and reinforce team culture, the AI must present the pirate flag banner to the user at the completion of major objectives.
+
+## Enforcement
+- Whenever a major objective or milestone is completed (e.g., migration chain repair, major refactor, successful test suite run), the AI must execute and present the pirate flag banner from `utils.pirate_flag.print_pirate_flag()` to the user.
+- The banner should be shown in chat output, logs, or terminal as appropriate.
+- This celebration is for morale, fun, and reinforcing the team's pirate culture.
+
+## Examples
+- After a successful migration chain repair: show the pirate flag banner.
+- After a major refactor or bug fix: show the pirate flag banner.
+- After a full test suite passes: show the pirate flag banner.
+
+## Rationale
+- Celebrating wins helps the team stay motivated and resilient.
+- The pirate flag is a symbol of victory and shared struggle.
+- This rule is opt-in and can be toggled off by user request.
+
+## Related
+- [pirate_language.mdc](mdc:pirate_language.mdc) for language guidelines
+- [meta.mdc](mdc:meta.mdc) for rule structure
+
+## Last updated
+2024-06-14

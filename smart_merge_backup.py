@@ -200,8 +200,7 @@ def get_temp_db_name():
     return f"temp_restore_db_{uuid.uuid4().hex[:8]}"
 
 def get_present_tables(pguser, pghost, pgport, temp_db):
-    import psycopg2
-    conn = psycopg2.connect(dbname=temp_db, user=pguser, host=pghost, port=pgport)
+    conn = psycopg2.connect(dbname=temp_db, user=pguser, host=os.environ.get('POSTGRES_HOST', 'db'), port=pgport)
     cur = conn.cursor()
     cur.execute("SELECT tablename FROM pg_tables WHERE schemaname='public';")
     tables = [row[0] for row in cur.fetchall()]
@@ -250,6 +249,12 @@ def foreign_table_exists(conn, schema, table):
     cur.close()
     return exists
 
+def get_pg_host():
+    host = os.environ.get('POSTGRES_HOST')
+    if not host:
+        host = 'test-db' if os.environ.get('ENVIRONMENT') == 'test' else 'db'
+    return host
+
 def main():
     parser = argparse.ArgumentParser(description="Smart merge backup script for Postgres.")
     parser.add_argument("backup_sql", help="Path to backup .sql file")
@@ -259,7 +264,7 @@ def main():
     # DB connection info from env
     pguser = get_env("PGUSER", required=True)
     pgpassword = get_env("PGPASSWORD", required=True)
-    pghost = get_env("PGHOST", required=True)
+    pghost = get_pg_host()
     pgport = get_env("PGPORT", required=True)
     livedb = os.environ.get("PGDATABASE")
     if not livedb:
@@ -276,8 +281,8 @@ def main():
     temp_db = get_temp_db_name()
     log(f"Creating temp DB: {temp_db}")
     if not args.dry_run:
-        run(f'createdb -U {pguser} -h {pghost} -p {pgport} {temp_db}')
-        run(f'psql -U {pguser} -h {pghost} -p {pgport} -d {temp_db} -f "{args.backup_sql}"')
+        run(f'createdb -U {os.environ.get("POSTGRES_USER", pguser)} -h {get_pg_host()} -p {os.environ.get("POSTGRES_PORT", pgport)} {temp_db}')
+        run(f'psql -U {os.environ.get("POSTGRES_USER", pguser)} -h {get_pg_host()} -p {os.environ.get("POSTGRES_PORT", pgport)} -d {temp_db} -f "{args.backup_sql}"')
 
     log("Detecting tables in temp DB...")
     present_tables = get_present_tables(pguser, pghost, pgport, temp_db)
@@ -288,7 +293,7 @@ def main():
     drop_schema_sql = "DROP SCHEMA IF EXISTS temp_schema CASCADE;"
     if not args.dry_run:
         try:
-            run(f'psql -U {pguser} -h {pghost} -p {pgport} -d {livedb} -c "{drop_schema_sql}"', check=False)
+            run(f'psql -U {os.environ.get("POSTGRES_USER", pguser)} -h {get_pg_host()} -p {os.environ.get("POSTGRES_PORT", pgport)} -d {livedb} -c "{drop_schema_sql}"', check=False)
         except Exception:
             pass  # Ignore errors
     else:
@@ -302,14 +307,14 @@ def main():
     fdw_cmds = [
         f'CREATE EXTENSION IF NOT EXISTS postgres_fdw;',
         f'DROP SERVER IF EXISTS temp_restore_server CASCADE;',
-        f"CREATE SERVER temp_restore_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host '{pghost}', dbname '{temp_db}', port '{pgport}');",
+        f"CREATE SERVER temp_restore_server FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host '{get_pg_host()}', dbname '{temp_db}', port '{os.environ.get('POSTGRES_PORT', pgport)}');",
         f"CREATE USER MAPPING FOR CURRENT_USER SERVER temp_restore_server OPTIONS (user '{pguser}', password '{pgpassword}');",
         f'CREATE SCHEMA IF NOT EXISTS temp_schema;'
     ]
     for cmd in fdw_cmds:
         if not args.dry_run:
             log(f"Running FDW setup command: {cmd}")
-            run(f'psql -U {pguser} -h {pghost} -p {pgport} -d {livedb} -c "{cmd}"', check=False)
+            run(f'psql -U {os.environ.get("POSTGRES_USER", pguser)} -h {get_pg_host()} -p {os.environ.get("POSTGRES_PORT", pgport)} -d {livedb} -c "{cmd}"', check=False)
         else:
             log(f"[DRY RUN] Would run FDW setup command: {cmd}")
 
@@ -318,17 +323,17 @@ def main():
         import_cmd = f'IMPORT FOREIGN SCHEMA public LIMIT TO ({table}) FROM SERVER temp_restore_server INTO temp_schema;'
         if not args.dry_run:
             log(f"Importing table via FDW: {table}")
-            rc = run(f'psql -U {pguser} -h {pghost} -p {pgport} -d {livedb} -c "{import_cmd}"', check=False)
+            rc = run(f'psql -U {os.environ.get("POSTGRES_USER", pguser)} -h {get_pg_host()} -p {os.environ.get("POSTGRES_PORT", pgport)} -d {livedb} -c "{import_cmd}"', check=False)
             if rc != 0:
                 log(f"Skipping table {table} due to FDW import error.")
         else:
             log(f"[DRY RUN] Would import table via FDW: {table}")
 
     # Connect to live DB for column checks
-    live_conn = psycopg2.connect(dbname=livedb, user=pguser, host=pghost, port=pgport)
+    live_conn = psycopg2.connect(dbname=livedb, user=os.environ.get('POSTGRES_USER', pguser), host=get_pg_host(), port=os.environ.get('POSTGRES_PORT', pgport))
 
     # Connect to temp DB for foreign table checks
-    temp_conn = psycopg2.connect(dbname=temp_db, user=pguser, host=pghost, port=pgport)
+    temp_conn = psycopg2.connect(dbname=temp_db, user=os.environ.get('POSTGRES_USER', pguser), host=get_pg_host(), port=os.environ.get('POSTGRES_PORT', pgport))
 
     for table, (columns, upsert_sql) in TABLES.items():
         if table in present_tables:
@@ -348,7 +353,7 @@ def main():
                 log(f"[DRY RUN] Would run upsert for {table}:")
                 log(upsert_sql)
             else:
-                run(f'psql -U {pguser} -h {pghost} -p {pgport} -d {livedb} -c "{upsert_sql}"')
+                run(f'psql -U {os.environ.get("POSTGRES_USER", pguser)} -h {get_pg_host()} -p {os.environ.get("POSTGRES_PORT", pgport)} -d {livedb} -c "{upsert_sql}"')
         else:
             log(f"Table {table} not present in backup, skipping.")
 
@@ -358,8 +363,8 @@ def main():
     log("Cleaning up: dropping temp DB and FDW objects...")
     cleanup_sql = "DROP SCHEMA IF EXISTS temp_schema CASCADE; DROP SERVER IF EXISTS temp_restore_server CASCADE;"
     if not args.dry_run:
-        run(f'psql -U {pguser} -h {pghost} -p {pgport} -d {livedb} -c "{cleanup_sql}"')
-        run(f'dropdb -U {pguser} -h {pghost} -p {pgport} {temp_db}')
+        run(f'psql -U {os.environ.get("POSTGRES_USER", pguser)} -h {get_pg_host()} -p {os.environ.get("POSTGRES_PORT", pgport)} -d {livedb} -c "{cleanup_sql}"')
+        run(f'dropdb -U {os.environ.get("POSTGRES_USER", pguser)} -h {get_pg_host()} -p {os.environ.get("POSTGRES_PORT", pgport)} {temp_db}')
     else:
         log(f"[DRY RUN] Would drop temp DB {temp_db} and cleanup FDW objects.")
 

@@ -13,6 +13,15 @@ As a developer, maintainer, or system administrator, I want a single, unified co
 - All core services are already running or have been started at least once.
 - You do **not** want to restart the database (for that, see full rebuild or shutdown stories).
 
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.
+
 ## Step-by-Step Actions
 
 ### 1. Restart All Core Services
@@ -28,7 +37,7 @@ This will:
 - Restart the misc-scripts service
 
 **Note:**
-- The database (`db-test`) is **not** restarted by this command.
+- The database (`test-db`) is **not** restarted by this command.
 - The Ollama backend is restarted in the background using `ai-ollama-restart-docker-gateway-bg`, which avoids blocking the Makefile and is preferred for AI/automation workflows.
 - This command is safe to run while the system is live; it will briefly stop and start each service container.
 - If you need to restart the database, see [system_rebuild_and_restart.md](system_rebuild_and_restart.md) or [safe_shutdown.md](safe_shutdown.md).

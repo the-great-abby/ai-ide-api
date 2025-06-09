@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+import textwrap
 
 import pytest
 from fastapi.testclient import TestClient
@@ -34,9 +35,15 @@ def test_direct_pytest_usage_detection():
         pytest.main(["-x", "test_file.py"])
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_direct_pytest_usage(f.name, code)
+        suggestions = check_direct_pytest_usage(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "pytest_execution"
         assert "Makefile.ai" in suggestions[0]["diff"]
@@ -50,9 +57,15 @@ def test_direct_sql_detection():
         cursor.execute("SELECT * FROM users WHERE id = 1")
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_direct_sql(f.name, code)
+        suggestions = check_direct_sql(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "no_direct_sql"
         assert "ORM" in suggestions[0]["diff"]
@@ -66,9 +79,15 @@ def test_print_statement_detection():
         print("Processing...")
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_print_statements(f.name, code)
+        suggestions = check_print_statements(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "no_print"
         assert "Avoid print statements" in suggestions[0]["diff"]
@@ -83,9 +102,15 @@ def test_unused_imports_detection():
         pass
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_unused_imports(f.name, code)
+        suggestions = check_unused_imports(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "unused_import"
         assert "unused_module" in suggestions[0]["description"]
@@ -98,9 +123,15 @@ def test_hardcoded_secrets_detection():
     API_KEY = "secret123"
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_hardcoded_secrets(f.name, code)
+        suggestions = check_hardcoded_secrets(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "no_hardcoded_secrets"
         assert "environment variables" in suggestions[0]["diff"]
@@ -115,9 +146,15 @@ def test_todo_fixme_detection():
         pass
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_todo_fixme_comments(f.name, code)
+        suggestions = check_todo_fixme_comments(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "todo_fixme_comment"
         assert "TODO" in suggestions[0]["description"]
@@ -131,9 +168,15 @@ def test_eval_usage_detection():
         eval("print('hello')")
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_eval_usage(f.name, code)
+        suggestions = check_eval_usage(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "no_eval"
         assert "security risks" in suggestions[0]["diff"]
@@ -149,9 +192,15 @@ def test_bare_except_detection():
         pass
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_bare_except(f.name, code)
+        suggestions = check_bare_except(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "no_bare_except"
         assert "specify the exception type" in suggestions[0]["diff"]
@@ -164,9 +213,15 @@ def test_wildcard_imports_detection():
     from module import *
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_wildcard_imports(f.name, code)
+        suggestions = check_wildcard_imports(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "no_wildcard_imports"
         assert "Avoid wildcard imports" in suggestions[0]["diff"]
@@ -177,16 +232,21 @@ def test_long_functions_detection():
     # Test file with long function
     code = (
         """
-    def long_function():
-        # 51 lines of code
-        pass
-    """
-        + "\npass\n" * 50
+def long_function():
+    # 51 lines of code
+"""
+        + "    pass\n" * 51
     )
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_long_functions(f.name, code)
+        suggestions = check_long_functions(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "long_function"
         assert "50 lines" in suggestions[0]["diff"]
@@ -200,9 +260,15 @@ def test_missing_docstrings_detection():
         pass
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_missing_docstrings(f.name, code)
+        suggestions = check_missing_docstrings(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "missing_docstring"
         assert "docstrings" in suggestions[0]["diff"]
@@ -215,9 +281,15 @@ def test_deprecated_libraries_detection():
     import imp
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
-        suggestions = check_deprecated_libraries(f.name, code)
+        suggestions = check_deprecated_libraries(f.name, code_to_write)
         assert len(suggestions) > 0
         assert suggestions[0]["rule_type"] == "deprecated_library"
         assert "imp" in suggestions[0]["description"]
@@ -228,18 +300,23 @@ def test_scan_file_function():
     # Test scanning a file with multiple issues
     code = (
         """
-    import imp
-    from module import *
-    
-    def long_function():
-        # 51 lines of code
-        pass
-    """
-        + "\npass\n" * 50
+import imp
+from module import *
+
+def long_function():
+    # 51 lines of code
+"""
+        + "    pass\n" * 51
     )
 
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        f.write(code)
+        dedented = textwrap.dedent(code).lstrip('\n')
+        lines = dedented.splitlines()
+        if lines:
+            lines[0] = lines[0].lstrip()
+        code_to_write = '\n'.join(lines) + '\n'
+        f.write(code_to_write)
+        print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
         suggestions = scan_file(f.name)
         assert len(suggestions) >= 3  # Should detect multiple issues
@@ -272,7 +349,7 @@ def test_scan_directory_function():
         assert "todo_fixme_comment" in rule_types
 
 
-def test_review_code_snippet_endpoint(admin_headers):
+def test_review_code_snippet_endpoint(admin_headers, override_get_db):
     # Test the /review-code-snippet endpoint
     code = """
     import imp

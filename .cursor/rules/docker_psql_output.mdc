@@ -1,0 +1,41 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Dockerized psql Output Rule
+
+**Rule:**
+All `psql` commands for inspecting or modifying the database must be run using `docker compose` (with the appropriate service, e.g., `api` or `test-api`) and piped through `cat`. This ensures the command runs in the correct container context and the output is fully visible, avoiding issues with pagers or missing output in CI/logs.
+
+## Rationale
+- Ensures commands run in the correct Docker context (not on host)
+- Guarantees full output is shown (avoids pager issues)
+- Prevents confusion in CI or logs where pagers may truncate output
+- Standardizes database access patterns for all developers and automation
+
+## Correct Usage Example
+```bash
+# ✅ Correct: Inspecting the database schema
+
+docker compose -f docker-compose.test.yml exec test-db psql -U postgres -d rulesdb -c '\dt' | cat
+
+docker compose -f docker-compose.yml exec api-db psql -U postgres -d mydb -c 'SELECT * FROM users;' | cat
+```
+
+## Incorrect Usage Example
+```bash
+# ❌ Incorrect: Running psql directly on host or without cat
+psql -U postgres -d rulesdb -c '\dt'
+docker compose -f docker-compose.test.yml exec test-db psql -U postgres -d rulesdb -c '\dt'
+```
+
+## Enforcement
+- Reference this rule in onboarding, code review, and troubleshooting documentation
+- Add to Makefile targets and scripts as the standard pattern
+- Use in CI/CD jobs for all database inspection or modification steps
+
+## Related Rules
+- [db_backup.mdc](mdc:db_backup.mdc)
+- [database_migrations.mdc](mdc:database_migrations.mdc)
+- [docker.mdc](mdc:docker.mdc)

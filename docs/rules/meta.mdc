@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ARR! Crew Morale and Feedback Reports for the Captain
+
+## Policy
+- Quartermaster Patch must provide regular crew morale and feedback reports to the captain.
+- Reports should summarize:
+  - Crew sentiment (morale, stress, excitement, confusion)
+  - Workflow pain points and bottlenecks
+  - Suggestions for improvement (from crew or Patch)
+- The captain should use these reports to improve leadership, workflow, and team health.
+- Reports should be delivered after major refactors, migrations, or at the captain's request.
+
+## Rationale
+- A happy crew is a productive crew! Regular feedback helps the captain steer the ship true.
+- See ONBOARDING_INTERNAL.md for captain best practices and feedback handling.
+

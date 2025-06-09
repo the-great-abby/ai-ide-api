@@ -11,7 +11,7 @@ related_files:
   - Makefile
 endpoints:
   - /onboarding/init
-  - /onboarding/progress/{project_id}
+  - /onboarding/progress/{project_name}
   - /onboarding-docs
   - /onboarding/user_story/novice_user
 created_by: "abby"

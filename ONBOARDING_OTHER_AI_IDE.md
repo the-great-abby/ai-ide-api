@@ -157,7 +157,7 @@ You are being onboarded as an AI IDE agent to an existing Rule Management System
 - Use only the required YAML frontmatter fields in the `.mdc` file: `description` and `globs`.
 - Place the `.mdc` file in your `.cursor/rules/` directory.
 - Never run tests or scripts directly—always use `Makefile.ai` targets for all automation.
-- Use Docker service names and internal ports for all connections (e.g., `db-test:5432`, `redis-test:6379`).
+- Use Docker service names and internal ports for all connections (e.g., `test-db:5432` for test, `db:5432` for dev, `redis-test:6379`).
 
 **API Discovery:**
 - To discover all available endpoints and their request/response formats, fetch the OpenAPI schema from the API docs:
@@ -245,7 +245,7 @@ If you need more details on automation, rule file structure, or best practices, 
 - **Never run `pytest` or `docker-compose` directly.**
 - **Always use the `-x` flag for tests** (stop on first failure).
 - **Use Docker service names for all connections:**
-  - `POSTGRES_HOST=db-test`, `POSTGRES_PORT=5432`
+  - `POSTGRES_HOST=test-db`, `POSTGRES_PORT=5432`
   - `REDIS_HOST=redis-test`, `REDIS_PORT=6379`
 - **Default API port:** `9103` (update all configs accordingly).
 
@@ -282,7 +282,7 @@ If you need more details on automation, rule file structure, or best practices, 
 - **Environment variables (test):**
   ```env
   ENVIRONMENT=test
-  POSTGRES_HOST=db-test
+  POSTGRES_HOST=test-db
   POSTGRES_PORT=5432
   REDIS_HOST=redis-test
   REDIS_PORT=6379
@@ -378,7 +378,7 @@ This will delete ALL Postgres data and volumes, then re-run migrations.
 
 **Troubleshooting:**
 - If you see enum or duplicate key errors on restore, ensure your schema matches the backup and use data-only restore if needed.
-- Always use internal Docker service names and ports (e.g., `db-test:5432`).
+- Always use internal Docker service names and ports (e.g., `test-db:5432` for test, `db:5432` for dev).
 
 ---
 
@@ -411,7 +411,7 @@ Use these Makefile.ai targets to view logs for troubleshooting:
   ```bash
   make -f Makefile.ai logs
   ```
-  Shows the last 100 lines for API, db-test, and frontend containers.
+  Shows the last 100 lines for API, test-db, and frontend containers.
 
 - **API only:**
   ```bash
@@ -711,5 +711,16 @@ dot -Tpng graph.dot -o graph.png
 ---
 
 **See [`docs/user_stories/ai_memory_graph_api.md`](docs/user_stories/ai_memory_graph_api.md) for full details and best practices.**
+
+---
+
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.
 
 ---

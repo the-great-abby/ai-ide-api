@@ -1,3 +1,8 @@
+# 🏴‍☠️ PIRATE WARNING: This Makefile is the captain's log—keep it lean!
+# Only high-level targets and includes belong here. All real work goes in sub-Makefiles.
+# If this file grows too large, the ship will sink (build system will crash).
+# See Makefile.ai-*, Makefile.ai-test, Makefile.ai-llm, etc. for specialized targets.
+
 PORT ?= 9103
 ADMIN_FRONTEND_PORT ?= 3000
 API_PORT ?= 9103
@@ -21,6 +26,13 @@ include Makefile.ai-db
 include Makefile.ai-admin
 include Makefile.ai-memory
 
+# High-level aliases (if any) can go here:
+# Example:
+# test: ai-test
+# lint: ai-lint-rules
+
+# End of captain's log.
+
 # --- Core Targets ---
 ai-up:
 	docker-compose up -d api frontend misc-scripts
@@ -37,7 +49,7 @@ api-up:
 	docker compose up -d api db-test
 
 ai-test:
-	docker-compose -f docker-compose.test.yml run --rm test pytest tests/ --disable-warnings --tb=short
+	ENVIRONMENT=test PYTEST_ARGS="$(PYTEST_ARGS)" $(MAKE) -f Makefile.ai-test ai-test
 
 ai-test-json:
 	docker-compose run --rm test pytest --json-report --json-report-file=pytest-report.json tests/
@@ -94,7 +106,8 @@ ai-restart-all:
 
 # --- MemoryDB and Misc Targets ---
 ai-memorydb-migrate:
-	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
+	docker-compose -f docker-compose.test.yml exec test-misc-scripts bash -c 'cd /code && alembic -c alembic_memorydb.ini upgrade head'
+	@echo "[ai-memorydb-migrate] MemoryDB migrations complete!"
 
 ai-memory-search-embedding:
 	curl -X POST http://localhost:9103/memory/nodes/search \
@@ -179,8 +192,15 @@ ai-down-ollama-functions:
 	$(MAKE) -f Makefile.ai-llm ai-down-ollama-functions
 
 # --- Meta-targets for Database Operations ---
+.PHONY: ai-db-migrate
 ai-db-migrate:
-	$(MAKE) -f Makefile.ai-db ai-db-migrate
+	@echo "[ai-db-migrate] Waiting for api container to be running..."
+	@timeout=30; while ! docker compose ps api | grep -q 'Up'; do \
+	  sleep 1; timeout=$$((timeout-1)); \
+	  if [ $$timeout -le 0 ]; then echo 'api did not start in time.'; exit 1; fi; \
+	done
+	docker compose exec api alembic upgrade head
+	@echo "[ai-db-migrate] DB migrations complete!"
 
 ai-db-revision:
 	$(MAKE) -f Makefile.ai-db ai-db-revision
@@ -191,8 +211,73 @@ ai-db-backup-full:
 ai-db-restore-full:
 	$(MAKE) -f Makefile.ai-db ai-db-restore-full
 
-ai-db-nuke-only:
-	$(MAKE) -f Makefile.ai-db ai-db-nuke-only
+# Bring up all test environment containers
+.PHONY: test-env-up
+test-env-up:
+	docker-compose -f docker-compose.test.yml up -d test-db test-api test test-frontend test-misc-scripts test-ollama-functions test-worker
+	@echo "[test-env-up] Test environment containers are up!"
+
+# Bring up all dev environment containers
+.PHONY: dev-env-up
+dev-env-up:
+	docker compose up -d db api rabbitmq
+	@echo "[dev-env-up] Dev environment containers are up!"
+
+# Run migrations in the test environment (test-api)
+.PHONY: test-db-migrate
+test-db-migrate:
+	@echo "[test-db-migrate] Waiting for test-api container to be running..."
+	@timeout=30; while ! docker-compose -f docker-compose.test.yml ps test-api | grep -q 'Up'; do \
+	  sleep 1; timeout=$$((timeout-1)); \
+	  if [ $$timeout -le 0 ]; then echo 'test-api did not start in time.'; exit 1; fi; \
+	done
+	docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+	@echo "[test-db-migrate] Test DB migrations complete!"
+
+# Run migrations in the dev environment (api)
+.PHONY: dev-db-migrate
+dev-db-migrate:
+	@echo "[dev-db-migrate] Waiting for api container to be running..."
+	@timeout=30; while ! docker compose ps api | grep -q 'Up'; do \
+	  sleep 1; timeout=$$((timeout-1)); \
+	  if [ $$timeout -le 0 ]; then echo 'api did not start in time.'; exit 1; fi; \
+	done
+	docker compose exec api alembic upgrade head
+	@echo "[dev-db-migrate] Dev DB migrations complete!"
+
+# --- Quickstart Targets: Dev vs Test ---
+
+# Dev quickstart: sets up dev env, runs migrations, onboard admin, and runs tests
+# WARNING: This flow seeds tokens in the DB for local dev. Do NOT use for contract/first-token tests!
+.PHONY: dev-quickstart
+dev-quickstart:
+	@echo "🏴‍☠️  Dev Quickstart: Setting up dev environment, running migrations, onboarding admin, and testing..."
+	@echo "[dev-quickstart] WARNING: This flow seeds user/admin tokens in the DB for local dev convenience."
+	$(MAKE) -f Makefile.ai dev-env-up
+	$(MAKE) -f Makefile.ai dev-db-migrate
+	python scripts/onboard_admin.py
+	$(MAKE) -f Makefile.ai ai-test
+	@echo "\nIf you see green above, you're ready to code! If not, see ONBOARDING_INTERNAL.md for more info and troubleshooting."
+
+# Test quickstart: sets up test env, runs migrations, and runs tests (NO onboarding, NO token seeding)
+# SAFE for contract/first-token tests and CI. Always use this for clean test runs!
+.PHONY: test-quickstart
+test-quickstart: test-env-up test-db-migrate ai-memorydb-migrate ai-test
+	@echo "[test-quickstart] Test onboarding complete! (No tokens seeded, DB is clean)"
+
+# Nuke and reset the test DB/services, then run test quickstart (for CI/test cycles)
+test-db-nuke:
+	docker compose -f docker-compose.test.yml down -v
+	SKIP_TOKEN_POLLUTION_GUARD=1 $(MAKE) -f Makefile.ai test-quickstart
+
+# Nuke and reset the dev DB/services, then run dev quickstart (for local dev only)
+dev-db-nuke:
+	docker compose down -v
+	$(MAKE) -f Makefile.ai dev-quickstart
+	@echo "Dev DB and admin onboarding complete!"
+
+# Main nuke alias for CI/dev
+ai-db-nuke: test-db-nuke
 
 ai-db-nuke-and-restore-data:
 	$(MAKE) -f Makefile.ai-db ai-db-nuke-and-restore-data
@@ -209,9 +294,6 @@ ai-memorydb-restore:
 # --- End of Meta-targets ---
 
 # --- Meta-targets for Test Operations ---
-ai-test:
-	$(MAKE) -f Makefile.ai-test ai-test
-
 ai-test-coverage:
 	$(MAKE) -f Makefile.ai-test ai-test-coverage
 
@@ -241,19 +323,22 @@ ai-search-package:
 
 # --- Test Setup Targets ---
 ai-test-setup:
-	docker-compose -f docker-compose.test.yml up -d db-test test frontend misc-scripts ollama-functions worker
-	@echo "Waiting for test database to be ready..."
-	@until docker-compose -f docker-compose.test.yml exec db-test pg_isready -U postgres; do sleep 2; done
+	docker-compose -f docker-compose.test.yml up -d test-db test-api test test-frontend test-misc-scripts test-ollama-functions test-worker
+	@echo "Waiting for test-api container to be running..."
+	@timeout=30; while ! docker-compose -f docker-compose.test.yml ps test-api | grep -q 'Up'; do \
+	  sleep 1; timeout=$$((timeout-1)); \
+	  if [ $$timeout -le 0 ]; then echo 'test-api did not start in time.'; exit 1; fi; \
+	done
 	@echo "Checking test database status..."
-	@if docker-compose -f docker-compose.test.yml exec db-test psql -U postgres -t -c "SELECT 1 FROM pg_database WHERE datname='rulesdb'" | grep -q 1; then \
+	@if docker-compose -f docker-compose.test.yml exec test-db psql -U postgres -t -c "SELECT 1 FROM pg_database WHERE datname='rulesdb'" | grep -q 1; then \
 		echo "Database 'rulesdb' detected - not creating"; \
 	else \
 		echo "Creating database 'rulesdb'..."; \
-		docker-compose -f docker-compose.test.yml exec db-test psql -U postgres -c "CREATE DATABASE rulesdb"; \
+		docker-compose -f docker-compose.test.yml exec test-db psql -U postgres -c "CREATE DATABASE rulesdb"; \
 	fi
 	@echo "Running database migrations..."
-	docker-compose -f docker-compose.test.yml exec test alembic upgrade head
-	docker-compose -f docker-compose.test.yml exec test alembic -c alembic_memorydb.ini upgrade head
+	docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+	docker-compose -f docker-compose.test.yml exec test-api alembic -c alembic_memorydb.ini upgrade head
 	@echo "Test database setup complete!"
 
 ai-test-with-setup: ai-test-setup ai-onboard-admin
@@ -284,3 +369,123 @@ ai-rebuild-api:
 
 ai-onboard-admin:
 	python scripts/onboard_admin.py
+
+logs-test:
+	docker-compose -f docker-compose.test.yml logs --tail=100 test test-api test-db test-frontend test-misc-scripts test-ollama-functions test-worker | cat || true
+
+# Bring down only the test-db container for a clean test DB reset
+.PHONY: test-db-down
+test-db-down:
+	docker-compose -f docker-compose.test.yml down test-db
+
+# Bring up only the test-db container for test DB access
+.PHONY: test-db-up
+test-db-up:
+	docker-compose -f docker-compose.test.yml up -d test-db
+
+# Reset the test-db: down, up, and migrate
+.PHONY: test-db-reset
+test-db-reset: test-db-down test-db-up
+	docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+	$(MAKE) -f Makefile.ai test-quickstart
+	@echo "[test-db-reset] WARNING: This flow is now safe for contract/first-token tests. No tokens will be seeded."
+
+# Tail logs from all test containers for debugging
+.PHONY: test-logs
+test-logs:
+	docker-compose -f docker-compose.test.yml logs -f test test-api test-db test-frontend test-misc-scripts test-ollama-functions test-worker
+
+# Quickstart: bring up test stack, run onboarding, and smoke test
+quickstart: ai-env-up ai-db-migrate ai-memorydb-migrate ai-admin-bootstrap ai-test
+	@echo "[quickstart] Onboarding complete!"
+
+ai-test-nuke-all:
+	docker compose -f docker-compose.test.yml down -v
+	docker system prune -af --volumes
+	make -f Makefile.ai ai-env-up
+	docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+
+ai-env-up:
+	docker-compose -f docker-compose.test.yml up -d test-db test-api test test-frontend test-misc-scripts test-ollama-functions test-worker
+	@echo "[ai-env-up] Test environment containers are up!"
+
+# === AI/Onboarding Shortcuts ===
+# --- DEV ENV ---
+# make -f Makefile.ai ai-dev-up           # Bring up dev containers (api, db, etc.)
+# make -f Makefile.ai ai-dev-db-reset     # Full dev DB reset and migration
+# make -f Makefile.ai ai-dev-db-migrate   # Run Alembic migrations on dev DB
+#
+# --- TEST ENV ---
+# make -f Makefile.ai ai-up-test          # Bring up all test containers
+# make -f Makefile.ai ai-test-db-reset    # Full test DB reset and migration
+# make -f Makefile.ai ai-test-db-migrate  # Run Alembic migrations on test DB
+# make -f Makefile.ai ai-test             # Run all tests
+
+# --- DEV ENV TARGETS ---
+ai-dev-up:
+	docker compose up -d api db
+
+ai-dev-db-reset:
+	docker compose down -v
+	docker compose up -d db api
+	@echo "Waiting for db to be ready..."
+	@timeout=30; while ! docker compose exec db pg_isready -U postgres > /dev/null 2>&1; do \
+	  sleep 1; timeout=$$((timeout-1)); \
+	  if [ $$timeout -le 0 ]; then echo 'db did not become ready in time.'; exit 1; fi; \
+	done
+	$(MAKE) -f Makefile.ai ai-dev-db-migrate
+
+ai-dev-db-migrate:
+	docker compose exec api alembic upgrade head
+
+# --- TEST ENV TARGETS ---
+ai-up-test:
+	$(MAKE) -f Makefile.ai-test ai-test-up
+
+ai-test-db-reset:
+	$(MAKE) -f Makefile.ai-test test-db-reset
+
+ai-test-db-migrate:
+	docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+
+# --- Docker Compose Profile Targets ---
+
+# Core development environment (API, DB, Frontend, etc.)
+dev-up:
+	docker compose --profile dev up -d
+
+# LLM/AI features (LLM worker, Ollama, etc.)
+llm-up:
+	docker compose --profile llm up -d
+
+# All dev + LLM services (for full stack)
+all-up:
+	docker compose --profile dev --profile llm up -d
+
+# Test environment (test API, test DB, etc.)
+test-up:
+	docker compose -f docker-compose.test.yml --profile test up -d
+
+# LLM worker in test mode
+llm-test-up:
+	docker compose -f docker-compose.test.yml --profile llm-test up -d
+
+# All test + LLM-test services
+all-test-up:
+	docker compose -f docker-compose.test.yml --profile test --profile llm-test up -d
+
+# Stop all running containers (dev and test)
+down:
+	docker compose down
+	docker compose -f docker-compose.test.yml down
+
+# Show running containers
+ps:
+	docker compose ps
+	docker compose -f docker-compose.test.yml ps
+
+# Clean up all stopped containers, networks, and dangling images
+prune:
+	docker system prune -f
+
+# --- End of Profile Targets ---

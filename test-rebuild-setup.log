@@ -1,0 +1,895 @@
+docker-compose -f docker-compose.test.yml build test-db test-api test test-frontend test-misc-scripts test-ollama-functions test-worker
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [test-db internal] load build definition from Dockerfile.pgvector
+#1 transferring dockerfile: 165B done
+#1 DONE 0.0s
+
+#2 [test-db auth] pgvector/pgvector:pull token for registry-1.docker.io
+#2 DONE 0.0s
+
+#3 [test-db internal] load metadata for docker.io/pgvector/pgvector:pg15
+#3 DONE 0.5s
+
+#4 [test-db internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [test-db 1/1] FROM docker.io/pgvector/pgvector:pg15@sha256:240c5c37437a379123d79e48e3635c7a1d960fba20e8fbae68a94243eb81fab3
+#5 resolve docker.io/pgvector/pgvector:pg15@sha256:240c5c37437a379123d79e48e3635c7a1d960fba20e8fbae68a94243eb81fab3 done
+#5 CACHED
+
+#6 [test-db] exporting to image
+#6 exporting layers done
+#6 exporting manifest sha256:51c652534db8e46a02c81bf45d5082d72be0f77a5ad08ad7bb9793b15c418afc done
+#6 exporting config sha256:b3efc4e06fe909137f457f128cec4a1c37e120207787f57f196c039dc7015b40 done
+#6 exporting attestation manifest sha256:5f63c5ff3ff3104ce74e941e1d9e1d0076835c6f37c55dcd3aa839a9c5cd8dff done
+#6 exporting manifest list sha256:dbf0c4c54ae7ab6acbd4a7913c824ebb9bf91f92031b39f8899f472149f66a0f done
+#6 naming to docker.io/library/ai-ide-api-test-db:latest done
+#6 unpacking to docker.io/library/ai-ide-api-test-db:latest 0.0s done
+#6 DONE 0.0s
+
+#7 [test-db] resolving provenance for metadata file
+#7 DONE 0.0s
+
+#8 [test internal] load build definition from Dockerfile.tests
+#8 transferring dockerfile: 437B done
+#8 DONE 0.0s
+
+#9 [test-api internal] load build definition from Dockerfile
+#9 transferring dockerfile: 596B done
+#9 DONE 0.0s
+
+#10 [test internal] load metadata for docker.io/library/python:3.11-slim
+#10 DONE 0.3s
+
+#11 [test internal] load .dockerignore
+#11 transferring context: 2B done
+#11 DONE 0.0s
+
+#12 [test-api internal] load .dockerignore
+#12 transferring context: 2B done
+#12 DONE 0.0s
+
+#13 [test-api 1/4] FROM docker.io/library/python:3.11-slim@sha256:dbf1de478a55d6763afaa39c2f3d7b54b25230614980276de5cacdde79529d0c
+#13 resolve docker.io/library/python:3.11-slim@sha256:dbf1de478a55d6763afaa39c2f3d7b54b25230614980276de5cacdde79529d0c 0.0s done
+#13 DONE 0.0s
+
+#14 [test-api internal] load build context
+#14 transferring context: 34.13MB 0.5s done
+#14 DONE 0.5s
+
+#15 [test 2/4] WORKDIR /app
+#15 CACHED
+
+#16 [test internal] load build context
+#16 transferring context: 34.13MB 0.5s done
+#16 DONE 0.5s
+
+#17 [test 3/5] COPY . /app
+#17 DONE 0.2s
+
+#18 [test 3/4] COPY . /app
+#18 CACHED
+
+#19 [test-api 4/5] RUN pip install --upgrade pip &&     pip install -r requirements.txt &&     apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
+#19 0.823 Requirement already satisfied: pip in /usr/local/lib/python3.11/site-packages (24.0)
+#19 0.939 Collecting pip
+#19 1.051   Downloading pip-25.1.1-py3-none-any.whl.metadata (3.6 kB)
+#19 1.082 Downloading pip-25.1.1-py3-none-any.whl (1.8 MB)
+#19 1.322    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 7.8 MB/s eta 0:00:00
+#19 1.339 Installing collected packages: pip
+#19 1.339   Attempting uninstall: pip
+#19 1.340     Found existing installation: pip 24.0
+#19 1.357     Uninstalling pip-24.0:
+#19 1.417       Successfully uninstalled pip-24.0
+#19 1.805 Successfully installed pip-25.1.1
+#19 1.805 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+#19 2.226 Collecting fastapi (from -r requirements.txt (line 1))
+#19 2.312   Downloading fastapi-0.115.12-py3-none-any.whl.metadata (27 kB)
+#19 2.363 Collecting uvicorn (from -r requirements.txt (line 2))
+#19 2.389   Downloading uvicorn-0.34.3-py3-none-any.whl.metadata (6.5 kB)
+#19 2.438 Collecting pytest (from -r requirements.txt (line 3))
+#19 2.462   Downloading pytest-8.4.0-py3-none-any.whl.metadata (7.7 kB)
+#19 2.504 Collecting httpx (from -r requirements.txt (line 4))
+#19 2.526   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+#19 2.560 Collecting pytest-cov (from -r requirements.txt (line 5))
+#19 2.583   Downloading pytest_cov-6.1.1-py3-none-any.whl.metadata (28 kB)
+#19 2.623 Collecting pytest-json-report (from -r requirements.txt (line 6))
+#19 2.647   Downloading pytest_json_report-1.5.0-py3-none-any.whl.metadata (15 kB)
+#19 2.880 Collecting sqlalchemy (from -r requirements.txt (line 7))
+#19 2.903   Downloading sqlalchemy-2.0.41-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (9.6 kB)
+#19 2.947 Collecting python-multipart (from -r requirements.txt (line 8))
+#19 2.971   Downloading python_multipart-0.0.20-py3-none-any.whl.metadata (1.8 kB)
+#19 3.007 Collecting alembic (from -r requirements.txt (line 9))
+#19 3.030   Downloading alembic-1.16.1-py3-none-any.whl.metadata (7.3 kB)
+#19 3.085 Collecting python-dateutil (from -r requirements.txt (line 10))
+#19 3.107   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+#19 3.178 Collecting psycopg2-binary (from -r requirements.txt (line 11))
+#19 3.202   Downloading psycopg2_binary-2.9.10-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.9 kB)
+#19 3.244 Collecting requests (from -r requirements.txt (line 12))
+#19 3.266   Downloading requests-2.32.3-py3-none-any.whl.metadata (4.6 kB)
+#19 3.405 Collecting numpy (from -r requirements.txt (line 13))
+#19 3.429   Downloading numpy-2.2.6-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (63 kB)
+#19 3.491 Collecting markdown==3.5.2 (from -r requirements.txt (line 14))
+#19 3.514   Downloading Markdown-3.5.2-py3-none-any.whl.metadata (7.0 kB)
+#19 3.555 Collecting pyjwt (from -r requirements.txt (line 15))
+#19 3.578   Downloading PyJWT-2.10.1-py3-none-any.whl.metadata (4.0 kB)
+#19 3.613 Collecting pika (from -r requirements.txt (line 16))
+#19 3.634   Downloading pika-1.3.2-py3-none-any.whl.metadata (13 kB)
+#19 3.681 Collecting starlette<0.47.0,>=0.40.0 (from fastapi->-r requirements.txt (line 1))
+#19 3.710   Downloading starlette-0.46.2-py3-none-any.whl.metadata (6.2 kB)
+#19 3.810 Collecting pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4 (from fastapi->-r requirements.txt (line 1))
+#19 3.851   Downloading pydantic-2.11.5-py3-none-any.whl.metadata (67 kB)
+#19 3.890 Collecting typing-extensions>=4.8.0 (from fastapi->-r requirements.txt (line 1))
+#19 3.912   Downloading typing_extensions-4.14.0-py3-none-any.whl.metadata (3.0 kB)
+#19 3.940 Collecting annotated-types>=0.6.0 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi->-r requirements.txt (line 1))
+#19 3.966   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+#19 4.326 Collecting pydantic-core==2.33.2 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi->-r requirements.txt (line 1))
+#19 4.349   Downloading pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (6.8 kB)
+#19 4.408 Collecting typing-inspection>=0.4.0 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi->-r requirements.txt (line 1))
+#19 4.432   Downloading typing_inspection-0.4.1-py3-none-any.whl.metadata (2.6 kB)
+#19 4.466 Collecting anyio<5,>=3.6.2 (from starlette<0.47.0,>=0.40.0->fastapi->-r requirements.txt (line 1))
+#19 4.489   Downloading anyio-4.9.0-py3-none-any.whl.metadata (4.7 kB)
+#19 4.524 Collecting idna>=2.8 (from anyio<5,>=3.6.2->starlette<0.47.0,>=0.40.0->fastapi->-r requirements.txt (line 1))
+#19 4.547   Downloading idna-3.10-py3-none-any.whl.metadata (10 kB)
+#19 4.585 Collecting sniffio>=1.1 (from anyio<5,>=3.6.2->starlette<0.47.0,>=0.40.0->fastapi->-r requirements.txt (line 1))
+#19 4.610   Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+#19 4.656 Collecting click>=7.0 (from uvicorn->-r requirements.txt (line 2))
+#19 4.680   Downloading click-8.2.1-py3-none-any.whl.metadata (2.5 kB)
+#19 4.711 Collecting h11>=0.8 (from uvicorn->-r requirements.txt (line 2))
+#19 4.735   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+#19 4.768 Collecting iniconfig>=1 (from pytest->-r requirements.txt (line 3))
+#19 4.790   Downloading iniconfig-2.1.0-py3-none-any.whl.metadata (2.7 kB)
+#19 4.822 Collecting packaging>=20 (from pytest->-r requirements.txt (line 3))
+#19 4.847   Downloading packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+#19 4.878 Collecting pluggy<2,>=1.5 (from pytest->-r requirements.txt (line 3))
+#19 4.900   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+#19 4.939 Collecting pygments>=2.7.2 (from pytest->-r requirements.txt (line 3))
+#19 4.963   Downloading pygments-2.19.1-py3-none-any.whl.metadata (2.5 kB)
+#19 4.998 Collecting certifi (from httpx->-r requirements.txt (line 4))
+#19 5.026   Downloading certifi-2025.4.26-py3-none-any.whl.metadata (2.5 kB)
+#19 5.060 Collecting httpcore==1.* (from httpx->-r requirements.txt (line 4))
+#19 5.082   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+#19 5.237 Collecting coverage>=7.5 (from coverage[toml]>=7.5->pytest-cov->-r requirements.txt (line 5))
+#19 5.264   Downloading coverage-7.8.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (8.9 kB)
+#19 5.304 Collecting pytest-metadata (from pytest-json-report->-r requirements.txt (line 6))
+#19 5.333   Downloading pytest_metadata-3.1.1-py3-none-any.whl.metadata (8.6 kB)
+#19 5.444 Collecting greenlet>=1 (from sqlalchemy->-r requirements.txt (line 7))
+#19 5.467   Downloading greenlet-3.2.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.1 kB)
+#19 5.506 Collecting Mako (from alembic->-r requirements.txt (line 9))
+#19 5.536   Downloading mako-1.3.10-py3-none-any.whl.metadata (2.9 kB)
+#19 5.568 Collecting six>=1.5 (from python-dateutil->-r requirements.txt (line 10))
+#19 5.595   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+#19 5.653 Collecting charset-normalizer<4,>=2 (from requests->-r requirements.txt (line 12))
+#19 5.676   Downloading charset_normalizer-3.4.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (35 kB)
+#19 5.719 Collecting urllib3<3,>=1.21.1 (from requests->-r requirements.txt (line 12))
+#19 5.742   Downloading urllib3-2.4.0-py3-none-any.whl.metadata (6.5 kB)
+#19 5.805 Collecting MarkupSafe>=0.9.2 (from Mako->alembic->-r requirements.txt (line 9))
+#19 5.835   Downloading MarkupSafe-3.0.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.0 kB)
+#19 5.869 Downloading Markdown-3.5.2-py3-none-any.whl (103 kB)
+#19 5.908 Downloading fastapi-0.115.12-py3-none-any.whl (95 kB)
+#19 6.002 Downloading pydantic-2.11.5-py3-none-any.whl (444 kB)
+#19 6.135 Downloading pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (1.9 MB)
+#19 6.314    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.9/1.9 MB 13.0 MB/s eta 0:00:00
+#19 6.337 Downloading starlette-0.46.2-py3-none-any.whl (72 kB)
+#19 6.389 Downloading anyio-4.9.0-py3-none-any.whl (100 kB)
+#19 6.423 Downloading uvicorn-0.34.3-py3-none-any.whl (62 kB)
+#19 6.455 Downloading pytest-8.4.0-py3-none-any.whl (363 kB)
+#19 6.508 Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
+#19 6.538 Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+#19 6.569 Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+#19 6.601 Downloading pytest_cov-6.1.1-py3-none-any.whl (23 kB)
+#19 6.629 Downloading pytest_json_report-1.5.0-py3-none-any.whl (13 kB)
+#19 6.658 Downloading sqlalchemy-2.0.41-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (3.3 MB)
+#19 6.872    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 15.1 MB/s eta 0:00:00
+#19 6.896 Downloading python_multipart-0.0.20-py3-none-any.whl (24 kB)
+#19 6.923 Downloading alembic-1.16.1-py3-none-any.whl (242 kB)
+#19 6.964 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+#19 7.002 Downloading psycopg2_binary-2.9.10-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (2.9 MB)
+#19 7.325    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.9/2.9 MB 8.5 MB/s eta 0:00:00
+#19 7.351 Downloading requests-2.32.3-py3-none-any.whl (64 kB)
+#19 7.389 Downloading charset_normalizer-3.4.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (142 kB)
+#19 7.434 Downloading idna-3.10-py3-none-any.whl (70 kB)
+#19 7.462 Downloading urllib3-2.4.0-py3-none-any.whl (128 kB)
+#19 7.499 Downloading numpy-2.2.6-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (14.3 MB)
+#19 8.860    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.3/14.3 MB 10.6 MB/s eta 0:00:00
+#19 8.889 Downloading PyJWT-2.10.1-py3-none-any.whl (22 kB)
+#19 8.919 Downloading pika-1.3.2-py3-none-any.whl (155 kB)
+#19 8.961 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+#19 8.990 Downloading certifi-2025.4.26-py3-none-any.whl (159 kB)
+#19 9.028 Downloading click-8.2.1-py3-none-any.whl (102 kB)
+#19 9.068 Downloading coverage-7.8.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (244 kB)
+#19 9.121 Downloading greenlet-3.2.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (628 kB)
+#19 9.175    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 628.8/628.8 kB 12.8 MB/s eta 0:00:00
+#19 9.204 Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+#19 9.232 Downloading iniconfig-2.1.0-py3-none-any.whl (6.0 kB)
+#19 9.259 Downloading packaging-25.0-py3-none-any.whl (66 kB)
+#19 9.293 Downloading pygments-2.19.1-py3-none-any.whl (1.2 MB)
+#19 9.392    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 12.8 MB/s eta 0:00:00
+#19 9.423 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+#19 9.463 Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+#19 9.491 Downloading typing_extensions-4.14.0-py3-none-any.whl (43 kB)
+#19 9.521 Downloading typing_inspection-0.4.1-py3-none-any.whl (14 kB)
+#19 9.555 Downloading mako-1.3.10-py3-none-any.whl (78 kB)
+#19 9.588 Downloading MarkupSafe-3.0.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (23 kB)
+#19 9.626 Downloading pytest_metadata-3.1.1-py3-none-any.whl (11 kB)
+#19 9.693 Installing collected packages: urllib3, typing-extensions, sniffio, six, python-multipart, pyjwt, pygments, psycopg2-binary, pluggy, pika, packaging, numpy, MarkupSafe, markdown, iniconfig, idna, h11, greenlet, coverage, click, charset-normalizer, certifi, annotated-types, uvicorn, typing-inspection, sqlalchemy, requests, python-dateutil, pytest, pydantic-core, Mako, httpcore, anyio, starlette, pytest-metadata, pytest-cov, pydantic, httpx, alembic, pytest-json-report, fastapi
+#19 ...
+
+#20 [test 4/4] RUN pip install --upgrade pip &&     pip install -r requirements-test.txt &&     pip install pipx &&     pipx install pip-search &&     apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
+#20 0.830 Requirement already satisfied: pip in /usr/local/lib/python3.11/site-packages (24.0)
+#20 0.943 Collecting pip
+#20 1.055   Downloading pip-25.1.1-py3-none-any.whl.metadata (3.6 kB)
+#20 1.085 Downloading pip-25.1.1-py3-none-any.whl (1.8 MB)
+#20 1.322    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 7.9 MB/s eta 0:00:00
+#20 1.339 Installing collected packages: pip
+#20 1.339   Attempting uninstall: pip
+#20 1.340     Found existing installation: pip 24.0
+#20 1.356     Uninstalling pip-24.0:
+#20 1.417       Successfully uninstalled pip-24.0
+#20 1.805 Successfully installed pip-25.1.1
+#20 1.805 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+#20 2.224 Collecting fastapi (from -r requirements-test.txt (line 1))
+#20 2.310   Downloading fastapi-0.115.12-py3-none-any.whl.metadata (27 kB)
+#20 2.362 Collecting uvicorn (from -r requirements-test.txt (line 2))
+#20 2.385   Downloading uvicorn-0.34.3-py3-none-any.whl.metadata (6.5 kB)
+#20 2.477 Collecting pytest (from -r requirements-test.txt (line 3))
+#20 2.502   Downloading pytest-8.4.0-py3-none-any.whl.metadata (7.7 kB)
+#20 2.561 Collecting httpx (from -r requirements-test.txt (line 4))
+#20 2.586   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+#20 2.622 Collecting pytest-cov (from -r requirements-test.txt (line 5))
+#20 2.644   Downloading pytest_cov-6.1.1-py3-none-any.whl.metadata (28 kB)
+#20 2.726 Collecting pytest-json-report (from -r requirements-test.txt (line 6))
+#20 2.751   Downloading pytest_json_report-1.5.0-py3-none-any.whl.metadata (15 kB)
+#20 2.961 Collecting sqlalchemy (from -r requirements-test.txt (line 7))
+#20 2.985   Downloading sqlalchemy-2.0.41-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (9.6 kB)
+#20 3.017 Collecting python-multipart (from -r requirements-test.txt (line 8))
+#20 3.047   Downloading python_multipart-0.0.20-py3-none-any.whl.metadata (1.8 kB)
+#20 3.088 Collecting alembic (from -r requirements-test.txt (line 9))
+#20 3.117   Downloading alembic-1.16.1-py3-none-any.whl.metadata (7.3 kB)
+#20 3.158 Collecting python-dateutil (from -r requirements-test.txt (line 10))
+#20 3.181   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+#20 3.243 Collecting psycopg2-binary (from -r requirements-test.txt (line 11))
+#20 3.268   Downloading psycopg2_binary-2.9.10-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.9 kB)
+#20 3.317 Collecting requests (from -r requirements-test.txt (line 12))
+#20 3.342   Downloading requests-2.32.3-py3-none-any.whl.metadata (4.6 kB)
+#20 3.472 Collecting numpy (from -r requirements-test.txt (line 13))
+#20 3.496   Downloading numpy-2.2.6-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (63 kB)
+#20 3.559 Collecting markdown==3.5.2 (from -r requirements-test.txt (line 14))
+#20 3.581   Downloading Markdown-3.5.2-py3-none-any.whl.metadata (7.0 kB)
+#20 3.622 Collecting pyjwt (from -r requirements-test.txt (line 15))
+#20 3.648   Downloading PyJWT-2.10.1-py3-none-any.whl.metadata (4.0 kB)
+#20 3.680 Collecting pika (from -r requirements-test.txt (line 16))
+#20 3.705   Downloading pika-1.3.2-py3-none-any.whl.metadata (13 kB)
+#20 3.759 Collecting starlette<0.47.0,>=0.40.0 (from fastapi->-r requirements-test.txt (line 1))
+#20 3.782   Downloading starlette-0.46.2-py3-none-any.whl.metadata (6.2 kB)
+#20 3.898 Collecting pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4 (from fastapi->-r requirements-test.txt (line 1))
+#20 3.921   Downloading pydantic-2.11.5-py3-none-any.whl.metadata (67 kB)
+#20 3.967 Collecting typing-extensions>=4.8.0 (from fastapi->-r requirements-test.txt (line 1))
+#20 3.992   Downloading typing_extensions-4.14.0-py3-none-any.whl.metadata (3.0 kB)
+#20 4.059 Collecting annotated-types>=0.6.0 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi->-r requirements-test.txt (line 1))
+#20 4.083   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+#20 4.478 Collecting pydantic-core==2.33.2 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi->-r requirements-test.txt (line 1))
+#20 4.501   Downloading pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (6.8 kB)
+#20 4.546 Collecting typing-inspection>=0.4.0 (from pydantic!=1.8,!=1.8.1,!=2.0.0,!=2.0.1,!=2.1.0,<3.0.0,>=1.7.4->fastapi->-r requirements-test.txt (line 1))
+#20 4.569   Downloading typing_inspection-0.4.1-py3-none-any.whl.metadata (2.6 kB)
+#20 4.656 Collecting anyio<5,>=3.6.2 (from starlette<0.47.0,>=0.40.0->fastapi->-r requirements-test.txt (line 1))
+#20 4.688   Downloading anyio-4.9.0-py3-none-any.whl.metadata (4.7 kB)
+#20 4.727 Collecting idna>=2.8 (from anyio<5,>=3.6.2->starlette<0.47.0,>=0.40.0->fastapi->-r requirements-test.txt (line 1))
+#20 4.749   Downloading idna-3.10-py3-none-any.whl.metadata (10 kB)
+#20 4.785 Collecting sniffio>=1.1 (from anyio<5,>=3.6.2->starlette<0.47.0,>=0.40.0->fastapi->-r requirements-test.txt (line 1))
+#20 4.807   Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+#20 4.845 Collecting click>=7.0 (from uvicorn->-r requirements-test.txt (line 2))
+#20 4.867   Downloading click-8.2.1-py3-none-any.whl.metadata (2.5 kB)
+#20 4.896 Collecting h11>=0.8 (from uvicorn->-r requirements-test.txt (line 2))
+#20 4.925   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+#20 4.959 Collecting iniconfig>=1 (from pytest->-r requirements-test.txt (line 3))
+#20 4.982   Downloading iniconfig-2.1.0-py3-none-any.whl.metadata (2.7 kB)
+#20 5.014 Collecting packaging>=20 (from pytest->-r requirements-test.txt (line 3))
+#20 5.036   Downloading packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+#20 5.065 Collecting pluggy<2,>=1.5 (from pytest->-r requirements-test.txt (line 3))
+#20 5.089   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+#20 5.121 Collecting pygments>=2.7.2 (from pytest->-r requirements-test.txt (line 3))
+#20 5.150   Downloading pygments-2.19.1-py3-none-any.whl.metadata (2.5 kB)
+#20 5.182 Collecting certifi (from httpx->-r requirements-test.txt (line 4))
+#20 5.216   Downloading certifi-2025.4.26-py3-none-any.whl.metadata (2.5 kB)
+#20 5.255 Collecting httpcore==1.* (from httpx->-r requirements-test.txt (line 4))
+#20 5.277   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+#20 5.459 Collecting coverage>=7.5 (from coverage[toml]>=7.5->pytest-cov->-r requirements-test.txt (line 5))
+#20 5.482   Downloading coverage-7.8.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (8.9 kB)
+#20 5.524 Collecting pytest-metadata (from pytest-json-report->-r requirements-test.txt (line 6))
+#20 5.547   Downloading pytest_metadata-3.1.1-py3-none-any.whl.metadata (8.6 kB)
+#20 5.653 Collecting greenlet>=1 (from sqlalchemy->-r requirements-test.txt (line 7))
+#20 5.675   Downloading greenlet-3.2.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.1 kB)
+#20 5.714 Collecting Mako (from alembic->-r requirements-test.txt (line 9))
+#20 5.738   Downloading mako-1.3.10-py3-none-any.whl.metadata (2.9 kB)
+#20 5.771 Collecting six>=1.5 (from python-dateutil->-r requirements-test.txt (line 10))
+#20 5.793   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+#20 5.859 Collecting charset-normalizer<4,>=2 (from requests->-r requirements-test.txt (line 12))
+#20 5.884   Downloading charset_normalizer-3.4.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (35 kB)
+#20 6.013 Collecting urllib3<3,>=1.21.1 (from requests->-r requirements-test.txt (line 12))
+#20 6.100   Downloading urllib3-2.4.0-py3-none-any.whl.metadata (6.5 kB)
+#20 6.178 Collecting MarkupSafe>=0.9.2 (from Mako->alembic->-r requirements-test.txt (line 9))
+#20 6.243   Downloading MarkupSafe-3.0.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (4.0 kB)
+#20 6.289 Downloading Markdown-3.5.2-py3-none-any.whl (103 kB)
+#20 6.325 Downloading fastapi-0.115.12-py3-none-any.whl (95 kB)
+#20 6.356 Downloading pydantic-2.11.5-py3-none-any.whl (444 kB)
+#20 6.451 Downloading pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (1.9 MB)
+#20 6.603    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.9/1.9 MB 13.5 MB/s eta 0:00:00
+#20 6.629 Downloading starlette-0.46.2-py3-none-any.whl (72 kB)
+#20 6.664 Downloading anyio-4.9.0-py3-none-any.whl (100 kB)
+#20 6.713 Downloading uvicorn-0.34.3-py3-none-any.whl (62 kB)
+#20 6.761 Downloading pytest-8.4.0-py3-none-any.whl (363 kB)
+#20 6.864 Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
+#20 6.890 Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+#20 6.927 Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+#20 6.959 Downloading pytest_cov-6.1.1-py3-none-any.whl (23 kB)
+#20 6.988 Downloading pytest_json_report-1.5.0-py3-none-any.whl (13 kB)
+#20 7.020 Downloading sqlalchemy-2.0.41-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (3.3 MB)
+#20 7.451    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 7.4 MB/s eta 0:00:00
+#20 7.474 Downloading python_multipart-0.0.20-py3-none-any.whl (24 kB)
+#20 7.505 Downloading alembic-1.16.1-py3-none-any.whl (242 kB)
+#20 7.564 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+#20 7.656 Downloading psycopg2_binary-2.9.10-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (2.9 MB)
+#20 8.039    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.9/2.9 MB 7.6 MB/s eta 0:00:00
+#20 8.069 Downloading requests-2.32.3-py3-none-any.whl (64 kB)
+#20 8.106 Downloading charset_normalizer-3.4.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (142 kB)
+#20 8.152 Downloading idna-3.10-py3-none-any.whl (70 kB)
+#20 8.186 Downloading urllib3-2.4.0-py3-none-any.whl (128 kB)
+#20 8.241 Downloading numpy-2.2.6-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (14.3 MB)
+#20 9.736    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.3/14.3 MB 9.6 MB/s eta 0:00:00
+#20 9.761 Downloading PyJWT-2.10.1-py3-none-any.whl (22 kB)
+#20 9.792 Downloading pika-1.3.2-py3-none-any.whl (155 kB)
+#20 9.830 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+#20 9.855 Downloading certifi-2025.4.26-py3-none-any.whl (159 kB)
+#20 9.890 Downloading click-8.2.1-py3-none-any.whl (102 kB)
+#20 9.923 Downloading coverage-7.8.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (244 kB)
+#20 9.967 Downloading greenlet-3.2.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (628 kB)
+#20 10.02    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 628.8/628.8 kB 11.7 MB/s eta 0:00:00
+#20 10.05 Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+#20 10.08 Downloading iniconfig-2.1.0-py3-none-any.whl (6.0 kB)
+#20 10.11 Downloading packaging-25.0-py3-none-any.whl (66 kB)
+#20 10.14 Downloading pygments-2.19.1-py3-none-any.whl (1.2 MB)
+#20 10.24    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 11.8 MB/s eta 0:00:00
+#20 10.27 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+#20 10.29 Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+#20 10.32 Downloading typing_extensions-4.14.0-py3-none-any.whl (43 kB)
+#20 10.35 Downloading typing_inspection-0.4.1-py3-none-any.whl (14 kB)
+#20 10.38 Downloading mako-1.3.10-py3-none-any.whl (78 kB)
+#20 10.41 Downloading MarkupSafe-3.0.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (23 kB)
+#20 10.43 Downloading pytest_metadata-3.1.1-py3-none-any.whl (11 kB)
+#20 10.49 Installing collected packages: urllib3, typing-extensions, sniffio, six, python-multipart, pyjwt, pygments, psycopg2-binary, pluggy, pika, packaging, numpy, MarkupSafe, markdown, iniconfig, idna, h11, greenlet, coverage, click, charset-normalizer, certifi, annotated-types, uvicorn, typing-inspection, sqlalchemy, requests, python-dateutil, pytest, pydantic-core, Mako, httpcore, anyio, starlette, pytest-metadata, pytest-cov, pydantic, httpx, alembic, pytest-json-report, fastapi
+#20 ...
+
+#19 [test-api 4/5] RUN pip install --upgrade pip &&     pip install -r requirements.txt &&     apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
+#19 12.20 
+#19 12.20 Successfully installed Mako-1.3.10 MarkupSafe-3.0.2 alembic-1.16.1 annotated-types-0.7.0 anyio-4.9.0 certifi-2025.4.26 charset-normalizer-3.4.2 click-8.2.1 coverage-7.8.2 fastapi-0.115.12 greenlet-3.2.2 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.10 iniconfig-2.1.0 markdown-3.5.2 numpy-2.2.6 packaging-25.0 pika-1.3.2 pluggy-1.6.0 psycopg2-binary-2.9.10 pydantic-2.11.5 pydantic-core-2.33.2 pygments-2.19.1 pyjwt-2.10.1 pytest-8.4.0 pytest-cov-6.1.1 pytest-json-report-1.5.0 pytest-metadata-3.1.1 python-dateutil-2.9.0.post0 python-multipart-0.0.20 requests-2.32.3 six-1.17.0 sniffio-1.3.1 sqlalchemy-2.0.41 starlette-0.46.2 typing-extensions-4.14.0 typing-inspection-0.4.1 urllib3-2.4.0 uvicorn-0.34.3
+#19 12.20 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#19 12.60 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+#19 12.68 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+#19 12.71 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+#19 12.74 Get:4 http://deb.debian.org/debian bookworm/main arm64 Packages [8693 kB]
+#19 13.15 Get:5 http://deb.debian.org/debian bookworm-updates/main arm64 Packages [512 B]
+#19 13.18 Get:6 http://deb.debian.org/debian-security bookworm-security/main arm64 Packages [261 kB]
+#19 13.74 Fetched 9209 kB in 1s (7490 kB/s)
+#19 13.74 Reading package lists...
+#19 13.98 Reading package lists...
+#19 14.23 Building dependency tree...
+#19 14.29 Reading state information...
+#19 14.36 The following additional packages will be installed:
+#19 14.36   libbrotli1 libcurl4 libjq1 libldap-2.5-0 libldap-common libnghttp2-14
+#19 14.36   libonig5 libpsl5 librtmp1 libsasl2-2 libsasl2-modules libsasl2-modules-db
+#19 14.36   libssh2-1 publicsuffix
+#19 14.36 Suggested packages:
+#19 14.36   libsasl2-modules-gssapi-mit | libsasl2-modules-gssapi-heimdal
+#19 14.36   libsasl2-modules-ldap libsasl2-modules-otp libsasl2-modules-sql make-doc
+#19 14.43 The following NEW packages will be installed:
+#19 14.43   curl jq libbrotli1 libcurl4 libjq1 libldap-2.5-0 libldap-common
+#19 14.43   libnghttp2-14 libonig5 libpsl5 librtmp1 libsasl2-2 libsasl2-modules
+#19 14.43   libsasl2-modules-db libssh2-1 make publicsuffix
+#19 14.50 0 upgraded, 17 newly installed, 0 to remove and 2 not upgraded.
+#19 14.50 Need to get 2528 kB of archives.
+#19 14.50 After this operation, 7781 kB of additional disk space will be used.
+#19 14.50 Get:1 http://deb.debian.org/debian bookworm/main arm64 libbrotli1 arm64 1.0.9-2+b6 [269 kB]
+#19 14.59 Get:2 http://deb.debian.org/debian bookworm/main arm64 libsasl2-modules-db arm64 2.1.28+dfsg-10 [20.8 kB]
+#19 14.59 Get:3 http://deb.debian.org/debian bookworm/main arm64 libsasl2-2 arm64 2.1.28+dfsg-10 [58.0 kB]
+#19 14.60 Get:4 http://deb.debian.org/debian bookworm/main arm64 libldap-2.5-0 arm64 2.5.13+dfsg-5 [171 kB]
+#19 14.61 Get:5 http://deb.debian.org/debian bookworm/main arm64 libnghttp2-14 arm64 1.52.0-1+deb12u2 [68.6 kB]
+#19 14.62 Get:6 http://deb.debian.org/debian bookworm/main arm64 libpsl5 arm64 0.21.2-1 [58.6 kB]
+#19 14.63 Get:7 http://deb.debian.org/debian bookworm/main arm64 librtmp1 arm64 2.4+20151223.gitfa8646d.1-2+b2 [59.4 kB]
+#19 14.63 Get:8 http://deb.debian.org/debian bookworm/main arm64 libssh2-1 arm64 1.10.0-3+b1 [172 kB]
+#19 14.67 Get:9 http://deb.debian.org/debian bookworm/main arm64 libcurl4 arm64 7.88.1-10+deb12u12 [367 kB]
+#19 14.74 Get:10 http://deb.debian.org/debian bookworm/main arm64 curl arm64 7.88.1-10+deb12u12 [309 kB]
+#19 14.78 Get:11 http://deb.debian.org/debian bookworm/main arm64 libonig5 arm64 6.9.8-1 [179 kB]
+#19 14.82 Get:12 http://deb.debian.org/debian bookworm/main arm64 libjq1 arm64 1.6-2.1 [121 kB]
+#19 14.85 Get:13 http://deb.debian.org/debian bookworm/main arm64 jq arm64 1.6-2.1 [64.5 kB]
+#19 14.88 Get:14 http://deb.debian.org/debian bookworm/main arm64 libldap-common all 2.5.13+dfsg-5 [29.3 kB]
+#19 14.88 Get:15 http://deb.debian.org/debian bookworm/main arm64 libsasl2-modules arm64 2.1.28+dfsg-10 [63.1 kB]
+#19 14.93 Get:16 http://deb.debian.org/debian bookworm/main arm64 make arm64 4.3-4.1 [391 kB]
+#19 14.99 Get:17 http://deb.debian.org/debian bookworm/main arm64 publicsuffix all 20230209.2326-1 [126 kB]
+#19 15.05 debconf: delaying package configuration, since apt-utils is not installed
+#19 15.06 Fetched 2528 kB in 1s (4442 kB/s)
+#19 15.07 Selecting previously unselected package libbrotli1:arm64.
+#19 15.07 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6680 files and directories currently installed.)
+#19 15.07 Preparing to unpack .../00-libbrotli1_1.0.9-2+b6_arm64.deb ...
+#19 15.07 Unpacking libbrotli1:arm64 (1.0.9-2+b6) ...
+#19 15.09 Selecting previously unselected package libsasl2-modules-db:arm64.
+#19 15.09 Preparing to unpack .../01-libsasl2-modules-db_2.1.28+dfsg-10_arm64.deb ...
+#19 15.10 Unpacking libsasl2-modules-db:arm64 (2.1.28+dfsg-10) ...
+#19 15.11 Selecting previously unselected package libsasl2-2:arm64.
+#19 15.11 Preparing to unpack .../02-libsasl2-2_2.1.28+dfsg-10_arm64.deb ...
+#19 15.11 Unpacking libsasl2-2:arm64 (2.1.28+dfsg-10) ...
+#19 15.12 Selecting previously unselected package libldap-2.5-0:arm64.
+#19 15.12 Preparing to unpack .../03-libldap-2.5-0_2.5.13+dfsg-5_arm64.deb ...
+#19 15.12 Unpacking libldap-2.5-0:arm64 (2.5.13+dfsg-5) ...
+#19 15.14 Selecting previously unselected package libnghttp2-14:arm64.
+#19 15.14 Preparing to unpack .../04-libnghttp2-14_1.52.0-1+deb12u2_arm64.deb ...
+#19 15.14 Unpacking libnghttp2-14:arm64 (1.52.0-1+deb12u2) ...
+#19 15.15 Selecting previously unselected package libpsl5:arm64.
+#19 15.15 Preparing to unpack .../05-libpsl5_0.21.2-1_arm64.deb ...
+#19 15.15 Unpacking libpsl5:arm64 (0.21.2-1) ...
+#19 15.17 Selecting previously unselected package librtmp1:arm64.
+#19 15.17 Preparing to unpack .../06-librtmp1_2.4+20151223.gitfa8646d.1-2+b2_arm64.deb ...
+#19 15.17 Unpacking librtmp1:arm64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#19 15.19 Selecting previously unselected package libssh2-1:arm64.
+#19 15.19 Preparing to unpack .../07-libssh2-1_1.10.0-3+b1_arm64.deb ...
+#19 15.19 Unpacking libssh2-1:arm64 (1.10.0-3+b1) ...
+#19 15.21 Selecting previously unselected package libcurl4:arm64.
+#19 15.21 Preparing to unpack .../08-libcurl4_7.88.1-10+deb12u12_arm64.deb ...
+#19 15.21 Unpacking libcurl4:arm64 (7.88.1-10+deb12u12) ...
+#19 15.25 Selecting previously unselected package curl.
+#19 15.25 Preparing to unpack .../09-curl_7.88.1-10+deb12u12_arm64.deb ...
+#19 15.25 Unpacking curl (7.88.1-10+deb12u12) ...
+#19 15.27 Selecting previously unselected package libonig5:arm64.
+#19 15.27 Preparing to unpack .../10-libonig5_6.9.8-1_arm64.deb ...
+#19 15.27 Unpacking libonig5:arm64 (6.9.8-1) ...
+#19 15.29 Selecting previously unselected package libjq1:arm64.
+#19 15.29 Preparing to unpack .../11-libjq1_1.6-2.1_arm64.deb ...
+#19 15.29 Unpacking libjq1:arm64 (1.6-2.1) ...
+#19 15.31 Selecting previously unselected package jq.
+#19 15.31 Preparing to unpack .../12-jq_1.6-2.1_arm64.deb ...
+#19 15.31 Unpacking jq (1.6-2.1) ...
+#19 15.32 Selecting previously unselected package libldap-common.
+#19 15.32 Preparing to unpack .../13-libldap-common_2.5.13+dfsg-5_all.deb ...
+#19 15.32 Unpacking libldap-common (2.5.13+dfsg-5) ...
+#19 15.33 Selecting previously unselected package libsasl2-modules:arm64.
+#19 15.34 Preparing to unpack .../14-libsasl2-modules_2.1.28+dfsg-10_arm64.deb ...
+#19 15.34 Unpacking libsasl2-modules:arm64 (2.1.28+dfsg-10) ...
+#19 15.35 Selecting previously unselected package make.
+#19 15.35 Preparing to unpack .../15-make_4.3-4.1_arm64.deb ...
+#19 15.35 Unpacking make (4.3-4.1) ...
+#19 15.38 Selecting previously unselected package publicsuffix.
+#19 15.38 Preparing to unpack .../16-publicsuffix_20230209.2326-1_all.deb ...
+#19 15.38 Unpacking publicsuffix (20230209.2326-1) ...
+#19 15.40 Setting up libpsl5:arm64 (0.21.2-1) ...
+#19 15.40 Setting up libbrotli1:arm64 (1.0.9-2+b6) ...
+#19 15.40 Setting up libsasl2-modules:arm64 (2.1.28+dfsg-10) ...
+#19 15.41 Setting up libnghttp2-14:arm64 (1.52.0-1+deb12u2) ...
+#19 15.41 Setting up libldap-common (2.5.13+dfsg-5) ...
+#19 15.42 Setting up libsasl2-modules-db:arm64 (2.1.28+dfsg-10) ...
+#19 15.42 Setting up make (4.3-4.1) ...
+#19 15.43 Setting up librtmp1:arm64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#19 15.43 Setting up libsasl2-2:arm64 (2.1.28+dfsg-10) ...
+#19 15.43 Setting up libssh2-1:arm64 (1.10.0-3+b1) ...
+#19 15.44 Setting up publicsuffix (20230209.2326-1) ...
+#19 15.44 Setting up libonig5:arm64 (6.9.8-1) ...
+#19 15.45 Setting up libjq1:arm64 (1.6-2.1) ...
+#19 15.45 Setting up libldap-2.5-0:arm64 (2.5.13+dfsg-5) ...
+#19 15.46 Setting up jq (1.6-2.1) ...
+#19 15.46 Setting up libcurl4:arm64 (7.88.1-10+deb12u12) ...
+#19 15.46 Setting up curl (7.88.1-10+deb12u12) ...
+#19 15.47 Processing triggers for libc-bin (2.36-9+deb12u10) ...
+#19 DONE 15.8s
+
+#20 [test 4/4] RUN pip install --upgrade pip &&     pip install -r requirements-test.txt &&     pip install pipx &&     pipx install pip-search &&     apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
+#20 13.03 
+#20 13.03 Successfully installed Mako-1.3.10 MarkupSafe-3.0.2 alembic-1.16.1 annotated-types-0.7.0 anyio-4.9.0 certifi-2025.4.26 charset-normalizer-3.4.2 click-8.2.1 coverage-7.8.2 fastapi-0.115.12 greenlet-3.2.2 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.10 iniconfig-2.1.0 markdown-3.5.2 numpy-2.2.6 packaging-25.0 pika-1.3.2 pluggy-1.6.0 psycopg2-binary-2.9.10 pydantic-2.11.5 pydantic-core-2.33.2 pygments-2.19.1 pyjwt-2.10.1 pytest-8.4.0 pytest-cov-6.1.1 pytest-json-report-1.5.0 pytest-metadata-3.1.1 python-dateutil-2.9.0.post0 python-multipart-0.0.20 requests-2.32.3 six-1.17.0 sniffio-1.3.1 sqlalchemy-2.0.41 starlette-0.46.2 typing-extensions-4.14.0 typing-inspection-0.4.1 urllib3-2.4.0 uvicorn-0.34.3
+#20 13.03 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#20 13.53 Collecting pipx
+#20 13.61   Downloading pipx-1.7.1-py3-none-any.whl.metadata (18 kB)
+#20 13.66 Collecting argcomplete>=1.9.4 (from pipx)
+#20 13.68   Downloading argcomplete-3.6.2-py3-none-any.whl.metadata (16 kB)
+#20 13.70 Requirement already satisfied: packaging>=20 in /usr/local/lib/python3.11/site-packages (from pipx) (25.0)
+#20 13.73 Collecting platformdirs>=2.1 (from pipx)
+#20 13.75   Downloading platformdirs-4.3.8-py3-none-any.whl.metadata (12 kB)
+#20 13.78 Collecting userpath!=1.9,>=1.6 (from pipx)
+#20 13.81   Downloading userpath-1.9.2-py3-none-any.whl.metadata (3.0 kB)
+#20 13.81 Requirement already satisfied: click in /usr/local/lib/python3.11/site-packages (from userpath!=1.9,>=1.6->pipx) (8.2.1)
+#20 13.83 Downloading pipx-1.7.1-py3-none-any.whl (78 kB)
+#20 13.89 Downloading argcomplete-3.6.2-py3-none-any.whl (43 kB)
+#20 13.92 Downloading platformdirs-4.3.8-py3-none-any.whl (18 kB)
+#20 13.95 Downloading userpath-1.9.2-py3-none-any.whl (9.1 kB)
+#20 13.98 Installing collected packages: userpath, platformdirs, argcomplete, pipx
+#20 14.03 
+#20 14.04 Successfully installed argcomplete-3.6.2 pipx-1.7.1 platformdirs-4.3.8 userpath-1.9.2
+#20 14.04 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#20 14.12 creating virtual environment...
+#20 14.14 creating shared libraries...
+#20 ...
+
+#21 [test-api 5/5] COPY auto_code_review.py /app/auto_code_review.py
+#21 DONE 0.0s
+
+#20 [test 4/4] RUN pip install --upgrade pip &&     pip install -r requirements-test.txt &&     pip install pipx &&     pipx install pip-search &&     apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
+#20 15.81 upgrading shared libraries...
+#20 16.53 installing pip-search...
+#20 18.53 ⚠️  Note: '/root/.local/bin' is not on your PATH environment variable. These
+#20 18.53     apps will not be globally accessible until your PATH is updated. Run `pipx
+#20 18.53     ensurepath` to automatically add it, or manually modify your PATH in your
+#20 18.53     shell's config file (e.g. ~/.bashrc).
+#20 18.53 done! ✨ 🌟 ✨
+#20 18.53   installed package pip-search 0.0.13, installed using Python 3.11.12
+#20 18.53   These apps are now globally available
+#20 18.53     - pip_search
+#20 18.60 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+#20 18.68 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+#20 18.71 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+#20 18.74 Get:4 http://deb.debian.org/debian bookworm/main arm64 Packages [8693 kB]
+#20 19.23 Get:5 http://deb.debian.org/debian bookworm-updates/main arm64 Packages [512 B]
+#20 19.26 Get:6 http://deb.debian.org/debian-security bookworm-security/main arm64 Packages [261 kB]
+#20 19.82 Fetched 9209 kB in 1s (7242 kB/s)
+#20 19.82 Reading package lists...
+#20 20.10 Reading package lists...
+#20 20.38 Building dependency tree...
+#20 20.45 Reading state information...
+#20 20.52 The following additional packages will be installed:
+#20 20.52   libbrotli1 libcurl4 libjq1 libldap-2.5-0 libldap-common libnghttp2-14
+#20 20.52   libonig5 libpsl5 librtmp1 libsasl2-2 libsasl2-modules libsasl2-modules-db
+#20 20.52   libssh2-1 publicsuffix
+#20 20.52 Suggested packages:
+#20 20.52   libsasl2-modules-gssapi-mit | libsasl2-modules-gssapi-heimdal
+#20 20.52   libsasl2-modules-ldap libsasl2-modules-otp libsasl2-modules-sql make-doc
+#20 20.61 The following NEW packages will be installed:
+#20 20.61   curl jq libbrotli1 libcurl4 libjq1 libldap-2.5-0 libldap-common
+#20 20.61   libnghttp2-14 libonig5 libpsl5 librtmp1 libsasl2-2 libsasl2-modules
+#20 20.61   libsasl2-modules-db libssh2-1 make publicsuffix
+#20 20.67 0 upgraded, 17 newly installed, 0 to remove and 2 not upgraded.
+#20 20.67 Need to get 2528 kB of archives.
+#20 20.67 After this operation, 7781 kB of additional disk space will be used.
+#20 20.67 Get:1 http://deb.debian.org/debian bookworm/main arm64 libbrotli1 arm64 1.0.9-2+b6 [269 kB]
+#20 20.77 Get:2 http://deb.debian.org/debian bookworm/main arm64 libsasl2-modules-db arm64 2.1.28+dfsg-10 [20.8 kB]
+#20 ...
+
+#22 [test-api] exporting to image
+#22 exporting layers 4.0s done
+#22 exporting manifest sha256:516a23b3f91bc926aa59e70c1fe5ed14324ff25c5bb771d88660bb7ad1e27c4f done
+#22 exporting config sha256:96d28d831b0dbdaa43d11da83a0f67177703d18850117623df1d4668f8c18162 done
+#22 exporting attestation manifest sha256:9a35e71b0e60446edad6decd70629dc90b29e49f766043d6d4a6e1ef6d5e6558 done
+#22 exporting manifest list sha256:e818f04180ef77bbe6a9914f40da8d177eeb8df2f420e0d724715e97f753fe2d done
+#22 naming to docker.io/library/ai-ide-api-test-api:latest done
+#22 unpacking to docker.io/library/ai-ide-api-test-api:latest 1.0s done
+#22 DONE 5.0s
+
+#20 [test 4/4] RUN pip install --upgrade pip &&     pip install -r requirements-test.txt &&     pip install pipx &&     pipx install pip-search &&     apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
+#20 20.77 Get:3 http://deb.debian.org/debian bookworm/main arm64 libsasl2-2 arm64 2.1.28+dfsg-10 [58.0 kB]
+#20 20.78 Get:4 http://deb.debian.org/debian bookworm/main arm64 libldap-2.5-0 arm64 2.5.13+dfsg-5 [171 kB]
+#20 20.79 Get:5 http://deb.debian.org/debian bookworm/main arm64 libnghttp2-14 arm64 1.52.0-1+deb12u2 [68.6 kB]
+#20 20.80 Get:6 http://deb.debian.org/debian bookworm/main arm64 libpsl5 arm64 0.21.2-1 [58.6 kB]
+#20 20.80 Get:7 http://deb.debian.org/debian bookworm/main arm64 librtmp1 arm64 2.4+20151223.gitfa8646d.1-2+b2 [59.4 kB]
+#20 20.80 Get:8 http://deb.debian.org/debian bookworm/main arm64 libssh2-1 arm64 1.10.0-3+b1 [172 kB]
+#20 20.84 Get:9 http://deb.debian.org/debian bookworm/main arm64 libcurl4 arm64 7.88.1-10+deb12u12 [367 kB]
+#20 20.88 Get:10 http://deb.debian.org/debian bookworm/main arm64 curl arm64 7.88.1-10+deb12u12 [309 kB]
+#20 ...
+
+#23 [test-api] resolving provenance for metadata file
+#23 DONE 0.0s
+
+#20 [test 4/4] RUN pip install --upgrade pip &&     pip install -r requirements-test.txt &&     pip install pipx &&     pipx install pip-search &&     apt-get update && apt-get install -y curl jq make && rm -rf /var/lib/apt/lists/*
+#20 20.92 Get:11 http://deb.debian.org/debian bookworm/main arm64 libonig5 arm64 6.9.8-1 [179 kB]
+#20 20.93 Get:12 http://deb.debian.org/debian bookworm/main arm64 libjq1 arm64 1.6-2.1 [121 kB]
+#20 20.97 Get:13 http://deb.debian.org/debian bookworm/main arm64 jq arm64 1.6-2.1 [64.5 kB]
+#20 20.99 Get:14 http://deb.debian.org/debian bookworm/main arm64 libldap-common all 2.5.13+dfsg-5 [29.3 kB]
+#20 20.99 Get:15 http://deb.debian.org/debian bookworm/main arm64 libsasl2-modules arm64 2.1.28+dfsg-10 [63.1 kB]
+#20 21.02 Get:16 http://deb.debian.org/debian bookworm/main arm64 make arm64 4.3-4.1 [391 kB]
+#20 21.05 Get:17 http://deb.debian.org/debian bookworm/main arm64 publicsuffix all 20230209.2326-1 [126 kB]
+#20 21.10 debconf: delaying package configuration, since apt-utils is not installed
+#20 21.11 Fetched 2528 kB in 0s (5781 kB/s)
+#20 21.12 Selecting previously unselected package libbrotli1:arm64.
+#20 21.12 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 6680 files and directories currently installed.)
+#20 21.12 Preparing to unpack .../00-libbrotli1_1.0.9-2+b6_arm64.deb ...
+#20 21.12 Unpacking libbrotli1:arm64 (1.0.9-2+b6) ...
+#20 21.14 Selecting previously unselected package libsasl2-modules-db:arm64.
+#20 21.14 Preparing to unpack .../01-libsasl2-modules-db_2.1.28+dfsg-10_arm64.deb ...
+#20 21.14 Unpacking libsasl2-modules-db:arm64 (2.1.28+dfsg-10) ...
+#20 21.15 Selecting previously unselected package libsasl2-2:arm64.
+#20 21.16 Preparing to unpack .../02-libsasl2-2_2.1.28+dfsg-10_arm64.deb ...
+#20 21.16 Unpacking libsasl2-2:arm64 (2.1.28+dfsg-10) ...
+#20 21.17 Selecting previously unselected package libldap-2.5-0:arm64.
+#20 21.17 Preparing to unpack .../03-libldap-2.5-0_2.5.13+dfsg-5_arm64.deb ...
+#20 21.17 Unpacking libldap-2.5-0:arm64 (2.5.13+dfsg-5) ...
+#20 21.19 Selecting previously unselected package libnghttp2-14:arm64.
+#20 21.19 Preparing to unpack .../04-libnghttp2-14_1.52.0-1+deb12u2_arm64.deb ...
+#20 21.19 Unpacking libnghttp2-14:arm64 (1.52.0-1+deb12u2) ...
+#20 21.20 Selecting previously unselected package libpsl5:arm64.
+#20 21.20 Preparing to unpack .../05-libpsl5_0.21.2-1_arm64.deb ...
+#20 21.21 Unpacking libpsl5:arm64 (0.21.2-1) ...
+#20 21.22 Selecting previously unselected package librtmp1:arm64.
+#20 21.22 Preparing to unpack .../06-librtmp1_2.4+20151223.gitfa8646d.1-2+b2_arm64.deb ...
+#20 21.22 Unpacking librtmp1:arm64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#20 21.24 Selecting previously unselected package libssh2-1:arm64.
+#20 21.24 Preparing to unpack .../07-libssh2-1_1.10.0-3+b1_arm64.deb ...
+#20 21.24 Unpacking libssh2-1:arm64 (1.10.0-3+b1) ...
+#20 21.26 Selecting previously unselected package libcurl4:arm64.
+#20 21.26 Preparing to unpack .../08-libcurl4_7.88.1-10+deb12u12_arm64.deb ...
+#20 21.26 Unpacking libcurl4:arm64 (7.88.1-10+deb12u12) ...
+#20 21.28 Selecting previously unselected package curl.
+#20 21.28 Preparing to unpack .../09-curl_7.88.1-10+deb12u12_arm64.deb ...
+#20 21.29 Unpacking curl (7.88.1-10+deb12u12) ...
+#20 21.31 Selecting previously unselected package libonig5:arm64.
+#20 21.31 Preparing to unpack .../10-libonig5_6.9.8-1_arm64.deb ...
+#20 21.31 Unpacking libonig5:arm64 (6.9.8-1) ...
+#20 21.33 Selecting previously unselected package libjq1:arm64.
+#20 21.33 Preparing to unpack .../11-libjq1_1.6-2.1_arm64.deb ...
+#20 21.33 Unpacking libjq1:arm64 (1.6-2.1) ...
+#20 21.35 Selecting previously unselected package jq.
+#20 21.35 Preparing to unpack .../12-jq_1.6-2.1_arm64.deb ...
+#20 21.35 Unpacking jq (1.6-2.1) ...
+#20 21.37 Selecting previously unselected package libldap-common.
+#20 21.37 Preparing to unpack .../13-libldap-common_2.5.13+dfsg-5_all.deb ...
+#20 21.37 Unpacking libldap-common (2.5.13+dfsg-5) ...
+#20 21.38 Selecting previously unselected package libsasl2-modules:arm64.
+#20 21.38 Preparing to unpack .../14-libsasl2-modules_2.1.28+dfsg-10_arm64.deb ...
+#20 21.39 Unpacking libsasl2-modules:arm64 (2.1.28+dfsg-10) ...
+#20 21.40 Selecting previously unselected package make.
+#20 21.40 Preparing to unpack .../15-make_4.3-4.1_arm64.deb ...
+#20 21.40 Unpacking make (4.3-4.1) ...
+#20 21.43 Selecting previously unselected package publicsuffix.
+#20 21.43 Preparing to unpack .../16-publicsuffix_20230209.2326-1_all.deb ...
+#20 21.43 Unpacking publicsuffix (20230209.2326-1) ...
+#20 21.45 Setting up libpsl5:arm64 (0.21.2-1) ...
+#20 21.46 Setting up libbrotli1:arm64 (1.0.9-2+b6) ...
+#20 21.46 Setting up libsasl2-modules:arm64 (2.1.28+dfsg-10) ...
+#20 21.47 Setting up libnghttp2-14:arm64 (1.52.0-1+deb12u2) ...
+#20 21.47 Setting up libldap-common (2.5.13+dfsg-5) ...
+#20 21.47 Setting up libsasl2-modules-db:arm64 (2.1.28+dfsg-10) ...
+#20 21.48 Setting up make (4.3-4.1) ...
+#20 21.48 Setting up librtmp1:arm64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#20 21.49 Setting up libsasl2-2:arm64 (2.1.28+dfsg-10) ...
+#20 21.49 Setting up libssh2-1:arm64 (1.10.0-3+b1) ...
+#20 21.49 Setting up publicsuffix (20230209.2326-1) ...
+#20 21.50 Setting up libonig5:arm64 (6.9.8-1) ...
+#20 21.50 Setting up libjq1:arm64 (1.6-2.1) ...
+#20 21.50 Setting up libldap-2.5-0:arm64 (2.5.13+dfsg-5) ...
+#20 21.51 Setting up jq (1.6-2.1) ...
+#20 21.51 Setting up libcurl4:arm64 (7.88.1-10+deb12u12) ...
+#20 21.51 Setting up curl (7.88.1-10+deb12u12) ...
+#20 21.52 Processing triggers for libc-bin (2.36-9+deb12u10) ...
+#20 DONE 21.8s
+
+#24 [test] exporting to image
+#24 exporting layers 4.9s done
+#24 exporting manifest sha256:eea3e307be85dc23c10e07825228f9b6a408264c86eb8a9d3c4c97861cfd54d7
+#24 exporting manifest sha256:eea3e307be85dc23c10e07825228f9b6a408264c86eb8a9d3c4c97861cfd54d7 done
+#24 exporting config sha256:6832fdc5038a85dced8a4d5d0c6d44b994a06259730ac2db87aa1931df748675 done
+#24 exporting attestation manifest sha256:d79133b1f306042632689b3acd41ebc4b7556c7377212160b2ffdd4ba1271ed9 done
+#24 exporting manifest list sha256:2eec9cfc457c33ba14ffbcfb5773a48b48d4f354fa78a47fe67cc84c6fc356ad done
+#24 naming to docker.io/library/ai-ide-api-test:latest done
+#24 unpacking to docker.io/library/ai-ide-api-test:latest
+#24 unpacking to docker.io/library/ai-ide-api-test:latest 1.0s done
+#24 DONE 5.9s
+
+#25 [test] resolving provenance for metadata file
+#25 DONE 0.0s
+
+#26 [test-misc-scripts internal] load build definition from Dockerfile.misc-scripts
+#26 transferring dockerfile: 459B done
+#26 DONE 0.0s
+
+#27 [test-frontend internal] load build definition from Dockerfile
+#27 transferring dockerfile: 484B done
+#27 DONE 0.0s
+
+#28 [test-ollama-functions internal] load build definition from Dockerfile.ollama_functions
+#28 transferring dockerfile: 551B done
+#28 DONE 0.0s
+
+#29 [test-frontend auth] library/nginx:pull token for registry-1.docker.io
+#29 DONE 0.0s
+
+#30 [test-frontend auth] library/node:pull token for registry-1.docker.io
+#30 DONE 0.0s
+
+#10 [test-ollama-functions internal] load metadata for docker.io/library/python:3.11-slim
+#10 DONE 0.5s
+
+#31 [test-misc-scripts internal] load .dockerignore
+#31 transferring context: 2B done
+#31 DONE 0.0s
+
+#32 [test-ollama-functions internal] load .dockerignore
+#32 transferring context: 2B done
+#32 DONE 0.0s
+
+#13 [test-misc-scripts 1/6] FROM docker.io/library/python:3.11-slim@sha256:dbf1de478a55d6763afaa39c2f3d7b54b25230614980276de5cacdde79529d0c
+#13 resolve docker.io/library/python:3.11-slim@sha256:dbf1de478a55d6763afaa39c2f3d7b54b25230614980276de5cacdde79529d0c 0.0s done
+#13 DONE 0.0s
+
+#33 [test-ollama-functions internal] load build context
+#33 transferring context: 5.17kB 0.0s done
+#33 DONE 0.0s
+
+#34 [test-ollama-functions 2/8] WORKDIR /code
+#34 CACHED
+
+#35 [test-ollama-functions 3/8] COPY requirements.txt ./
+#35 CACHED
+
+#36 [test-ollama-functions 5/8] RUN pip install --no-cache-dir fastapi uvicorn
+#36 CACHED
+
+#37 [test-ollama-functions 4/8] RUN pip install --no-cache-dir -r requirements.txt
+#37 CACHED
+
+#38 [test-ollama-functions 6/8] RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+#38 CACHED
+
+#39 [test-ollama-functions 7/8] COPY scripts/ ./scripts/
+#39 CACHED
+
+#40 [test-ollama-functions 8/8] COPY misc_scripts/ ./misc_scripts/
+#40 CACHED
+
+#41 [test-ollama-functions] exporting to image
+#41 exporting layers done
+#41 exporting manifest sha256:57a13fffb9a3bf6934b0e735ec71062edee7f66d355282da8c9f06c07d4292f4 done
+#41 exporting config sha256:a3ee0bd37c3bc5a6b686a6f7dbebbf0d6a90d98177c931988083c31be3bd7648 done
+#41 exporting attestation manifest sha256:653a347f2faac16f64e21a6f6bf25463dec9b81b8762210b777311922d8a14d6 0.0s done
+#41 exporting manifest list sha256:6d8374004c501a87500f6d195ff61a5cda4edcde1db9b3806131afedee406c36 done
+#41 naming to docker.io/library/ai-ide-api-test-ollama-functions:latest
+#41 naming to docker.io/library/ai-ide-api-test-ollama-functions:latest done
+#41 unpacking to docker.io/library/ai-ide-api-test-ollama-functions:latest done
+#41 DONE 0.1s
+
+#42 [test-misc-scripts internal] load build context
+#42 transferring context: 493.14kB 0.1s done
+#42 DONE 0.1s
+
+#43 [test-misc-scripts 3/6] COPY misc_scripts/requirements.txt /scripts/requirements.txt
+#43 CACHED
+
+#44 [test-misc-scripts 4/6] RUN apt-get update &&     apt-get install -y postgresql-client git &&     pip install --upgrade pip &&     pip install -r /scripts/requirements.txt &&     rm -rf /var/lib/apt/lists/*
+#44 CACHED
+
+#45 [test-misc-scripts 2/6] WORKDIR /scripts
+#45 CACHED
+
+#46 [test-misc-scripts 5/6] COPY misc_scripts/ /scripts/
+#46 CACHED
+
+#47 [test-frontend internal] load metadata for docker.io/library/node:20-alpine
+#47 DONE 0.5s
+
+#48 [test-ollama-functions] resolving provenance for metadata file
+#48 DONE 0.0s
+
+#49 [test-misc-scripts 6/6] COPY . /code
+#49 ...
+
+#50 [test-frontend internal] load metadata for docker.io/library/nginx:alpine
+#50 DONE 0.5s
+
+#51 [test-frontend internal] load .dockerignore
+#51 transferring context: 2B done
+#51 DONE 0.0s
+
+#52 [test-frontend stage-1 1/2] FROM docker.io/library/nginx:alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#52 resolve docker.io/library/nginx:alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 0.0s done
+#52 DONE 0.0s
+
+#53 [test-frontend build 1/7] FROM docker.io/library/node:20-alpine@sha256:d3507a213936fe4ef54760a186e113db5188472d9efdf491686bd94580a1c1e8
+#53 resolve docker.io/library/node:20-alpine@sha256:d3507a213936fe4ef54760a186e113db5188472d9efdf491686bd94580a1c1e8 0.0s done
+#53 DONE 0.0s
+
+#54 [test-frontend internal] load build context
+#54 transferring context: 1.77kB done
+#54 DONE 0.0s
+
+#55 [test-frontend build 4/7] RUN npm install
+#55 CACHED
+
+#56 [test-frontend build 2/7] WORKDIR /app
+#56 CACHED
+
+#57 [test-frontend build 6/7] RUN echo "VITE_API_BASE_URL=http://test-api:8000" > .env
+#57 CACHED
+
+#58 [test-frontend build 7/7] RUN npm run build
+#58 CACHED
+
+#59 [test-frontend build 5/7] COPY . .
+#59 CACHED
+
+#60 [test-frontend build 3/7] COPY package*.json ./
+#60 CACHED
+
+#61 [test-frontend stage-1 2/2] COPY --from=build /app/dist /usr/share/nginx/html
+#61 CACHED
+
+#62 [test-frontend] exporting to image
+#62 exporting layers done
+#62 exporting manifest sha256:0348bef3d84933b7ce21edf6ae3de0733700d567ab11fef92c1beeec24392e3e done
+#62 exporting config sha256:0630a07e1dea046841fee3db2089ef62c2a343491823d044e7bcb74509398c02 done
+#62 exporting attestation manifest sha256:8040611d9cea5d96177db7d05c0c4548cd4da76aa7e0a440b1cf0fccb95dfd4b 0.0s done
+#62 exporting manifest list sha256:980f56223f048b6d3605912fa28153a0482d87938dca1d3cd45b5866c4e183b6 done
+#62 naming to docker.io/library/ai-ide-api-test-frontend:latest done
+#62 unpacking to docker.io/library/ai-ide-api-test-frontend:latest done
+#62 DONE 0.0s
+
+#63 [test-worker internal] load build definition from Dockerfile
+#63 transferring dockerfile: 180B done
+#63 DONE 0.0s
+
+#10 [test-worker internal] load metadata for docker.io/library/python:3.11-slim
+#10 ...
+
+#49 [test-misc-scripts 6/6] COPY . /code
+#49 DONE 0.4s
+
+#13 [test-worker 1/6] FROM docker.io/library/python:3.11-slim@sha256:dbf1de478a55d6763afaa39c2f3d7b54b25230614980276de5cacdde79529d0c
+#13 resolve docker.io/library/python:3.11-slim@sha256:dbf1de478a55d6763afaa39c2f3d7b54b25230614980276de5cacdde79529d0c 0.0s done
+#13 DONE 0.0s
+
+#10 [test-worker internal] load metadata for docker.io/library/python:3.11-slim
+#10 DONE 0.8s
+
+#64 [test-frontend] resolving provenance for metadata file
+#64 DONE 0.0s
+
+#65 [test-worker internal] load .dockerignore
+#65 transferring context: 2B done
+#65 DONE 0.0s
+
+#66 [test-worker internal] load build context
+#66 transferring context: 66B done
+#66 DONE 0.0s
+
+#67 [test-worker 3/4] COPY main.py .
+#67 CACHED
+
+#15 [test-worker 2/4] WORKDIR /app
+#15 CACHED
+
+#68 [test-worker 4/4] RUN pip install pika requests
+#68 CACHED
+
+#69 [test-worker] exporting to image
+#69 exporting layers done
+#69 exporting manifest sha256:9a82fbf242ba4aa6159762b07d2d4721e23ad73dedf7172cf03fb79afe3343b0 done
+#69 exporting config sha256:6a5f6f517f7fb82b9f6282c2b3524497bb49ea578e8ac0a5f7e24068acaed80d done
+#69 exporting attestation manifest sha256:0333879fa44abd520c4ff9864fd19308f35ae4defe6a35b64c09581c6474964e done
+#69 exporting manifest list sha256:7ea8a2f2a8589d745d8d4ba9aeef78f6ec703467c431627e38ceaa9a726cede2 done
+#69 naming to docker.io/library/ai-ide-api-test-worker:latest done
+#69 unpacking to docker.io/library/ai-ide-api-test-worker:latest done
+#69 DONE 0.0s
+
+#70 [test-worker] resolving provenance for metadata file
+#70 DONE 0.0s
+
+#71 [test-misc-scripts] exporting to image
+#71 exporting layers 0.8s done
+#71 exporting manifest sha256:c631915dd48ec5349914aa68305c03062e8dae941e0d97f79288af43b997fa16
+#71 exporting manifest sha256:c631915dd48ec5349914aa68305c03062e8dae941e0d97f79288af43b997fa16 done
+#71 exporting config sha256:1a609710a05c938b1d092ab15a7b4a1c09b242a7737cbe7723d76a232d22a67f done
+#71 exporting attestation manifest sha256:a015c8b6104cea08e5ce570167d1058460e84523a2c1bcaeade9b918aa0d391a done
+#71 exporting manifest list sha256:428a12a665a7920dbdbc4c18ea7e42c261f02ab5aae6b3b70d2345b988d9b171 done
+#71 naming to docker.io/library/ai-ide-api-test-misc-scripts:latest done
+#71 unpacking to docker.io/library/ai-ide-api-test-misc-scripts:latest
+#71 unpacking to docker.io/library/ai-ide-api-test-misc-scripts:latest 0.2s done
+#71 DONE 1.0s
+
+#72 [test-misc-scripts] resolving provenance for metadata file
+#72 DONE 0.0s
+[ai-test-rebuild] All test containers rebuilt!
+docker-compose -f docker-compose.test.yml up -d test-db test test-frontend test-misc-scripts test-ollama-functions test-worker
+[ai-test-up] Test environment is up!
+/Library/Developer/CommandLineTools/usr/bin/make -f Makefile.ai ai-test-setup
+docker-compose -f docker-compose.test.yml up -d test-db test-api test test-frontend test-misc-scripts test-ollama-functions test-worker
+Waiting for test-api container to be running...
+Checking test database status...
+Database 'rulesdb' detected - not creating
+Running database migrations...
+docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+docker-compose -f docker-compose.test.yml exec test-api alembic -c alembic_memorydb.ini upgrade head
+Test database setup complete!
+[ai-test-rebuild-with-setup] Test containers rebuilt and environment set up!

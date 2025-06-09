@@ -8,9 +8,8 @@ import sqlalchemy as sa
 from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, create_engine, text
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, Boolean, create_engine, text
 from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID
-from sqlalchemy.dialects.sqlite import BLOB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
@@ -20,7 +19,9 @@ from sqlalchemy.types import UserDefinedType
 POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "postgres")
 POSTGRES_DB = os.environ.get("POSTGRES_DB", "rulesdb")
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "db-test")
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
+if not POSTGRES_HOST:
+    POSTGRES_HOST = "test-db" if os.environ.get("ENVIRONMENT") == "test" else "db"
 POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
 DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
@@ -42,14 +43,6 @@ memory_engine = create_engine(MEMORYDB_URL)
 MemorySessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=memory_engine)
 
 
-# Enum for rule/proposal/feedback status
-class StatusEnum(str, enum.Enum):
-    pending = "pending"
-    approved = "approved"
-    rejected = "rejected"
-    reverted_to_enhancement = "reverted_to_enhancement"  # New status
-
-
 # Enum for scope level
 class ScopeLevelEnum(str, enum.Enum):
     global_ = "global"
@@ -61,34 +54,30 @@ class ScopeLevelEnum(str, enum.Enum):
 # Allowed values for scope_level: 'global', 'team', 'project', 'machine'
 
 
+# ARR! All IDs and foreign keys be sa.String() for maximum compatibility. No UUID columns! See ONBOARDING_INTERNAL.md and rules/db_types.mdc for the tale.
+
+
 # Rule model
 class Rule(Base):
     __tablename__ = "rules"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=lambda: str(uuid.uuid4()),
-    )
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     rule_type = Column(String, index=True)
     description = Column(Text)
     diff = Column(Text)
-    status = Column(Enum(StatusEnum), default=StatusEnum.approved)
+    status = Column(String, default="approved")
     submitted_by = Column(String, index=True)
     added_by = Column(String, index=True, nullable=True)
-    project = Column(UUID(as_uuid=True), index=True, nullable=True)
+    project = Column(String, index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     version = Column(Integer, default=1)
-    categories = Column(String, default="")  # Comma-separated
-    tags = Column(String, default="")  # Comma-separated
-    examples = Column(Text, nullable=True, default=None)
-    applies_to = Column(String, default="")  # Comma-separated list of targets
+    categories = Column(JSON, nullable=True)
+    tags = Column(JSON, nullable=True)
+    examples = Column(JSON, nullable=True)
+    applies_to = Column(JSON, nullable=True)
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
     # Hierarchical scope fields
-    scope_level = Column(
-        String, index=True, nullable=False, default="global"
-    )  # 'global', 'team', 'project', 'machine'
+    scope_level = Column(String, index=True, nullable=False, default="global")
     scope_id = Column(String, index=True, nullable=True)
     parent_rule_id = Column(String, nullable=True)
 
@@ -96,53 +85,37 @@ class Rule(Base):
 # Proposal model
 class Proposal(Base):
     __tablename__ = "proposals"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=lambda: str(uuid.uuid4()),
-    )
-    rule_id = Column(
-        UUID(as_uuid=True), ForeignKey("rules.id"), nullable=True
-    )  # Reference to rule being updated
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    rule_id = Column(String, ForeignKey("rules.id"), nullable=True)
     rule_type = Column(String, index=True)
     description = Column(Text)
     diff = Column(Text)
-    status = Column(Enum(StatusEnum), default=StatusEnum.pending)
+    status = Column(String, default="pending")
     submitted_by = Column(String, index=True)
-    project = Column(UUID(as_uuid=True), index=True, nullable=True)
+    project = Column(String, index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     version = Column(Integer, default=1)
-    categories = Column(String, default="")  # Comma-separated
-    tags = Column(String, default="")  # Comma-separated
-    examples = Column(Text, nullable=True, default=None)
-    applies_to = Column(String, default="")  # Comma-separated list of targets
+    categories = Column(JSON, nullable=True)
+    tags = Column(JSON, nullable=True)
+    examples = Column(JSON, nullable=True)
+    applies_to = Column(JSON, nullable=True)
     applies_to_rationale = Column(Text, nullable=True, default=None)
     reason_for_change = Column(Text, nullable=True, default=None)
     references = Column(Text, nullable=True, default=None)
     current_rule = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
     # Hierarchical scope fields
-    scope_level = Column(
-        String, index=True, nullable=False, default="global"
-    )  # 'global', 'team', 'project', 'machine'
+    scope_level = Column(String, index=True, nullable=False, default="global")
     scope_id = Column(String, index=True, nullable=True)
-    parent_rule_id = Column(
-        UUID(as_uuid=True), ForeignKey("rules.id"), nullable=True
-    )  # Reference to parent rule for versioning
+    parent_rule_id = Column(String, ForeignKey("rules.id"), nullable=True)
 
 
 # Feedback model
 class Feedback(Base):
     __tablename__ = "feedback"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=lambda: str(uuid.uuid4()),
-    )
-    rule_id = Column(UUID(as_uuid=True), index=True)
-    project = Column(UUID(as_uuid=True), index=True, nullable=True)
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    rule_id = Column(String, index=True)
+    project = Column(String, index=True, nullable=True)
     feedback_type = Column(String)
     comment = Column(Text, nullable=True)
     submitted_by = Column(String, index=True, nullable=True)
@@ -152,32 +125,25 @@ class Feedback(Base):
 # RuleVersion model for version history
 class RuleVersion(Base):
     __tablename__ = "rule_versions"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=lambda: str(uuid.uuid4()),
-    )
-    rule_id = Column(UUID(as_uuid=True), index=True)
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    rule_id = Column(String, index=True)
     version = Column(Integer)
     rule_type = Column(String)
     description = Column(Text)
     diff = Column(Text)
-    status = Column(Enum(StatusEnum))
+    status = Column(String)
     submitted_by = Column(String)
     added_by = Column(String, nullable=True)
-    project = Column(UUID(as_uuid=True), nullable=True)
+    project = Column(String, nullable=True)
     timestamp = Column(DateTime)
-    categories = Column(String, default="")
-    tags = Column(String, default="")
-    examples = Column(Text, nullable=True, default=None)
-    applies_to = Column(String, default="")  # Comma-separated list of targets
+    categories = Column(JSON, nullable=True)
+    tags = Column(JSON, nullable=True)
+    examples = Column(JSON, nullable=True)
+    applies_to = Column(JSON, nullable=True)
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
     # Hierarchical scope fields
-    scope_level = Column(
-        String, index=True, nullable=False, default="global"
-    )  # 'global', 'team', 'project', 'machine'
+    scope_level = Column(String, index=True, nullable=False, default="global")
     scope_id = Column(String, index=True, nullable=True)
     parent_rule_id = Column(String, nullable=True)
 
@@ -185,12 +151,7 @@ class RuleVersion(Base):
 # BugReport model for bug reporting
 class BugReport(Base):
     __tablename__ = "bug_reports"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=lambda: str(uuid.uuid4()),
-    )
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     description = Column(Text)
     reporter = Column(String, nullable=True)
     page = Column(String, nullable=True)
@@ -201,12 +162,7 @@ class BugReport(Base):
 # Enhancement model for suggested improvements
 class Enhancement(Base):
     __tablename__ = "enhancements"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=lambda: str(uuid.uuid4()),
-    )
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     description = Column(Text)
     suggested_by = Column(String, nullable=True)
     page = Column(String, nullable=True)
@@ -214,21 +170,15 @@ class Enhancement(Base):
     categories = Column(String, default="")
     timestamp = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="open")
-    proposal_id = Column(
-        UUID(as_uuid=True), nullable=True, default=None
-    )  # New: reference to original proposal
-    project = Column(
-        UUID(as_uuid=True), index=True, nullable=True
-    )  # Project association
+    proposal_id = Column(String, nullable=True, default=None)  # New: reference to original proposal
+    project = Column(String, index=True, nullable=True)  # Project association
     examples = Column(Text, nullable=True, default=None)  # New field for examples
     applies_to = Column(String, default="")  # Comma-separated list of targets
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
     diff = Column(Text, nullable=True, default=None)  # New: diff for enhancements
     # Hierarchical scope fields
-    scope_level = Column(
-        String, index=True, nullable=False, default="global"
-    )  # 'global', 'team', 'project', 'machine'
+    scope_level = Column(String, index=True, nullable=False, default="global")
     scope_id = Column(String, index=True, nullable=True)
     parent_rule_id = Column(String, nullable=True)
 
@@ -236,7 +186,7 @@ class Enhancement(Base):
 # --- New: API Error Log model ---
 class ApiErrorLog(Base):
     __tablename__ = "api_error_logs"
-    id = Column(UUID(as_uuid=True), primary_key=True)  # error_id (UUID)
+    id = Column(String, primary_key=True)  # error_id (UUID)
     timestamp = Column(DateTime, default=datetime.utcnow)
     path = Column(String)
     method = Column(String)
@@ -249,18 +199,14 @@ class ApiErrorLog(Base):
 # --- New: Namespace Permission Models ---
 class NamespacePermission(Base):
     __tablename__ = "namespace_permissions"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     namespace = Column(String, nullable=False, index=True)
-    project_id = Column(
-        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
-    )  # Link to Project
-    allowed_project_id = Column(
-        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True, index=True
-    )  # Link to allowed Project
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
+    allowed_project_id = Column(String, ForeignKey("projects.id"), nullable=True, index=True)
     permission_type = Column(String, nullable=False)  # "read" or "write"
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, nullable=True)
-    active = Column(Integer, default=1)  # 1 = active, 0 = revoked
+    active = Column(Boolean, default=True)  # True = active, False = revoked
 
 
 # Pydantic model for creating namespace permissions
@@ -274,43 +220,35 @@ class NamespacePermissionCreate:
 # Update ApiAccessToken to support scoping
 class ApiAccessToken(Base):
     __tablename__ = "api_access_tokens"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     token = Column(String, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, nullable=True)
     description = Column(String, nullable=True)
-    active = Column(Integer, default=1)  # 1 = active, 0 = revoked
+    active = Column(Boolean, default=True)  # True = active, False = revoked
     role = Column(String(32), default="admin", nullable=False)
-    project_id = Column(
-        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True, index=True
-    )  # Link to Project
-    allowed_namespaces = Column(
-        JSON, nullable=True
-    )  # List of namespaces this token can access
-    namespace_permissions = Column(
-        String, nullable=True
-    )  # JSON string of namespace:permission_type mappings
+    project_id = Column(String, ForeignKey("projects.id"), nullable=True, index=True)
+    allowed_namespaces = Column(JSON, nullable=True)  # List of namespaces this token can access
+    namespace_permissions = Column(String, nullable=True)  # JSON string of namespace:permission_type mappings
     has_llm_access = Column(Integer, default=0)  # 1 = has LLM access, 0 = no LLM access
 
 
 # Vector store model
 class MemoryVector(Base):
     __tablename__ = "memory_vectors"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     namespace = Column(String, nullable=False, index=True)
     content = Column(String, nullable=False)
     embedding = Column(Vector, nullable=True)
     meta = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    project_id = Column(
-        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
-    )  # Link to Project
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
 
 
 # Edge/relationship model for memory graph
 class MemoryEdge(Base):
     __tablename__ = "memory_edges"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     from_id = Column(String, index=True)
     to_id = Column(String, index=True)
     relation_type = Column(String, index=True)
@@ -321,12 +259,12 @@ class MemoryEdge(Base):
 # --- New: Project model ---
 class Project(Base):
     __tablename__ = "projects"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, nullable=True)
-    active = Column(Integer, default=1)  # 1 = active, 0 = archived
+    active = Column(Boolean, default=True)  # True = active, False = archived
     has_llm_access = Column(Integer, default=0)  # 1 = has LLM access, 0 = no LLM access
     default_namespace = Column(String, nullable=False)  # e.g., "project-name/private"
     namespace_prefix = Column(String, nullable=False)  # e.g., "project-name"
@@ -335,9 +273,9 @@ class Project(Base):
 # --- New: ProjectMembership model ---
 class ProjectMembership(Base):
     __tablename__ = "project_memberships"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, nullable=False)
-    project_id = Column(UUID(as_uuid=True), nullable=False)
+    project_id = Column(String, nullable=False)
     role = Column(String, default="admin")  # For now, everyone is admin
     # Optionally, add unique constraint on (user_id, project_id) in migration
 
@@ -345,16 +283,14 @@ class ProjectMembership(Base):
 # --- New: ProjectOnboardingProgress model ---
 class ProjectOnboardingProgress(Base):
     __tablename__ = "project_onboarding_progress"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(UUID(as_uuid=True), nullable=False)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(String, nullable=False)
     path = Column(String, nullable=False)  # New: onboarding process type
     step = Column(String, nullable=False)
     completed = Column(sa.Boolean, default=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     details = Column(sa.JSON, nullable=True)
-    version = Column(
-        sa.Integer, nullable=False, default=1
-    )  # New: version field for multiple attempts
+    version = Column(sa.Integer, nullable=False, default=1)
 
     __table_args__ = (
         sa.UniqueConstraint(
@@ -370,12 +306,7 @@ class ProjectOnboardingProgress(Base):
 # UseCase model for collaborative use-case submissions
 class UseCase(Base):
     __tablename__ = "use_cases"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=lambda: str(uuid.uuid4()),
-    )
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     example_workflow = Column(sa.JSON, nullable=False)
@@ -390,12 +321,7 @@ class UseCase(Base):
 # RuleProposal model
 class RuleProposal(Base):
     __tablename__ = "rule_proposals"
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        index=True,
-        default=lambda: str(uuid.uuid4()),
-    )
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
@@ -408,12 +334,12 @@ class RuleProposal(Base):
 # --- New: Team model ---
 class Team(Base):
     __tablename__ = "teams"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, unique=True, nullable=False)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, nullable=True)
-    active = Column(Integer, default=1)
+    active = Column(Boolean, default=True)
 
 
 # Initialize the database and create tables
@@ -450,6 +376,8 @@ def init_memorydb():
 
 def get_db():
     """Get a database session."""
+    import os
+    print(f"[DEBUG-get_db] ENVIRONMENT={os.environ.get('ENVIRONMENT')}, POSTGRES_HOST={os.environ.get('POSTGRES_HOST')}")
     db = SessionLocal()
     try:
         yield db
@@ -499,3 +427,39 @@ def get_or_create_team_by_name(db: Session, name: str, **kwargs):
     db.expire_all()
     db.refresh(team)
     return team
+
+
+def resolve_project_id(db: Session, identifier: str, **kwargs) -> str:
+    """
+    Given a project identifier (UUID or name), return the UUID string.
+    If identifier is a valid UUID, return as-is. Otherwise, look up or create by name.
+    """
+    try:
+        # If it's a valid UUID, return as string
+        return str(uuid.UUID(identifier))
+    except Exception:
+        # Otherwise, treat as name and look up/create
+        project = get_or_create_project_by_name(db, identifier, **kwargs)
+        return str(project.id)
+
+def resolve_team_id(db: Session, identifier: str, **kwargs) -> str:
+    """
+    Given a team identifier (UUID or name), return the UUID string.
+    If identifier is a valid UUID, return as-is. Otherwise, look up or create by name.
+    """
+    try:
+        return str(uuid.UUID(identifier))
+    except Exception:
+        team = get_or_create_team_by_name(db, identifier, **kwargs)
+        return str(team.id)
+
+def project_defaults_from_name(name: str) -> dict:
+    """
+    Generate default fields for project creation from a project name.
+    Returns a dict with default_namespace, namespace_prefix, and description.
+    """
+    return {
+        "default_namespace": f"{name}/private",
+        "namespace_prefix": name,
+        "description": f"[default] auto-created for project '{name}'"
+    }

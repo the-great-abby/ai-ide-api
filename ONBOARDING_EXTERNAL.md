@@ -4,10 +4,10 @@ Welcome, external collaborator or partner! This guide will help you get started 
 
 ## 1. Quick Start (API-First)
 - Register your project and initialize onboarding steps:
-  - Send a POST request to `/onboarding/init` with your `project_id` and `path` set to `external_project`.
+  - Send a POST request to `/onboarding/init` with your `project_name` and `path` set to `external_project`.
     ```json
     {
-      "project_id": "your_project_name",
+      "project_name": "your_project_name",
       "path": "external_project"
     }
     ```
@@ -15,13 +15,13 @@ Welcome, external collaborator or partner! This guide will help you get started 
 
 ## 2. Track Onboarding Progress
 - List your onboarding checklist and status:
-  - `GET /onboarding/progress/{project_id}?path=external_project`
+  - `GET /onboarding/progress/{project_name}?path=external_project`
 - Mark steps as completed:
   - `PATCH /onboarding/progress/{progress_id}` with `{ "completed": true }`
 
 ## 3. Essential API Endpoints
 - [POST] `/onboarding/init` — Initialize onboarding steps for your project
-- [GET] `/onboarding/progress/{project_id}?path=external_project` — List your onboarding steps and status
+- [GET] `/onboarding/progress/{project_name}?path=external_project` — List your onboarding steps and status
 - [PATCH] `/onboarding/progress/{progress_id}` — Mark a step as completed or add details
 - [GET] `/onboarding/progress` — (Optional) List all onboarding progress (admin only)
 

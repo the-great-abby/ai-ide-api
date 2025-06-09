@@ -5,11 +5,9 @@ from fastapi.testclient import TestClient
 
 from rule_api_server import app
 
-client = TestClient(app)
-
 
 @pytest.mark.unit
-def test_rule_versioning_flow(admin_headers):
+def test_rule_versioning_flow(admin_headers, client, override_get_db):
     # Create initial rule
     initial_rule = {
         "rule_type": "test_versioning",
@@ -98,7 +96,7 @@ def test_rule_versioning_flow(admin_headers):
 
 @pytest.mark.unit
 @pytest.mark.negative
-def test_rule_history_nonexistent(admin_headers):
+def test_rule_history_nonexistent(admin_headers, client, override_get_db):
     # Try to get history for non-existent rule
     fake_id = str(uuid.uuid4())
     response = client.get(f"/rules/{fake_id}/history", headers=admin_headers)
@@ -106,7 +104,7 @@ def test_rule_history_nonexistent(admin_headers):
 
 
 @pytest.mark.unit
-def test_multiple_rule_updates(admin_headers):
+def test_multiple_rule_updates(admin_headers, client, override_get_db):
     # Create initial rule
     initial_rule = {
         "rule_type": "test_multiple_updates",
@@ -115,6 +113,8 @@ def test_multiple_rule_updates(admin_headers):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning"],
+        "examples": ["Example 1"],
+        "applies_to": ["python"],
         "user_story": "Test user story",
         "reason_for_change": "Testing multiple updates.",
         "references": "Test reference.",
@@ -146,6 +146,8 @@ def test_multiple_rule_updates(admin_headers):
             "categories": ["test"],
             "tags": ["versioning", f"v{i+2}"],
             "parent_rule_id": rule_id,
+            "examples": ["Example 1"],
+            "applies_to": ["python"],
             "user_story": "Test user story",
             "reason_for_change": f"Testing multiple updates. Reason for change: {f'v{i+2}'}",
             "references": "Test reference.",
@@ -186,7 +188,7 @@ def test_multiple_rule_updates(admin_headers):
 
 
 @pytest.mark.unit
-def test_rule_version_metadata(admin_headers):
+def test_rule_version_metadata(admin_headers, client, override_get_db):
     # Create initial rule with metadata
     initial_rule = {
         "rule_type": "test_metadata",

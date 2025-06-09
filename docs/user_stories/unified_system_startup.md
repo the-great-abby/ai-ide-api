@@ -76,19 +76,51 @@ make -f Makefile.ai ai-ollama-functions-logs
 
 ---
 
-## (Optional) Restart or Kill Ollama Services
-- **Kill Ollama backend:**
-  ```bash
-  make -f Makefile.ai ai-ollama-kill
-  ```
-- **Restart Ollama gateway:**
-  ```bash
-  make -f Makefile.ai ai-restart-ollama-functions
-  ```
-- **Restart Ollama backend:**
-  ```bash
-  make -f Makefile.ai ai-ollama-restart-docker-gateway
-  ```
+## Docker Compose Profiles, Environment Management, and Safe Edits
+
+To make onboarding, development, and testing smoother, we use Docker Compose **profiles** and per-service environment files. This allows you to:
+- Start only the services you need (e.g., core dev, LLM, test, or worker-only)
+- Use the correct environment variables for each service and context
+- Avoid accidental misconfiguration or resource waste
+
+### Profiles in Compose
+- `dev`: Core API, DB, Redis, etc.
+- `llm`: LLM worker, Ollama, and related services
+- `test`: Test API, test DB, test Redis, etc.
+- `llm-test`: LLM worker in test mode
+
+### Example: Starting Services by Profile
+```bash
+# Core development
+make dev-up
+# LLM/AI features
+make llm-up
+# API testing
+make test-up
+# LLM worker test mode
+make llm-test-up
+# Stop all
+make down
+```
+
+### Environment Management
+- Each service/worker has a template env file: `change-this-env.<service>.example`
+- Copy and edit these as needed (e.g., `cp change-this-env.llm-worker.example .env.llm-worker`)
+- Reference these files in your Compose service definitions using `env_file:`
+
+### Safe Editing: Always Back Up Compose Files
+Before making changes to `docker-compose.yml` or `docker-compose.test.yml`, create a timestamped backup:
+```bash
+cp docker-compose.yml docker-compose.yml.bak.$(date +%Y%m%d-%H%M%S)
+cp docker-compose.test.yml docker-compose.test.yml.bak.$(date +%Y%m%d-%H%M%S)
+```
+
+### Best Practices
+- Only start the services you need for your workflow
+- Use the correct env file for each service/profile
+- Never mix dev and test settings in the same env file
+- Document new profiles/env files as you add them
+- Always make a backup before editing Compose files
 
 ---
 

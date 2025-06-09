@@ -20,6 +20,9 @@ from db import (
     get_db,
     get_or_create_project_by_name,
     get_or_create_team_by_name,
+    resolve_project_id,
+    resolve_team_id,
+    project_defaults_from_name,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -86,33 +89,29 @@ This is a placeholder for the user story documentation for {path}.
     return Response(content=markdown.markdown(content), media_type="text/html")
 
 
-@router.get("/progress/{project_id}")
+@router.get("/progress/{project_name}")
 async def onboarding_progress(
-    project_id: str, path: str = "", db: Session = Depends(get_db)
+    project_name: str, path: str = "", db: Session = Depends(get_db)
 ):
-    try:
-        project_uuid = UUID(project_id)
-    except Exception:
-        logger.error(f"Invalid project_id format: {project_id}")
-        raise HTTPException(status_code=400, detail="Invalid project_id format")
+    # Use project_name (string) as project_id in onboarding progress
     logger.info(
-        f"Fetching onboarding progress for project_id={project_uuid}, path={path or 'internal_dev'}"
+        f"Fetching onboarding progress for project_id={project_name}, path={path or 'internal_dev'}"
     )
     progress = (
         db.query(ProjectOnboardingProgress)
         .filter(
-            ProjectOnboardingProgress.project_id == project_uuid,
+            ProjectOnboardingProgress.project_id == project_name,
             ProjectOnboardingProgress.path == (path or "internal_dev"),
         )
         .order_by(ProjectOnboardingProgress.timestamp.desc())
         .all()
     )
     logger.info(
-        f"Found {len(progress)} onboarding progress records for project_id={project_uuid}, path={path or 'internal_dev'}"
+        f"Found {len(progress)} onboarding progress records for project_id={project_name}, path={path or 'internal_dev'}"
     )
     if not progress:
         logger.warning(
-            f"No onboarding progress found for project_id={project_uuid}, path={path or 'internal_dev'}"
+            f"No onboarding progress found for project_id={project_name}, path={path or 'internal_dev'}"
         )
         raise HTTPException(status_code=404, detail="Project not found")
     return [
@@ -144,31 +143,34 @@ async def patch_onboarding_progress(
         step.completed = data["completed"]
     if "details" in data:
         step.details = data["details"]
+    if "status" in data:
+        step.status = data["status"]
     db.commit()
     db.refresh(step)
     return {
-        "id": step.id,
+        "id": str(step.id),
         "path": step.path,
         "step": step.step,
         "completed": step.completed,
         "details": step.details,
         "timestamp": step.timestamp,
+        "status": getattr(step, "status", None),
     }
 
 
+# NOTE: This endpoint MUST remain public (no authentication required)!
+# Do NOT add Depends(require_api_token) or any authentication dependencies here.
+# This allows new users/projects to start onboarding without a token.
 @router.post("/init")
 async def onboarding_init(request: Request, db: Session = Depends(get_db)):
+    import traceback
     data = await request.json()
     project_name = data.get("project_name")
     team_name = data.get("team_name")
     path = data.get("path")
     if not project_name or not path:
         raise HTTPException(status_code=400, detail="Missing project_name or path")
-    # Get or create team
-    team = None
-    if team_name:
-        team = get_or_create_team_by_name(db, team_name)
-    # Get or create project
+    # Always create or get project/team by name, providing sensible defaults
     default_namespace = f"{project_name}/private"
     namespace_prefix = project_name
     project = get_or_create_project_by_name(
@@ -177,4 +179,49 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
         default_namespace=default_namespace,
         namespace_prefix=namespace_prefix,
     )
-    return {"project_id": str(project.id), "team_id": str(team.id) if team else None}
+    team = get_or_create_team_by_name(db, team_name) if team_name else None
+    onboarding_paths_path = os.path.join(os.path.dirname(__file__), "onboarding_paths.json")
+    try:
+        with open(onboarding_paths_path, "r") as f:
+            onboarding_paths = json.load(f)
+        if path not in onboarding_paths:
+            raise HTTPException(status_code=400, detail="Invalid onboarding path")
+        steps = onboarding_paths[path]
+        created_steps = []
+        for step in steps:
+            # Use project_name (string) as project_id in onboarding progress
+            existing = db.query(ProjectOnboardingProgress).filter_by(
+                project_id=project_name, path=path, step=step, version=1
+            ).first()
+            if existing:
+                created_steps.append({
+                    "id": str(existing.id),
+                    "path": path,
+                    "step": step,
+                    "completed": existing.completed
+                })
+                continue
+            progress = ProjectOnboardingProgress(
+                project_id=project_name, path=path, step=step, completed=False
+            )
+            db.add(progress)
+            db.flush()
+            created_steps.append({
+                "id": str(progress.id),
+                "path": path,
+                "step": step,
+                "completed": False
+            })
+        db.commit()
+        return {
+            "project_name": project_name,
+            "team_name": team_name,
+            "steps": created_steps,
+            "team_id": str(team.id) if team else None
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        tb = traceback.format_exc()
+        logger.error(f"Onboarding init failed: {e}\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Onboarding init failed: {e}\n{tb}")

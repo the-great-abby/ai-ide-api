@@ -1,7 +1,7 @@
 """Change feedback_type to String in rule_proposal_feedback
 
 Revision ID: 7728045323ee
-Revises: 2bd1e2ecd6dc
+Revises: c77f4c2517b0
 Create Date: 2025-05-23 17:01:21.539385
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "7728045323ee"
-down_revision: Union[str, None] = "2bd1e2ecd6dc"
+down_revision: Union[str, None] = "c77f4c2517b0"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

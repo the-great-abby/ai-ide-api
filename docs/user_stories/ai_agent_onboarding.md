@@ -20,11 +20,11 @@ As an AI agent or automated client, I want to initialize and track my onboarding
 
 ## Step-by-Step Actions
 1. **Initialize onboarding:**
-   - Send a POST request to `/onboarding/init` with your `project_id` and `path` set to `ai_agent`.
+   - Send a POST request to `/onboarding/init` with your `project_name` and `path` set to `ai_agent`.
    - Example:
      ```json
      {
-       "project_id": "ai_ide_x",
+       "project_name": "ai_ide_x",
        "path": "ai_agent"
      }
      ```
@@ -54,4 +54,4 @@ As an AI agent or automated client, I want to initialize and track my onboarding
 ## References
 - Endpoint: `POST /onboarding/init`
 - Step template: `onboarding_paths.json`
-- Progress: `GET /onboarding/progress/{project_id}?path=ai_agent` 
+- Progress: `GET /onboarding/progress/{project_name}?path=ai_agent` 

@@ -311,7 +311,7 @@ This will delete ALL Postgres data and volumes, then re-run migrations.
 
 **Troubleshooting:**
 - If you see enum or duplicate key errors on restore, ensure your schema matches the backup and use data-only restore if needed.
-- Always use internal Docker service names and ports (e.g., `db-test:5432`).
+- Always use internal Docker service names and ports (e.g., `test-db:5432` for test, `db:5432` for dev).
 
 ---
 
@@ -344,41 +344,16 @@ Use these Makefile.ai targets to view logs for troubleshooting:
   ```bash
   make -f Makefile.ai logs
   ```
-  Shows the last 100 lines for API, db-test, and frontend containers.
+  Shows the last 100 lines for API, test-db, and frontend containers.
 
 - **API only:**
-  ```bash
-  make -f Makefile.ai logs-api
   ```
 
-- **Database only:**
-  ```bash
-  make -f Makefile.ai logs-db
-  ```
+## Docker Postgres Service Names
 
----
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
 
-## 🔑 Makefile.ai Target Reference (Updated)
-
-| Target                        | Description                                    |
-|-------------------------------|------------------------------------------------|
-| ai-test, ai-test-one, ai-test-json | Run tests (all, one, or JSON output)      |
-| ai-db-migrate, ai-db-autorevision  | Run/apply DB migrations                   |
-| ai-db-backup, ai-db-backup-data-only | Backup DB (full/data-only)              |
-| ai-db-restore, ai-db-restore-data   | Restore DB (full/data-only)              |
-| ai-db-nuke, ai-db-drop-recreate     | Nuke or reset DB (danger!)               |
-| ai-propose-portable-rule            | Propose a portable rule                  |
-| ai-approve-all-pending              | Approve all pending proposals            |
-| ai-up, ai-down, ai-build, ai-rebuild-all | Start/stop/build/rebuild services   |
-| ai-list-rules, ai-list-rules-mdc    | List rules (JSON/MDC)                    |
-| ai-onboarding-health                | Run onboarding health check              |
-| logs, logs-api, logs-db             | View logs for all, API, or DB containers |
-
-See `Makefile.ai` for the full list and usage examples.
-
----
-
-## 📌 Port Usage (Reminder)
-- **Default API port:** `9103` (update all configs, docs, and clients accordingly)
-- **Frontend port:** `3000` (or as set by `ADMIN_FRONTEND_PORT`)
-- Always use Docker service names and internal ports for all connections. 
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.

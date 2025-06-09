@@ -1,5 +1,5 @@
 services:
-  db-test:
+  test-db:
     build:
       context: .
       dockerfile: Dockerfile.pgvector
@@ -7,8 +7,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_MULTIPLE_DATABASES: memorydb,rulesdb
-    ports:
-      - "5433:5432"
+    # ports:
+    #   - "5433:5432"  # Removed to avoid host port conflict
     volumes:
       - rules_postgres_data_test:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d
@@ -17,28 +17,30 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    profiles: ["test"]
 
   test:
-    build:
-      context: .
-      dockerfile: Dockerfile.tests
+    build: .
     volumes:
       - .:/app
+      - ./scripts:/scripts
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
-      - ENVIRONMENT=test
       - POSTGRES_DB=rulesdb
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_HOST=db-test
-      - POSTGRES_PORT=5432
-      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/rulesdb
-      - MEMORY_DATABASE_URL=postgresql://postgres:postgres@db-test:5432/memorydb
+      - POSTGRES_HOST=test-db
+      - DATABASE_URL=postgresql://postgres:postgres@test-db:5432/rulesdb
+      - OLLAMA_FUNCTIONS_URL=http://test-ollama-functions:8000
+      - CORS_ORIGINS=*
+      - RABBITMQ_URL=amqp://user:password@test-rabbitmq:5672/
+      - ENVIRONMENT=dev
     depends_on:
-      db-test:
+      test-db:
         condition: service_healthy
-    command: ["./docker/initdb/wait-for-it.sh", "db-test", "pytest", "tests/"]
+    command: ["./scripts/wait-for-it.sh", "test-db", "pytest", "tests/"]
+    env_file:
+      - .env.test
+    profiles: ["test"]
 
   coverage:
     build: .
@@ -48,18 +50,20 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
     command: ["pytest", "--cov=rule_api_server", "--cov-report=term-missing", "test_rule_api_server.py"]
+    profiles: ["test"]
 
-  frontend:
+  test-frontend:
     build:
       context: ./admin-frontend
       args:
-        VITE_API_BASE_URL: "http://localhost:9103"
+        VITE_API_BASE_URL: "http://test-api:8000"
     ports:
       - "3001:80"
     depends_on:
       - test
     environment:
-      - VITE_API_BASE_URL=http://localhost:9103
+      - VITE_API_BASE_URL=http://test-api:8000
+    profiles: ["test"]
 
   playwright:
     build:
@@ -67,12 +71,13 @@ services:
       dockerfile: Dockerfile.playwright
     working_dir: /app
     depends_on:
-      - frontend
+      - test-frontend
     command: ["npx", "playwright", "test"]
     environment:
       - CI=true
+    profiles: ["test"]
 
-  misc-scripts:
+  test-misc-scripts:
     build:
       context: .
       dockerfile: Dockerfile.misc-scripts
@@ -89,14 +94,17 @@ services:
       - RUNNING_IN_DOCKER=1
       - PGUSER=postgres
       - PGPASSWORD=postgres
-      - PGHOST=db-test
+      - PGHOST=test-db
       - PGPORT=5432
-      - MEMORY_API_URL=http://test:8000/memory/nodes
+      - MEMORY_API_URL=http://test-api:8000/memory/nodes
       - OLLAMA_URL=http://host.docker.internal:11434/api/generate
       - OLLAMA_MODEL=llama3.1:8b-instruct-q6_K
     command: tail -f /dev/null
+    # env_file:
+    #   - change-this-env.misc-scripts-test.example  # Uncomment if you want to template test-misc-scripts env
+    profiles: ["test"]
 
-  ollama-functions:
+  test-ollama-functions:
     build:
       context: .
       dockerfile: Dockerfile.ollama_functions
@@ -108,14 +116,58 @@ services:
       - test
     volumes:
       - .:/code
+    # env_file:
+    #   - change-this-env.ollama-functions-test.example  # Uncomment if you want to template test-ollama-functions env
+    profiles: ["llm-test"]
 
-  worker:
+  test-worker:
     build: ./worker
     environment:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
-      - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
+      - OLLAMA_FUNCTIONS_URL=http://test-ollama-functions:8000
     depends_on:
-      - ollama-functions
+      - test-ollama-functions
+    env_file:
+      - change-this-env.llm-worker-test.example
+    profiles: ["llm-test"]
+
+  test-rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5673:5672"  # Host 5673 -> Container 5672 (internal)
+      - "15673:15672" # Host 15673 -> Container 15672 (management UI)
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    profiles: ["test", "llm-test"]
+
+  test-api:
+    build: .
+    volumes:
+      - .:/app
+      - ./scripts:/scripts
+    command: ["uvicorn", "rule_api_server:app", "--host", "0.0.0.0", "--reload"]
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - POSTGRES_DB=rulesdb
+      - POSTGRES_HOST=test-db
+      - DATABASE_URL=postgresql://postgres:postgres@test-db:5432/rulesdb
+      - OLLAMA_FUNCTIONS_URL=http://test-ollama-functions:8000
+      - CORS_ORIGINS=*
+      - RABBITMQ_URL=amqp://user:password@test-rabbitmq:5672/
+      - ENVIRONMENT=dev
+    ports:
+      - "9104:8000"  # Host 9104 -> Container 8000
+    depends_on:
+      - test-db
+      - test-rabbitmq
+    # env_file:
+    #   - change-this-env.api-test.example  # Uncomment if you want to template test-api env
+    profiles: ["test"]
 
 volumes:
-  rules_postgres_data_test: 
+  rules_postgres_data_test:
+
+networks:
+  testnet: 

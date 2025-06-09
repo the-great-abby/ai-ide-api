@@ -10,7 +10,7 @@ As a developer or reviewer, I want to run a fully automated, reproducible, and A
 
 ## Preconditions
 - The repository is up to date with the latest code and rules.
-- Docker Compose is running with all required services (`api`, `db-test`, `misc-scripts`, etc.).
+- Docker Compose is running with all required services (`api`, `test-db`, `misc-scripts`, etc.).
 - The rule file(s) to be reviewed exist (e.g., `.cursor/rules/ai_augmented_code_review_workflow.mdc`).
 
 ## Steps (End-to-End Demo)
@@ -61,4 +61,15 @@ As a developer or reviewer, I want to run a fully automated, reproducible, and A
 ## References
 - Makefile.ai targets: `ai-lint-rule-docker`, `ai-auto-feedback-docker`, `ai-batch-suggest-rules-docker`
 - Scripts: `misc_scripts/lint_rule.py`, `misc_scripts/auto_feedback.py`, `misc_scripts/batch_suggest_rules.py`
-- Rule file example: `.cursor/rules/ai_augmented_code_review_workflow.mdc` 
+- Rule file example: `.cursor/rules/ai_augmented_code_review_workflow.mdc`
+
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.
+
+# Replace all code snippets, examples, and workflow steps to use 'db' as the Postgres host/service unless specifically about the test environment. Where test/CI is discussed, mention 'test-db'. 

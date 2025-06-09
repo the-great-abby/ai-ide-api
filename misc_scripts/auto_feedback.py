@@ -10,8 +10,8 @@ import requests
 
 def get_default_api_base():
     if os.environ.get("RUNNING_IN_DOCKER") == "1":
-        return "http://api:8000"
-    return "http://localhost:9103"
+        return "http://test-api:8000"
+    return "http://localhost:9104"
 
 
 def get_api_base():

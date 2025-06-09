@@ -3,48 +3,78 @@ import logging
 import uuid
 from datetime import datetime
 from typing import List, Literal, Optional, Union
+import traceback
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.exception_handlers import RequestValidationError
-from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import RequestValidationError as FastAPIRequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator, validator
 from sqlalchemy.orm import Session
 
 from auth import require_api_token, require_role
-from db import Proposal, Rule, RuleVersion, get_db
+from db import Proposal, Rule, RuleVersion, get_db, get_or_create_project_by_name, get_or_create_team_by_name, resolve_project_id, resolve_team_id, project_defaults_from_name
 from rule_proposal_feedback import RuleProposalFeedback
 from rules import validate_uuid
+from utils.serialization import serialize_uuids
+from utils.normalization import clean_examples_field, normalize_rule_dict
 
 router = APIRouter(tags=["rule-proposals"])
 
+logger = logging.getLogger(__name__)
 
+# Allowed feedback types for rule proposal feedback
+ALLOWED_FEEDBACK_TYPES = {"suggestion", "question", "concern"}
+
+
+# ARR! All IDs and foreign keys be strings, not UUID columns. Pass UUIDs as strings, or ye walk the plank! See ONBOARDING_INTERNAL.md and rules/db_types.mdc for the tale.
 class ProposalModel(BaseModel):
+    """
+    ARR! Pirate warning: All fields meant to be UUIDs (like 'project', 'parent_rule_id') must be valid UUID strings or None.
+    If ye pass a barnacle like 'not-a-uuid', ye'll get a 422 and a dunk in the briny deep!
+    All DB columns are sa.String().
+    """
     rule_type: str = Field(..., min_length=1, description="Type of the rule")
     description: str = Field(..., min_length=1, description="Description of the rule")
     diff: str = Field(..., min_length=1, description="Diff or pattern for the rule")
     submitted_by: str = Field(..., min_length=1, description="User submitting the rule")
-    categories: Optional[List[str]] = []
-    tags: Optional[List[str]] = []
-    examples: Optional[List[str]] = []
-    applies_to: Optional[List[str]] = []
+    categories: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    examples: Optional[List[str]] = None
+    applies_to: Optional[List[str]] = None
     applies_to_rationale: Optional[str] = None
     user_story: Optional[str] = None
-    scope_level: str = Field("global", min_length=1)
-    scope_id: Optional[str] = Field(
-        None,
-        description="Team or project association ID, required for team/project scope",
-    )
+    scope_level: Optional[str] = None
+    scope_id: Optional[str] = None
     parent_rule_id: Optional[str] = None
-    reason_for_change: str = Field(
-        ..., min_length=1, description="Reason for proposing this rule change"
-    )
-    references: str = Field(
-        ..., min_length=1, description="References for this rule proposal"
-    )
+    reason_for_change: Optional[str] = None
+    references: Optional[str] = None
+    project: Optional[str] = None
+
+    @staticmethod
+    def _validate_uuid_field(value, field_name):
+        import uuid
+        print(f"[PIRATE-DEBUG] UUID validator called for field '{field_name}' with value: {value}")
+        # ARR! Treat empty string as None/null for UUID fields
+        if value is None or value == "":
+            return None
+        try:
+            # Only accept valid UUID strings
+            if isinstance(value, uuid.UUID):
+                return str(value)
+            uuid_obj = uuid.UUID(str(value))
+            return str(uuid_obj)
+        except Exception as e:
+            print(f"[PIRATE-DEBUG] UUID validation failed for field '{field_name}': {value} ({e})")
+            raise ValueError(f"ARR! Field '{field_name}' must be a valid UUID string or null, got: {value}")
+
+    @field_validator("project", "parent_rule_id", "scope_id", mode="before")
+    @classmethod
+    def validate_uuid_fields(cls, v, info):
+        return cls._validate_uuid_field(v, info.field_name)
 
     class Config:
-        extra = "ignore"
+        extra = "allow"
 
 
 class ProposalOut(ProposalModel):
@@ -52,13 +82,18 @@ class ProposalOut(ProposalModel):
     status: str
     version: int
     timestamp: str
+    rule_id: Optional[str] = None
 
 
 class FeedbackIn(BaseModel):
-    feedback_type: Literal[
-        "accept", "reject", "needs_changes", "suggestion", "question", "concern"
-    ]
+    feedback_type: str  # Must be one of ALLOWED_FEEDBACK_TYPES
     comments: str = ""
+
+    @validator("feedback_type")
+    def validate_feedback_type(cls, v):
+        if v not in ALLOWED_FEEDBACK_TYPES:
+            raise ValueError(f"Invalid feedback_type: {v}. Allowed: {sorted(ALLOWED_FEEDBACK_TYPES)}")
+        return v
 
 
 class FeedbackOut(BaseModel):
@@ -147,13 +182,43 @@ def serialize_proposal(obj):
     return result
 
 
+def ensure_list(val):
+    if val is None:
+        return []
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str):
+        # Try to parse as JSON list
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            pass
+        # Fallback: comma split, or wrap as single-item list if no comma
+        if ',' in val:
+            return [v.strip() for v in val.split(',') if v.strip()]
+        if val.strip():
+            return [val.strip()]
+        return []
+    return [val]
+
+
+def normalize_proposal_fields(data):
+    if hasattr(data, '__dict__'):
+        data = data.__dict__.copy()
+    for field in ['categories', 'tags', 'examples', 'applies_to']:
+        data[field] = ensure_list(data.get(field))
+    return data
+
+
 @router.post("/propose-rule-change", response_model=ProposalOut)
 async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     try:
         payload = await request.json()
-        logging.warning(f"[DEBUG] Incoming /propose-rule-change payload: {payload}")
+        logger.warning(f"[DEBUG] Incoming /propose-rule-change payload: {payload}")
     except Exception as e:
-        logging.error(f"[DEBUG] Error reading payload: {e}")
+        logger.error(f"[DEBUG] Error reading payload: {e}")
         raise
     # Validate required fields
     required_fields = [
@@ -166,9 +231,9 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     ]
     for field in required_fields:
         value = payload.get(field)
-        logging.warning(f"[DEBUG] Field '{field}' value: {value!r}")
+        logger.warning(f"[DEBUG] Field '{field}' value: {value!r}")
         if value is None or (isinstance(value, str) and not value.strip()):
-            logging.error(
+            logger.error(
                 f"[DEBUG] 422: Field '{field}' is missing or empty in payload: {payload}"
             )
             raise HTTPException(
@@ -179,7 +244,7 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     if payload.get("scope_level") in ("team", "project") and not payload.get(
         "scope_id"
     ):
-        logging.error(
+        logger.error(
             f"[DEBUG] 422: scope_id missing for scope_level={payload.get('scope_level')}, payload: {payload}"
         )
         raise HTTPException(
@@ -193,11 +258,11 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
             db.query(Rule).filter(Rule.id == payload.get("parent_rule_id")).first()
         )
         if not parent_rule:
-            logging.error(
-                f"[DEBUG] 422: parent_rule_id does not exist: {payload.get('parent_rule_id')}, payload: {payload}"
+            logger.error(
+                f"[DEBUG] 404: parent_rule_id does not exist: {payload.get('parent_rule_id')}, payload: {payload}"
             )
             raise HTTPException(
-                status_code=422, detail="parent_rule_id does not exist in rules table"
+                status_code=404, detail="parent_rule_id does not exist in rules table"
             )
 
     # Conflict check: approved rules
@@ -236,6 +301,23 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
             detail="A pending proposal with the same type, diff, and scope already exists (conflict). Please wait for review or modify your proposal.",
         )
 
+    # Resolve scope_id if needed
+    if payload.get("scope_level") == "project" and payload.get("scope_id"):
+        try:
+            uuid.UUID(payload["scope_id"])
+            payload["scope_id"] = resolve_project_id(db, payload["scope_id"])
+        except Exception:
+            payload["scope_id"] = resolve_project_id(db, payload["scope_id"], **project_defaults_from_name(payload["scope_id"]))
+    elif payload.get("scope_level") == "team" and payload.get("scope_id"):
+        payload["scope_id"] = resolve_team_id(db, payload["scope_id"])
+    # Patch: Always resolve project to UUID if set
+    if payload.get("project"):
+        try:
+            uuid.UUID(payload["project"])
+            payload["project"] = resolve_project_id(db, payload["project"])
+        except Exception:
+            payload["project"] = resolve_project_id(db, payload["project"], **project_defaults_from_name(payload["project"]))
+
     try:
         proposal_id = str(uuid.uuid4())
         new_proposal = Proposal(
@@ -244,14 +326,10 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
             description=payload.get("description"),
             diff=payload.get("diff"),
             submitted_by=payload.get("submitted_by"),
-            categories=",".join(payload.get("categories"))
-            if payload.get("categories")
-            else None,
-            tags=",".join(payload.get("tags")) if payload.get("tags") else None,
-            examples=payload.get("examples"),
-            applies_to=",".join(payload.get("applies_to"))
-            if payload.get("applies_to")
-            else None,
+            categories=ensure_list(payload.get("categories")),
+            tags=ensure_list(payload.get("tags")),
+            examples=ensure_list(payload.get("examples")),
+            applies_to=ensure_list(payload.get("applies_to")),
             applies_to_rationale=payload.get("applies_to_rationale"),
             user_story=payload.get("user_story"),
             scope_level=payload.get("scope_level"),
@@ -262,6 +340,7 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
             status="pending",
             version=1,
             timestamp=datetime.utcnow(),
+            project=payload.get("project"),
         )
         db.add(new_proposal)
         db.commit()
@@ -269,10 +348,12 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     except ValidationError as ve:
         raise HTTPException(status_code=422, detail=f"Validation error: {ve.errors()}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"[ERROR] Exception in /propose-rule-change: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
     data = serialize_proposal(new_proposal)
-    logging.warning(f"[DEBUG] approve_rule_change response data: {data}")
+    data = normalize_rule_dict(data)
+    logger.debug(f"[propose_rule_change] normalized: {data}")
     return data
 
 
@@ -291,6 +372,8 @@ def list_rule_changes(
     result = []
     for proposal in proposals:
         data = serialize_proposal(proposal)
+        data = normalize_rule_dict(data)
+        logger.debug(f"[list_rule_changes] normalized: {data}")
         result.append(data)
     return result
 
@@ -301,16 +384,15 @@ def get_rule_change(
     db: Session = Depends(get_db),
     token: dict = Depends(require_api_token),
 ):
-    """Get a specific rule change by ID."""
     # Validate UUID format
     if not validate_uuid(change_id):
         raise HTTPException(status_code=422, detail="Invalid UUID format")
-
     proposal = db.query(Proposal).filter(Proposal.id == change_id).first()
     if not proposal:
         raise HTTPException(status_code=404, detail="Rule change not found")
-
     data = serialize_proposal(proposal)
+    data = normalize_rule_dict(data)
+    logger.debug(f"[get_rule_change] normalized: {data}")
     return data
 
 
@@ -320,21 +402,28 @@ def approve_rule_change(
     db: Session = Depends(get_db),
     token: dict = Depends(require_role("admin")),
 ):
-    """Approve a rule change."""
     # Validate UUID format
     if not validate_uuid(change_id):
         raise HTTPException(status_code=422, detail="Invalid UUID format")
-
     proposal = db.query(Proposal).filter(Proposal.id == change_id).first()
     if not proposal:
-        raise HTTPException(status_code=404, detail="Rule change not found")
-
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    # Normalize list fields before saving
+    for field in ['categories', 'tags', 'examples', 'applies_to']:
+        if hasattr(proposal, field):
+            setattr(proposal, field, ensure_list(getattr(proposal, field)))
     if proposal.status != "pending":
         raise HTTPException(
             status_code=400, detail="Only pending changes can be approved"
         )
+    logger.debug("Entered approve_rule_change endpoint")
+    # Debug: Log incoming proposal ID
+    logger.debug(f"Approve called for proposal_id={change_id}")
+    all_proposals = db.query(Proposal).all()
+    logger.debug(f"Proposal count in DB: {len(all_proposals)}")
+    logger.debug(f"All proposal IDs: {[str(p.id) for p in all_proposals]}")
 
-    logging.warning(f"[DEBUG] approve_rule_change raw proposal object: {proposal}")
+    logger.warning(f"[DEBUG] approve_rule_change raw proposal object: {proposal}")
     # Create or update the rule
     rule = (
         db.query(Rule).filter(Rule.id == proposal.parent_rule_id).first()
@@ -359,7 +448,7 @@ def approve_rule_change(
         rule.timestamp = datetime.utcnow()
         # Create version history entry
         version = RuleVersion(
-            rule_id=rule.id,
+            rule_id=str(rule.id),
             version=rule.version,
             rule_type=rule.rule_type,
             description=rule.description,
@@ -385,29 +474,41 @@ def approve_rule_change(
     else:
         # Create new rule
         rule_id = str(uuid.uuid4())
+        # Patch: Always resolve project to UUID if set
+        project_uuid = None
+        if proposal.project:
+            project_name = proposal.project
+            try:
+                uuid.UUID(project_name)
+                project_uuid = resolve_project_id(db, project_name)
+            except Exception:
+                project_uuid = resolve_project_id(db, project_name, **project_defaults_from_name(project_name))
         rule = Rule(
             id=rule_id,
             rule_type=proposal.rule_type,
             description=proposal.description,
             diff=proposal.diff,
+            status="approved",
             submitted_by=proposal.submitted_by,
-            categories=proposal.categories,
-            tags=proposal.tags,
-            examples=proposal.examples,
-            applies_to=proposal.applies_to,
+            added_by=getattr(token, "sub", None) if token else None,
+            project=project_uuid,
+            timestamp=datetime.utcnow(),
+            version=1,
+            categories=ensure_list(proposal.categories),
+            tags=ensure_list(proposal.tags),
+            examples=ensure_list(proposal.examples),
+            applies_to=ensure_list(proposal.applies_to),
             applies_to_rationale=proposal.applies_to_rationale,
             user_story=proposal.user_story,
             scope_level=proposal.scope_level,
             scope_id=proposal.scope_id,
-            status="approved",
-            version=1,
-            timestamp=datetime.utcnow(),
+            parent_rule_id=proposal.parent_rule_id,
         )
         db.add(rule)
         db.flush()  # Ensure rule is written to DB before setting parent_rule_id
         # Create version history entry (include all fields for consistency)
         version = RuleVersion(
-            rule_id=rule.id,
+            rule_id=str(rule.id),
             version=1,
             rule_type=rule.rule_type,
             description=rule.description,
@@ -435,8 +536,15 @@ def approve_rule_change(
     proposal.status = "approved"
     db.commit()
 
+    # Always fetch the current rule object for response
+    if not rule and proposal.parent_rule_id:
+        rule = db.query(Rule).filter(Rule.id == proposal.parent_rule_id).first()
+
     data = serialize_proposal(proposal)
-    logging.warning(f"[DEBUG] approve_rule_change proposal data: {data}")
+    data = normalize_rule_dict(data)
+    logger.debug(f"[approve_rule_change] normalized: {data}")
+    # Always include 'rule_id' in the response, set to None if no rule
+    data["rule_id"] = str(rule.id) if rule and getattr(rule, "id", None) else None
     return data
 
 
@@ -446,20 +554,26 @@ def reject_rule_change(
     db: Session = Depends(get_db),
     token: dict = Depends(require_role("admin")),
 ):
-    """Reject a rule change."""
+    # Validate UUID format
+    if not validate_uuid(change_id):
+        raise HTTPException(status_code=422, detail="Invalid UUID format")
     proposal = db.query(Proposal).filter(Proposal.id == change_id).first()
     if not proposal:
-        raise HTTPException(status_code=404, detail="Rule change not found")
-
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    # Normalize list fields before saving
+    for field in ['categories', 'tags', 'examples', 'applies_to']:
+        if hasattr(proposal, field):
+            setattr(proposal, field, ensure_list(getattr(proposal, field)))
     if proposal.status != "pending":
         raise HTTPException(
             status_code=400, detail="Only pending changes can be rejected"
         )
-
     proposal.status = "rejected"
     db.commit()
 
     data = serialize_proposal(proposal)
+    data = normalize_rule_dict(data)
+    logger.debug(f"[reject_rule_change] normalized: {data}")
     return data
 
 
@@ -470,35 +584,49 @@ def submit_rule_proposal_feedback(
     db: Session = Depends(get_db),
     token: dict = Depends(require_api_token),
 ):
+    logger.debug(f"[FEEDBACK-DEBUG] Called with proposal_id={proposal_id}, feedback={feedback.dict()}, token={token}")
     # Validate UUID format
     if not validate_uuid(proposal_id):
-        logging.error(
-            f"[DEBUG] 422: Invalid UUID format for proposal_id: {proposal_id}"
-        )
+        logger.error(f"[FEEDBACK-DEBUG] Invalid UUID: {proposal_id}")
         raise HTTPException(status_code=422, detail="Invalid UUID format")
+    logger.debug(f"[FEEDBACK-DEBUG] UUID validated: {proposal_id}")
     proposal = db.query(Proposal).filter(Proposal.id == proposal_id).first()
+    logger.debug(f"[FEEDBACK-DEBUG] DB query for proposal_id={proposal_id} returned: {proposal}")
     if not proposal:
-        logging.error(f"[DEBUG] 404: Proposal not found for proposal_id: {proposal_id}")
+        logger.error(f"[FEEDBACK-DEBUG] Proposal not found: {proposal_id}")
         raise HTTPException(status_code=404, detail="Proposal not found")
-    # Accept any string for feedback_type
-    fb = RuleProposalFeedback(
-        id=str(uuid.uuid4()),
-        rule_proposal_id=str(proposal_id),
-        user_id=getattr(token, "sub", None),
-        feedback_type=feedback.feedback_type,
-        comments=feedback.comments,
-        created_at=datetime.utcnow(),
-    )
-    db.add(fb)
-    db.commit()
-    db.refresh(fb)
-    return FeedbackOut(
-        id=str(fb.id),
-        rule_proposal_id=str(fb.rule_proposal_id),
-        feedback_type=str(fb.feedback_type),
-        comments=fb.comments or "",
-        created_at=fb.created_at.isoformat(),
-    )
+    logger.debug(f"[FEEDBACK-DEBUG] Proposal exists: {proposal_id}")
+    # Enforce allowed feedback types at API level (defense-in-depth)
+    if feedback.feedback_type not in ALLOWED_FEEDBACK_TYPES:
+        logger.error(f"[FEEDBACK-DEBUG] Invalid feedback_type: {feedback.feedback_type}")
+        raise HTTPException(status_code=422, detail=f"Invalid feedback_type: {feedback.feedback_type}. Allowed: {sorted(ALLOWED_FEEDBACK_TYPES)}")
+    logger.debug(f"[FEEDBACK-DEBUG] feedback_type validated: {feedback.feedback_type}")
+    # All checks passed, perform feedback creation
+    try:
+        fb = RuleProposalFeedback(
+            id=str(uuid.uuid4()),
+            rule_proposal_id=str(proposal_id),
+            user_id=getattr(token, "sub", None),
+            feedback_type=feedback.feedback_type,
+            comments=feedback.comments,
+            created_at=datetime.utcnow(),
+        )
+        db.add(fb)
+        db.commit()
+        db.refresh(fb)
+        logger.info(f"[FEEDBACK-DEBUG] Feedback created for proposal {proposal_id}")
+        return FeedbackOut(
+            id=str(fb.id),
+            rule_proposal_id=str(fb.rule_proposal_id),
+            feedback_type=str(fb.feedback_type),
+            comments=fb.comments or "",
+            created_at=fb.created_at.isoformat(),
+        )
+    except Exception as e:
+        logger.error(f"[FEEDBACK-DEBUG] Internal server error: {e}")
+        raise HTTPException(status_code=500, detail=f"ARR! Failed to create feedback: {e}")
+    logger.error(f"[FEEDBACK-DEBUG] Unexpected fall-through in submit_rule_proposal_feedback for proposal {proposal_id}")
+    raise HTTPException(status_code=500, detail="Unexpected error in submit_rule_proposal_feedback")
 
 
 @router.get(
@@ -528,3 +656,18 @@ def list_rule_proposal_feedback(
         )
         for fb in feedbacks
     ]
+
+
+def pirate_validation_exception_handler(request, exc):
+    # Convert all error contexts to string to avoid non-serializable objects
+    errors = exc.errors()
+    for err in errors:
+        if 'ctx' in err and err['ctx']:
+            for k, v in err['ctx'].items():
+                if isinstance(v, Exception):
+                    err['ctx'][k] = str(v)
+    logger.error(f"[PIRATE-DEBUG] Feedback validation error: {errors} | body: {getattr(exc, 'body', None)}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": errors, "body": getattr(exc, 'body', None)},
+    )

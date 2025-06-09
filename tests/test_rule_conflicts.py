@@ -17,7 +17,7 @@ from db import ApiAccessToken, get_db
 #     real_db_session.close()
 
 
-def test_rule_conflict_detection(client, admin_headers):
+def test_rule_conflict_detection(client, admin_headers, override_get_db):
     # Create two conflicting rules
     rule1 = {
         "rule_type": "conflict_test",
@@ -73,7 +73,7 @@ def test_rule_conflict_detection(client, admin_headers):
     assert "conflict" in approve_response2.json()["detail"].lower()
 
 
-def test_rule_scope_conflicts(client, admin_headers):
+def test_rule_scope_conflicts(client, admin_headers, override_get_db):
     # Create a rule at team scope
     team_rule = {
         "rule_type": "test_scope_conflict",
@@ -88,6 +88,7 @@ Team rule enforcement.""",
         "tags": ["scope"],
         "scope_level": "team",
         "scope_id": "team-1",
+        "examples": ["Example 1"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",
         "reason_for_change": "Testing scope flow.",
@@ -107,6 +108,7 @@ Global rule enforcement.""",
         "categories": ["test"],
         "tags": ["scope"],
         "scope_level": "global",
+        "examples": ["Example 1"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",
         "reason_for_change": "Testing scope flow.",
@@ -137,7 +139,7 @@ Global rule enforcement.""",
     assert "scope" in approve_response2.json()["detail"].lower()
 
 
-def test_rule_enforcement_in_ci(client, admin_headers):
+def test_rule_enforcement_in_ci(client, admin_headers, override_get_db):
     # Create a test rule
     rule = {
         "rule_type": "test_ci_enforcement",
@@ -150,6 +152,8 @@ This rule must be enforced in CI.""",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["ci"],
+        "examples": ["Example 1"],
+        "applies_to": ["python"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",
         "reason_for_change": "Testing CI enforcement flow.",
@@ -184,7 +188,7 @@ This rule must be enforced in CI.""",
         assert any(s["rule_type"] == "test_ci_enforcement" for s in suggestions)
 
 
-def test_rule_violation_reporting(client, admin_headers):
+def test_rule_violation_reporting(client, admin_headers, override_get_db):
     # Create a test rule
     rule = {
         "rule_type": "test_violation_reporting",
@@ -197,6 +201,8 @@ This rule must be reported when violated.""",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["reporting"],
+        "examples": ["Example 1"],
+        "applies_to": ["python"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",
         "reason_for_change": "Testing violation reporting flow.",
@@ -240,7 +246,7 @@ This rule must be reported when violated.""",
         assert "severity" in violation
 
 
-def test_rule_compliance_report(client, admin_headers):
+def test_rule_compliance_report(client, admin_headers, override_get_db):
     # Create multiple test rules
     rules = [
         {
@@ -288,7 +294,7 @@ This rule must be included in compliance reports.""",
     assert all(f"test_compliance_{i}" in rule_types for i in range(3))
 
 
-def test_rule_conflicts(client, admin_headers):
+def test_rule_conflicts(client, admin_headers, override_get_db):
     # Create conflicting rules
     rule1 = {
         "rule_type": "conflict_test",
@@ -335,7 +341,7 @@ def test_rule_conflicts(client, admin_headers):
     assert "conflict" in response.json()["detail"].lower()
 
 
-def test_rule_conflicts_different_patterns(client, admin_headers):
+def test_rule_conflicts_different_patterns(client, admin_headers, override_get_db):
     # Create rules with different patterns
     rule1 = {
         "rule_type": "conflict_test",
@@ -386,7 +392,7 @@ def test_rule_conflicts_different_patterns(client, admin_headers):
     assert response.status_code == 200
 
 
-def test_rule_conflicts_same_name(client, admin_headers):
+def test_rule_conflicts_same_name(client, admin_headers, override_get_db):
     # Create rules with same name but different patterns
     rule1 = {
         "rule_type": "conflict_test",
@@ -433,7 +439,7 @@ def test_rule_conflicts_same_name(client, admin_headers):
     assert "name" in response.json()["detail"].lower()
 
 
-def test_rule_conflicts_update(client, admin_headers):
+def test_rule_conflicts_update(client, admin_headers, override_get_db):
     # Create initial rule
     rule = {
         "rule_type": "conflict_test",
@@ -482,7 +488,7 @@ def test_rule_conflicts_update(client, admin_headers):
     assert "conflict" in response.json()["detail"].lower()
 
 
-def test_rule_conflicts_delete(client, admin_headers):
+def test_rule_conflicts_delete(client, admin_headers, override_get_db):
     # Create initial rule
     rule = {
         "rule_type": "conflict_test",

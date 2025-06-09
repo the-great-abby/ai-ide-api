@@ -26,7 +26,7 @@ echo "Importing: pytest Makefile rule"
 make -f Makefile.ai ai-propose-portable-rule \
   RULE_TYPE=testing \
   DESCRIPTION='All pytest executions must use Makefile targets and the -x flag for fail-fast.' \
-  DIFF='- All pytest commands MUST run through Makefile targets (never run pytest directly).\n- Always use the -x flag for fail-fast.\n- Use Docker service names for connections (never localhost).\n- Use internal Docker network ports (never external mapped ports).\n- Required environment variables: ENVIRONMENT=test, POSTGRES_HOST=db-test, POSTGRES_PORT=5432, REDIS_HOST=redis-test, REDIS_PORT=6379.' \
+  DIFF='- All pytest commands MUST run through Makefile targets (never run pytest directly).\n- Always use the -x flag for fail-fast.\n- Use Docker service names for connections (never localhost).\n- Use internal Docker network ports (never external mapped ports).\n- Required environment variables: ENVIRONMENT=test, POSTGRES_HOST=test-db, POSTGRES_PORT=5432, REDIS_HOST=redis-test, REDIS_PORT=6379.' \
   SUBMITTED_BY=portable-rules-bot \
   CATEGORIES='"testing","pytest","portable"' \
   TAGS='"testing","pytest","portable"' \

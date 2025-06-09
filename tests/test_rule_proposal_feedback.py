@@ -5,10 +5,8 @@ from fastapi.testclient import TestClient
 
 from rule_api_server import app
 
-client = TestClient(app)
 
-
-def test_submit_and_list_feedback(admin_headers):
+def test_submit_and_list_feedback(admin_headers, client, override_get_db):
     # First create a rule proposal
     proposal = {
         "rule_type": "feedback_test",
@@ -23,6 +21,7 @@ def test_submit_and_list_feedback(admin_headers):
         "user_story": "Test user story",
         "reason_for_change": "Testing feedback flow.",
         "references": "Test reference.",
+        "project": None,
     }
 
     # Create the proposal
@@ -65,7 +64,7 @@ def test_submit_and_list_feedback(admin_headers):
     )
 
 
-def test_multiple_feedback_entries(admin_headers):
+def test_multiple_feedback_entries(admin_headers, client, override_get_db):
     # Create a rule proposal
     proposal = {
         "rule_type": "test_multiple_feedback",
@@ -80,6 +79,7 @@ def test_multiple_feedback_entries(admin_headers):
         "user_story": "Test user story",
         "reason_for_change": "Testing feedback flow.",
         "references": "Test reference.",
+        "project": None,
     }
 
     prop_response = client.post(
@@ -117,7 +117,7 @@ def test_multiple_feedback_entries(admin_headers):
 
 
 @pytest.mark.negative
-def test_feedback_on_nonexistent_proposal(admin_headers):
+def test_feedback_on_nonexistent_proposal(admin_headers, client, override_get_db):
     # Try to submit feedback for a non-existent proposal
     feedback = {"feedback_type": "suggestion", "comments": "Test feedback"}
     fake_id = str(uuid.uuid4())
@@ -133,7 +133,7 @@ def test_feedback_on_nonexistent_proposal(admin_headers):
 
 
 @pytest.mark.negative
-def test_invalid_feedback_type(admin_headers):
+def test_invalid_feedback_type(admin_headers, client, override_get_db):
     # Create a rule proposal
     proposal = {
         "rule_type": "test_invalid_feedback",
@@ -148,6 +148,7 @@ def test_invalid_feedback_type(admin_headers):
         "user_story": "Test user story",
         "reason_for_change": "Testing feedback flow.",
         "references": "Test reference.",
+        "project": None,
     }
 
     prop_response = client.post(
@@ -177,3 +178,49 @@ def test_invalid_feedback_type(admin_headers):
         f"/rule-changes/{proposal_id}/approve", headers=admin_headers
     )
     assert approve_response.status_code == 200
+
+
+@pytest.mark.parametrize("feedback_type,expected_status", [
+    ("suggestion", 200),
+    ("question", 200),
+    ("concern", 200),
+    ("invalid_type", 422),
+    ("", 422),
+    (None, 422),
+    ("ACCEPT", 422),
+    ("reject", 422),
+])
+def test_feedback_type_enforcement(admin_headers, client, feedback_type, expected_status, override_get_db):
+    # Create a rule proposal
+    proposal = {
+        "rule_type": "test_feedback_type_enforcement",
+        "description": "Test feedback type enforcement",
+        "diff": "Test diff",
+        "submitted_by": "tester",
+        "categories": ["test"],
+        "tags": ["feedback"],
+        "examples": ["Example 1"],
+        "applies_to": ["python"],
+        "applies_to_rationale": "For Python code",
+        "user_story": "Test user story",
+        "reason_for_change": "Testing feedback type enforcement.",
+        "references": "Test reference.",
+        "project": None,
+    }
+    prop_response = client.post(
+        "/propose-rule-change", json=proposal, headers=admin_headers
+    )
+    assert prop_response.status_code == 200
+    proposal_id = prop_response.json()["id"]
+    feedback = {"feedback_type": feedback_type, "comments": "Test feedback"}
+    response = client.post(
+        f"/api/rule_proposals/{proposal_id}/feedback",
+        json=feedback,
+        headers=admin_headers,
+    )
+    assert response.status_code == expected_status
+    if expected_status == 422:
+        # Should mention allowed types in error message
+        assert any(
+            allowed in response.text for allowed in ["suggestion", "question", "concern"]
+        )

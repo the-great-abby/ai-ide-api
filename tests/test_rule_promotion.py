@@ -5,18 +5,17 @@ from fastapi.testclient import TestClient
 
 from rule_api_server import app
 
-client = TestClient(app)
 
-
-def test_rule_promotion_flow(admin_headers):
+def test_rule_promotion_flow(admin_headers, client, override_get_db):
     # First create a rule at project scope
+    project_scope_id = str(uuid.uuid4())
     project_rule = {
         "rule_type": "promotion_test",
         "description": "Promotion test rule",
         "diff": "# Rule: Promotion Test\n## Description\nPromotion test rule\n## Enforcement\nTesting promotion.",
         "submitted_by": "tester",
         "scope_level": "project",
-        "scope_id": str(uuid.uuid4()),
+        "scope_id": project_scope_id,
         "categories": ["test"],
         "tags": ["promotion"],
         "examples": ["Example 1"],
@@ -39,23 +38,23 @@ def test_rule_promotion_flow(admin_headers):
         f"/rule-changes/{proposal_id}/approve", headers=admin_headers
     )
     assert approve_response.status_code == 200
-
-    # Get the rule ID
+    # Always fetch the rule from /rules after approval
     rules = client.get(
-        "/rules?scope_level=project&scope_id=test-project-1", headers=admin_headers
+        f"/rules?scope_level=project&scope_id={project_scope_id}", headers=admin_headers
     ).json()
     rule = next(r for r in rules if r["description"] == "Promotion test rule")
     rule_id = rule["id"]
 
     # Test promotion to team scope
-    team_promotion = {"scope_level": "team", "scope_id": "test-team-1"}
+    team_scope_id = str(uuid.uuid4())
+    team_promotion = {"scope_level": "team", "scope_id": team_scope_id}
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=team_promotion, headers=admin_headers
     )
     assert promote_response.status_code == 200
     promoted_rule = promote_response.json()
     assert promoted_rule["scope_level"] == "team"
-    assert promoted_rule["scope_id"] == "test-team-1"
+    assert promoted_rule["scope_id"] == team_scope_id
 
     # Test promotion to global scope
     global_promotion = {"scope_level": "global"}
@@ -68,15 +67,16 @@ def test_rule_promotion_flow(admin_headers):
     assert promoted_rule["scope_id"] is None
 
 
-def test_invalid_promotion(admin_headers):
+def test_invalid_promotion(admin_headers, client, override_get_db):
     # Create a rule at team scope
+    team_scope_id = str(uuid.uuid4())
     team_rule = {
         "rule_type": "test_invalid_promotion",
         "description": "Test invalid promotion",
         "diff": "Test diff",
         "submitted_by": "tester",
         "scope_level": "team",
-        "scope_id": str(uuid.uuid4()),
+        "scope_id": team_scope_id,
         "categories": ["test"],
         "tags": ["promotion"],
         "examples": ["Example 2"],
@@ -98,9 +98,9 @@ def test_invalid_promotion(admin_headers):
     )
     assert approve_response.status_code == 200
 
-    # Get the rule ID
+    # Get the rule ID using the actual scope_id
     rules = client.get(
-        "/rules?scope_level=team&scope_id=test-team-2", headers=admin_headers
+        f"/rules?scope_level=team&scope_id={team_scope_id}", headers=admin_headers
     ).json()
     rule = next(r for r in rules if r["description"] == "Test invalid promotion")
     rule_id = rule["id"]
@@ -122,15 +122,16 @@ def test_invalid_promotion(admin_headers):
     assert "Invalid scope_level" in promote_response.json()["detail"]
 
 
-def test_promotion_with_missing_scope_id(admin_headers):
+def test_promotion_with_missing_scope_id(admin_headers, client, override_get_db):
     # Create a rule at project scope
+    project_scope_id = str(uuid.uuid4())
     project_rule = {
         "rule_type": "test_missing_scope",
         "description": "Test missing scope ID",
         "diff": "Test diff",
         "submitted_by": "tester",
         "scope_level": "project",
-        "scope_id": str(uuid.uuid4()),
+        "scope_id": project_scope_id,
         "categories": ["test"],
         "tags": ["promotion"],
         "examples": ["Example 3"],
@@ -152,9 +153,9 @@ def test_promotion_with_missing_scope_id(admin_headers):
     )
     assert approve_response.status_code == 200
 
-    # Get the rule ID
+    # Get the rule ID using the actual scope_id
     rules = client.get(
-        "/rules?scope_level=project&scope_id=test-project-3", headers=admin_headers
+        f"/rules?scope_level=project&scope_id={project_scope_id}", headers=admin_headers
     ).json()
     rule = next(r for r in rules if r["description"] == "Test missing scope ID")
     rule_id = rule["id"]

@@ -40,4 +40,60 @@ If you only have access to the project via the AI IDE API (e.g., at `localhost:9
 
 **Encouragement:**
 - Reviewing this doc before gathering specs/docs will help you get the most out of the system and avoid common pitfalls.
-- If you have suggestions for improving onboarding, please contribute or open an issue! 
+- If you have suggestions for improving onboarding, please contribute or open an issue!
+
+## Makefile Structure: Slim Main, Specialized Sub-Makefiles
+
+🏴‍☠️ **Pirate Warning: Keep the Captain's Log Lean!**
+
+- The main `Makefile.ai` should be kept as slim as possible—just high-level aliases and `include` statements for sub-Makefiles.
+- All specialized targets and real logic should live in sub-Makefiles (e.g., `Makefile.ai-test`, `Makefile.ai-llm`, `Makefile.ai-db`, etc.).
+- This prevents the main Makefile from hitting file size limits and crashing the build system (as happened in the Great Shipwreck of '24).
+- Sub-Makefiles can grow and specialize as needed, without bloating the main file.
+- If a target is defined in a sub-Makefile, do NOT redefine it in the main file—let the sub-crews handle their own cargo!
+- Leave a warning comment at the top of `Makefile.ai` to remind future pirates of this rule.
+
+**Example:**
+```makefile
+# In Makefile.ai (the captain's log):
+include Makefile.ai-test
+include Makefile.ai-llm
+# ...
+# Only high-level aliases here!
+
+# In Makefile.ai-test (the test crew's domain):
+ai-test:
+	# ... test logic ...
+```
+
+**Rationale:**
+- Keeps the main Makefile discoverable and maintainable
+- Avoids catastrophic build failures due to file size
+- Lets each crew (test, LLM, DB, admin) own their own Makefile domain
+- Makes it easy for new pirates to find the right map for the job
+
+**If you break this rule, the kraken will eat your CI pipeline!** 
+
+## Quickstart Targets: Dev vs Test
+
+| Target            | What it does                                              | When to use                |
+|-------------------|----------------------------------------------------------|----------------------------|
+| `dev-quickstart`  | Sets up dev env, runs dev DB migrations, onboard admin, runs tests | For local development      |
+| `test-quickstart` | Sets up test env, runs test DB migrations, runs tests (no onboarding) | For CI, test cycles, or when you want a clean test run |
+
+### Example Usage
+
+- **Local dev setup:**
+  ```bash
+  make -f Makefile.ai dev-db-nuke
+  # or, if you just want to quickstart without nuking:
+  make -f Makefile.ai dev-quickstart
+  ```
+- **Test/CI setup:**
+  ```bash
+  make -f Makefile.ai test-db-nuke
+  # or, for a quick test run:
+  make -f Makefile.ai test-quickstart
+  ```
+
+**Best Practice:** Always use the right quickstart for your voyage! Dev for local hacking, test for clean test runs or CI. 

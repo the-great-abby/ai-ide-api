@@ -1,15 +1,12 @@
 import uuid
 
 import pytest
-from fastapi.testclient import TestClient
 
 from rule_api_server import app
 
-client = TestClient(app)
-
 
 @pytest.mark.unit
-def test_basic_rule_update(admin_headers):
+def test_basic_rule_update(admin_headers, client, override_get_db):
     # Create initial rule
     initial_rule = {
         "rule_type": "test_update",
@@ -73,7 +70,7 @@ def test_basic_rule_update(admin_headers):
 
 
 @pytest.mark.unit
-def test_partial_rule_update(admin_headers):
+def test_partial_rule_update(admin_headers, client, override_get_db):
     # Create initial rule
     initial_rule = {
         "rule_type": "test_partial",
@@ -124,7 +121,7 @@ def test_partial_rule_update(admin_headers):
 
 
 @pytest.mark.negative
-def test_update_nonexistent_rule(admin_headers):
+def test_update_nonexistent_rule(admin_headers, client, override_get_db):
     # Try to update non-existent rule
     fake_id = str(uuid.uuid4())
     response = client.patch(
@@ -134,7 +131,7 @@ def test_update_nonexistent_rule(admin_headers):
 
 
 @pytest.mark.negative
-def test_update_with_invalid_data(admin_headers):
+def test_update_with_invalid_data(admin_headers, client, override_get_db):
     # Create initial rule
     initial_rule = {
         "rule_type": "test_invalid",
@@ -187,7 +184,7 @@ def test_update_with_invalid_data(admin_headers):
 
 
 @pytest.mark.negative
-def test_update_immutable_fields(admin_headers):
+def test_update_immutable_fields(admin_headers, client, override_get_db):
     # Create initial rule
     initial_rule = {
         "rule_type": "test_immutable",

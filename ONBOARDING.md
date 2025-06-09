@@ -1,3 +1,9 @@
+---
+**Optional: Pirate Mode 🏴‍☠️**
+Want a more fun, themed onboarding experience? [Enable Pirate Mode](ONBOARDING_PIRATE.md) for a swashbuckling version of these docs!
+(Default is professional language. Pirate Mode is just for fun and can be toggled on or off at any time.)
+---
+
 # Welcome to Project Onboarding!
 
 Welcome to the AI IDE API project! This onboarding guide will help you get started, whether you are a core team member, an external collaborator, or an adventurous power user.
@@ -79,6 +85,14 @@ Welcome to the Rule Proposal API project! We're excited to have you here. This p
 
 ---
 
+**New to this project?**
+Check out the [Glossary](docs/onboarding/GLOSSARY.md) for definitions of common terms and acronyms used throughout the docs and codebase. If you see a word you don't know, it's probably in there!
+
+**Want a visual overview?**
+Take the [Codebase Tour](docs/onboarding/CODEBASE_TOUR.md) for diagrams and deep dives into how the project fits together.
+
+---
+
 ## 🏗️ Architecture Overview (Updated)
 
 This project uses a split architecture with Docker Compose:
@@ -94,8 +108,6 @@ This project uses a split architecture with Docker Compose:
 - **Postgres Database** (`rules-postgres`):
   - Stores all rules, proposals, enhancements, and feedback
   - Runs in a Docker container for portability and consistency
-
-> **Note:** As of June 2024, the project has migrated from SQLite to Postgres for improved scalability and reliability. See CHANGELOG.md for details.
 
 ### MermaidJS Architecture Diagram
 ```mermaid
@@ -127,6 +139,226 @@ graph TD
   ```bash
   ADMIN_FRONTEND_PORT=4000 make -f Makefile.ai ai-up
   ```
+
+---
+
+## 🐳 Service Profiles, Environment Management, and Worker Testing
+
+Our project uses Docker Compose with **profiles** to keep development, testing, and advanced features (like LLM workers) cleanly separated. This ensures:
+- Developers only run the services they need.
+- Environment variables are always correct for each context.
+- Onboarding is fast and confusion-free.
+
+### Service Profiles & Workflows
+
+| Profile      | Services Included         | Typical Use Case                | Env File(s) Used         |
+|--------------|--------------------------|---------------------------------|--------------------------|
+| `dev`        | api, db, redis           | Core development                | `.env`, `.env.dev`       |
+| `llm`        | llm-worker, ollama       | LLM/AI feature development      | `.env`, `.env.llm`       |
+| `test`       | test-api, db-test, redis-test | Backend/API testing         | `.env`, `.env.test`      |
+| `llm-test`   | llm-worker (test mode)   | LLM worker integration/unit test| `.env`, `.env.llm-test`  |
+
+---
+
+### Environment Variable Management
+
+- **Global defaults** go in `.env`.
+- **Profile/service-specific overrides** go in `.env.dev`, `.env.llm`, `.env.test`, `.env.llm-test`, etc.
+- **Each service** specifies which env files it loads in `docker-compose.yml` via the `env_file` key.
+- **Never mix test and dev settings in the same env file.**
+
+**Example:**
+```yaml
+services:
+  api:
+    profiles: ["dev"]
+    env_file:
+      - .env
+      - .env.dev
+    # ...
+
+  llm-worker:
+    profiles: ["llm"]
+    env_file:
+      - .env
+      - .env.llm
+    # ...
+
+  llm-worker-test:
+    profiles: ["llm-test"]
+    env_file:
+      - .env
+      - .env.llm-test
+    # ...
+```
+
+---
+
+### Starting and Stopping Services
+
+**Makefile targets (recommended):**
+```makefile
+dev-up:
+	cp .env.dev .env
+	docker compose --profile dev up -d
+
+llm-up:
+	cp .env.llm .env
+	docker compose --profile llm up -d
+
+test-up:
+	cp .env.test .env
+	docker compose --profile test up -d
+
+llm-test-up:
+	cp .env.llm-test .env
+	docker compose --profile llm-test up -d
+
+down:
+	docker compose down
+```
+
+**Manual commands:**
+```bash
+# Start core dev services
+docker compose --profile dev up
+
+# Start LLM worker for dev
+docker compose --profile llm up
+
+# Start LLM worker for testing
+docker compose --profile llm-test up
+```
+
+---
+
+### Testing Workers
+
+- To test the LLM worker in isolation or with test services:
+  1. Ensure `.env.llm-test` is present and configured for test DB, Redis, etc.
+  2. Run `make llm-test-up` (or the manual command above).
+  3. The worker will connect to test services, not production/dev ones.
+
+---
+
+### Best Practices
+
+- **Only run the services you need** for your current workflow.
+- **Never mix dev and test environment variables** in the same file.
+- **Document any new profiles or env files** when adding new services or workflows.
+- **Update Makefile targets and onboarding docs** as the project evolves.
+
+---
+
+### Troubleshooting
+
+- **Wrong DB/Redis?**  Double-check which env file is being used for the service/profile you started.
+- **Port conflicts?**  Run `make down` or `docker compose down` to stop all containers.
+- **Service not starting?**  Ensure the correct profile and env file are being used.
+
+---
+
+### Extending the System
+
+- **To add a new service or workflow:**
+  1. Decide which profile(s) it belongs to.
+  2. Create a dedicated env file if needed.
+  3. Add the service to `docker-compose.yml` with the correct `profiles` and `env_file`.
+  4. Add/modify Makefile targets.
+  5. Update this documentation.
+
+---
+
+### Quick Reference Table
+
+| Task/Role         | Command/Target      | Services Started         | Env File(s) Used         |
+|-------------------|--------------------|-------------------------|--------------------------|
+| Core Dev          | `make dev-up`      | api, db, redis          | `.env`, `.env.dev`       |
+| LLM Features      | `make llm-up`      | llm-worker, ollama      | `.env`, `.env.llm`       |
+| API Testing       | `make test-up`     | test-api, db-test, redis-test | `.env`, `.env.test`      |
+| LLM Worker Test   | `make llm-test-up` | llm-worker (test mode)  | `.env`, `.env.llm-test`  |
+| Stop All          | `make down`        | —                       | —                        |
+
+---
+
+### Service Profiles & Connections (Mermaid)
+
+```mermaid
+flowchart TD
+    subgraph Dev["dev profile"]
+      API["api"]
+      DB["db"]
+      REDIS["redis"]
+      API -- connects to --> DB
+      API -- connects to --> REDIS
+    end
+
+    subgraph LLM["llm profile"]
+      LLMWorker["llm-worker"]
+      OLLAMA["ollama"]
+      LLMWorker -- uses --> OLLAMA
+    end
+
+    subgraph Test["test profile"]
+      TestAPI["test-api"]
+      TestDB["db-test"]
+      TestREDIS["redis-test"]
+      TestAPI -- connects to --> TestDB
+      TestAPI -- connects to --> TestREDIS
+    end
+
+    subgraph LLMTest["llm-test profile"]
+      LLMWorkerTest["llm-worker (test mode)"]
+      LLMWorkerTest -- connects to --> TestDB
+      LLMWorkerTest -- connects to --> TestREDIS
+    end
+
+    API -. optional .-> LLMWorker
+    TestAPI -. optional .-> LLMWorkerTest
+    LLMWorkerTest -- uses --> OLLAMA
+    LLMWorker -- may use --> DB
+    LLMWorkerTest -- may use --> TestDB
+```
+
+---
+
+## 🚀 Makefile.ai Targets for Docker Compose Profiles
+
+To make working with Docker Compose profiles easy, we provide Makefile targets for each common workflow. These targets abstract away the Docker Compose commands and help ensure consistency for all contributors.
+
+| Target         | What it Does                                 | Services/Profiles Started         |
+|----------------|----------------------------------------------|-----------------------------------|
+| dev-up         | Start core dev services                      | api, db, frontend, misc-scripts   |
+| llm-up         | Start LLM/AI services                        | ollama-functions, worker          |
+| all-up         | Start all dev + LLM services                 | All of the above                  |
+| test-up        | Start test environment services              | test-api, test-db, test-frontend, test-misc-scripts |
+| llm-test-up    | Start LLM worker in test mode                | test-ollama-functions, test-worker|
+| all-test-up    | Start all test + LLM-test services           | All test and llm-test services    |
+| down           | Stop all running containers (dev and test)   | —                                 |
+| ps             | Show running containers (dev and test)       | —                                 |
+| prune          | Clean up stopped containers, networks, images | —                                 |
+
+**Usage Examples:**
+```bash
+make dev-up        # Start core dev services
+make llm-up        # Start LLM/AI services
+make all-up        # Start everything (dev + LLM)
+make test-up       # Start test environment
+make llm-test-up   # Start LLM worker in test mode
+make all-test-up   # Start all test + LLM-test services
+make down          # Stop everything
+make ps            # Show running containers
+make prune         # Clean up Docker
+```
+
+**Tip:**
+If you want to automate copying the correct environment file before starting services, you can add a `cp` command at the start of each Makefile target. For example:
+```makefile
+dev-up:
+	cp change-this-env.api.example .env.dev
+	docker compose --profile dev up -d
+```
+Or document this step in your onboarding for contributors to do manually.
 
 ---
 
@@ -420,7 +652,7 @@ This will delete ALL Postgres data and volumes, then re-run migrations.
 
 **Troubleshooting:**
 - If you see enum or duplicate key errors on restore, ensure your schema matches the backup and use data-only restore if needed.
-- Always use internal Docker service names and ports (e.g., `db-test:5432`).
+- Always use internal Docker service names and ports (e.g., `test-db:5432` for test, `db:5432` for dev).
 
 ---
 
@@ -453,7 +685,7 @@ Use these Makefile.ai targets to view logs for troubleshooting:
   ```bash
   make -f Makefile.ai logs
   ```
-  Shows the last 100 lines for API, db-test, and frontend containers.
+  Shows the last 100 lines for API, test-db, and frontend containers.
 
 - **API only:**
   ```bash
@@ -541,4 +773,94 @@ The AI-IDE API supports a powerful memory graph for storing, relating, and searc
     -d '{"text": "Find similar ideas about AI memory.", "namespace": "notes", "limit": 5}'
   ```
 
-For more advanced usage, traversal, and best practices, see [`docs/user_stories/ai_memory_graph_api.md`](docs/user_stories/ai_memory_graph_api.md). 
+For more advanced usage, traversal, and best practices, see [`docs/user_stories/ai_memory_graph_api.md`](docs/user_stories/ai_memory_graph_api.md).
+
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.
+
+---
+
+## 🛡️ API Access & Onboarding Flow (Updated June 2024)
+
+- **API Port for Host Access:** Always use `http://localhost:9104` to access the API from your host machine. Never use `localhost:8000` for direct API access from the host.
+- **Internal Docker Service:** Use `test-api:8000` for service-to-service communication within the Docker test network.
+- **Token Requirement:** All endpoints except `/onboarding/init` require a valid token. Always start onboarding by calling `/onboarding/init` with `project_name` (and optionally `team_name`).
+
+### Example: Onboarding Flow (Host Machine)
+
+```python
+import requests
+
+# Step 1: Obtain token
+resp = requests.post("http://localhost:9104/onboarding/init", json={"project_name": "my-project", "path": "internal_dev"})
+token = resp.json()["token"]
+```
+
+### Example: Onboarding Flow (Inside Docker Network)
+
+```python
+resp = requests.post("http://test-api:8000/onboarding-init", json={"project_name": "my-project"})
+token = resp.json()["token"]
+headers = {"Authorization": f"Bearer {token}"}
+resp = requests.get("http://test-api:8000/protected-endpoint", headers=headers)
+```
+
+---
+
+> **Quartermaster "Patch" McDebug says:**
+> - Use `http://localhost:9104` for API access from your host machine.
+> - Use `http://test-api:8000` for API access from inside Docker/test containers.
+> - If you must reach the host from a container, use `http://host.docker.internal:9104`.
+> - Never use `localhost:8000`, `api:8000`, or `localhost:9103` for direct API access from the host or test containers.
+> - And remember, Patch is always watching for scallywags who break the rules!
+
+---
+
+# 5-Minute Quickstart
+
+Follow these steps to get up and running in under 5 minutes:
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repo-url>
+   cd <project-dir>
+   ```
+2. **Build Docker images:**
+   ```bash
+   make build
+   ```
+   *If you see Docker errors, ensure Docker Desktop is running.*
+3. **Start the development environment:**
+   ```bash
+   make up
+   ```
+   *If the default port (9103) is in use, run:*
+   ```bash
+   make up PORT=9001
+   ```
+4. **Open the API docs in your browser:**
+   - Visit [http://localhost:9103/docs](http://localhost:9103/docs) (or your chosen port)
+   - You should see the interactive API documentation.
+   *If the page doesn't load, check Docker status and port usage.*
+5. **Run the test suite:**
+   ```bash
+   make test
+   ```
+   - You should see test results in the terminal.
+   *If tests fail to run, make sure you're not running pytest directly and that all containers are up.*
+6. **Stop the environment when done:**
+   ```bash
+   make down
+   ```
+
+**Troubleshooting:**
+- Docker not running? Start Docker Desktop.
+- Port in use? Use the `PORT` variable as shown above.
+- Permission errors? Try `sudo chown -R $USER:$USER .` in the project directory.
+- Still stuck? See the [Troubleshooting Guide](docs/onboarding/troubleshooting.md). 

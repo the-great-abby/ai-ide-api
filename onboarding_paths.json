@@ -74,5 +74,13 @@
     "explore_memory_graph",
     "create_first_memory_node",
     "review_progress"
+  ],
+  "test_path": [
+    "obtain_api_token",
+    "create_project_namespace",
+    "configure_namespace_permissions",
+    "create_namespace_token",
+    "submit_first_rule",
+    "run_onboarding_health_check"
   ]
 } 

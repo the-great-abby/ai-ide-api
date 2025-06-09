@@ -14,16 +14,7 @@ ai-propose-rule:
 	  -H "Content-Type: application/json" \
 	  -d @$(RULE_FILE)
 
-ai-list-pending:
-	curl -s -H "Authorization: Bearer $(ADMIN_TOKEN)" http://localhost:$(PORT)/rule-changes?status=pending
-
-ai-approve-rule:
-	curl -s -X PUT -H "Authorization: Bearer $(ADMIN_TOKEN)" http://localhost:$(PORT)/rule-changes/$(PROPOSAL_ID)/approve
-
-ai-reject-rule:
-	curl -s -X PUT -H "Authorization: Bearer $(ADMIN_TOKEN)" http://localhost:$(PORT)/rule-changes/$(PROPOSAL_ID)/reject
-
-ai-list-rules:
+# ai-list-rules:
 	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM proposals;" | cat
 	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM rules;" | cat
 	docker compose exec db psql -U postgres -d rulesdb -c "SELECT * FROM feedback;" | cat

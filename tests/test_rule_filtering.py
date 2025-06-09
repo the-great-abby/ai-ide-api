@@ -6,8 +6,6 @@ from fastapi.testclient import TestClient
 from db import Project, Team, get_db
 from rule_api_server import app
 
-client = TestClient(app)
-
 
 @pytest.fixture
 def test_project_uuid():
@@ -26,15 +24,10 @@ def test_project_uuid():
 
 @pytest.fixture
 def test_team_uuid():
-    db = next(get_db())
-    team = Team(name=f"Test Team {uuid.uuid4()}", description="Test Team")
-    db.add(team)
-    db.commit()
-    db.refresh(team)
-    return str(team.id)
+    return str(uuid.uuid4())
 
 
-def test_rule_filtering_by_category(admin_headers):
+def test_rule_filtering_by_category(client, clean_db, admin_headers, override_get_db):
     # Create rules with different categories
     rules = [
         {
@@ -101,6 +94,7 @@ def test_rule_filtering_by_category(admin_headers):
     response = client.get("/rules?category=category1", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
+    # Expect 2 results: rules with category1 and rule with both category1 and category2
     assert len(filtered_rules) == 2
     assert all("category1" in r["categories"] for r in filtered_rules)
 
@@ -108,6 +102,7 @@ def test_rule_filtering_by_category(admin_headers):
     response = client.get("/rules?category=category1,category2", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
+    # Expect 3 results: all rules have category1 or category2
     assert len(filtered_rules) == 3
     assert all(
         any(cat in r["categories"] for cat in ["category1", "category2"])
@@ -115,7 +110,7 @@ def test_rule_filtering_by_category(admin_headers):
     )
 
 
-def test_rule_filtering_by_tag(admin_headers):
+def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db):
     # Create rules with different tags
     rules = [
         {
@@ -178,11 +173,12 @@ def test_rule_filtering_by_tag(admin_headers):
     response = client.get("/rules?tag=tag1", headers=admin_headers)
     assert response.status_code == 200
     filtered_rules = response.json()
+    # Expect 2 results: rules with tag1 and rule with both tag1 and tag2
     assert len(filtered_rules) == 2
     assert all("tag1" in r["tags"] for r in filtered_rules)
 
 
-def test_rule_filtering_by_scope(admin_headers, test_project_uuid, test_team_uuid):
+def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_team_uuid, override_get_db):
     # Create rules with different scopes
     rules = [
         {
@@ -264,7 +260,7 @@ def test_rule_filtering_by_scope(admin_headers, test_project_uuid, test_team_uui
     assert filtered_rules[0]["scope_id"] == test_project_uuid
 
 
-def test_rule_filtering_combinations(admin_headers, test_project_uuid, test_team_uuid):
+def test_rule_filtering_combinations(client, admin_headers, test_project_uuid, test_team_uuid, override_get_db):
     # Create rules with various combinations
     rules = [
         {
@@ -341,7 +337,7 @@ def test_rule_filtering_combinations(admin_headers, test_project_uuid, test_team
     assert rule["scope_level"] == "project"
 
 
-def test_rule_search(admin_headers):
+def test_rule_search(client, clean_db, admin_headers, override_get_db):
     # Create rules with searchable content
     rules = [
         {
@@ -400,12 +396,15 @@ def test_rule_search(admin_headers):
         )
         assert approve_response.status_code == 200
 
-    # Test search by description
-    response = client.get("/rules?search=Python", headers=admin_headers)
+    # Search by description or applies_to/tags
+    response = client.get("/rules?search=Python")
     assert response.status_code == 200
     filtered_rules = response.json()
-    assert len(filtered_rules) == 1
-    assert "Python" in filtered_rules[0]["description"]
+    # Expect 2 results: 'Python code style rule' and 'General code style rule' both match 'Python' in description, tags, or applies_to
+    assert len(filtered_rules) == 2
+    descriptions = [r["description"] for r in filtered_rules]
+    assert "Python code style rule" in descriptions
+    assert "General code style rule" in descriptions
 
     # Test search by diff content
     response = client.get("/rules?search=ESLint", headers=admin_headers)

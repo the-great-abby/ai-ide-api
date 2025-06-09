@@ -10,6 +10,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import inspect
+import logging
 
 # revision identifiers, used by Alembic.
 revision: str = "c77f4c2517b0"
@@ -22,7 +23,8 @@ def upgrade() -> None:
     """Upgrade schema."""
     bind = op.get_bind()
     inspector = inspect(bind)
-
+    logger = logging.getLogger("alembic.runtime.migration")
+    logger.info(f"[DEBUG] Existing tables at migration: {inspector.get_table_names()}")
     # Only create the table if it doesn't exist
     if "rule_proposal_feedback" not in inspector.get_table_names():
         op.create_table(
@@ -30,11 +32,7 @@ def upgrade() -> None:
             sa.Column("id", sa.String(), nullable=False),
             sa.Column("rule_proposal_id", sa.String(), nullable=False),
             sa.Column("user_id", sa.String(), nullable=True),
-            sa.Column(
-                "feedback_type",
-                sa.Enum("accept", "reject", "needs_changes", name="feedbacktype"),
-                nullable=False,
-            ),
+            sa.Column("feedback_type", sa.String(), nullable=True),
             sa.Column("comments", sa.Text(), nullable=True),
             sa.Column("created_at", sa.DateTime(), nullable=True),
             sa.PrimaryKeyConstraint("id"),

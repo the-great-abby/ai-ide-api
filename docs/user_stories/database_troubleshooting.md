@@ -4,8 +4,15 @@ When running psql commands in scripts, Makefiles, or during troubleshooting, **a
 
 **Example:**
 ```bash
-docker compose exec db-test psql -U postgres -d rulesdb -c '\dt' | cat
-docker compose exec db-test psql -U postgres -d rulesdb -c '\d my_table' | cat
+docker compose exec test-db psql -U postgres -d rulesdb -c '\dt' | cat
+docker compose exec test-db psql -U postgres -d rulesdb -c '\d my_table' | cat
 ```
 
-This practice prevents issues where output is paged (e.g., with `less` or `more`), which can cause scripts to hang or output to be lost in automated environments. 
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.

@@ -1,0 +1,12 @@
+docker-compose -f docker-compose.test.yml up -d db-test test frontend misc-scripts ollama-functions worker
+Waiting for test database to be ready...
+/var/run/postgresql:5432 - accepting connections
+Checking test database status...
+Database 'rulesdb' detected - not creating
+Running database migrations...
+docker-compose -f docker-compose.test.yml exec test alembic upgrade head
+docker-compose -f docker-compose.test.yml exec test alembic -c alembic_memorydb.ini upgrade head
+Test database setup complete!
+python scripts/onboard_admin.py
+Normal user token created: JqIbuqNcSgulX2Dd9AnUawn44twxtVQ8kNCDAW2f94E
+Failed to create admin token: {"detail":"A valid non-admin API token is required to generate the first admin token."}

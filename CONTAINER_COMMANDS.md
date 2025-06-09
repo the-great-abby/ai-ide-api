@@ -5,7 +5,7 @@ This document lists which commands and tools should be run in which containers f
 | Command/Tool | Container/Service | Notes |
 |--------------|------------------|-------|
 | `alembic`    | `api`            | Run all Alembic migrations and migration status commands here. |
-| `psql`       | `db-test`        | Use for direct database inspection, manual SQL, and schema checks. |
+| `psql`       | `test-db` (test), `db` (dev)        | Use for direct database inspection, manual SQL, and schema checks. |
 | `pytest`     | `backend-test` (or via Makefile.ai) | All test runs should use Makefile.ai targets, which run in the correct environment. |
 | `pre-commit` | Host or `pre-commit` container | For linting and code checks. |
 | `scripts/*`  | Varies           | See script header or Makefile target for correct context. |
@@ -39,3 +39,12 @@ To prevent accidental execution in the wrong environment, use the helper script:
 Add this to your .zshrc
     alias pytest='echo "[ERROR] Use make -f Makefile.ai ai-test" && exit 1'
     alias alembic='echo "[ERROR] Use make -f Makefile.ai ai-db-migrate" && exit 1'
+
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.

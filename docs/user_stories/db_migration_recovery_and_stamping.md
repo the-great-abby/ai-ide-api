@@ -50,6 +50,31 @@ As a developer or admin, I want to quickly recover from Alembic migration mismat
 - Makefile.ai targets: `ai-db-stamp-head`, `ai-db-autorevision`, `ai-db-migrate`
 - Typical error: `Can't locate revision identified by ...`
 
+## Stamping and Recovery for Test DB (Dockerized Test Environment)
+
+If you need to recover or synchronize the test database (used in CI or local Docker test runs), use the following Makefile targets:
+
+- **Stamp the test DB to the latest migration:**
+  ```bash
+  make -f Makefile.ai-test test-db-stamp-head
+  ```
+  This marks the test database as being at the latest migration, without running migrations.
+
+- **Check the current Alembic version in the test DB:**
+  ```bash
+  make -f Makefile.ai-test test-db-current
+  ```
+  This shows the current migration version in the test database.
+
+**When to use:**
+- After a failed migration or connection error in the test environment
+- If `alembic current` returns nothing, but the schema is correct
+- To manually synchronize the test DB's migration history with the codebase
+
+**Best Practices:**
+- Always use the test Makefile (`Makefile.ai-test`) for test DB operations
+- Document any manual stamping in PRs or team notes
+
 ## Stamping MemoryDB to Resolve Migration Divergence or Missing Revisions
 
 If you encounter errors like missing revision files, broken migration chains, or parallel migration histories in the memorydb (often due to development on multiple machines or lost files), you can stamp the memorydb to the latest available revision to resolve the issue.

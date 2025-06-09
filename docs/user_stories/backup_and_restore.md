@@ -160,10 +160,19 @@ This workflow is the recommended, validated method for disaster recovery and aut
    ```
 3. Verify tables in memorydb:
    ```bash
-   docker compose exec db-test psql -U postgres -d memorydb -c "\\dt" | cat
+   docker compose exec test-db psql -U postgres -d memorydb -c "\dt" | cat
    ```
 
 ### Best Practices
 - Always pipe psql output to `cat` in automation to avoid prompt issues.
 - Keep migration histories for each DB isolated.
-- Document any manual steps or custom SQL in migration scripts. 
+- Document any manual steps or custom SQL in migration scripts.
+
+## Docker Postgres Service Names
+
+| Environment | Service Name |
+|-------------|--------------|
+| Dev/Prod    | db           |
+| Test/CI     | test-db      |
+
+> **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests. 

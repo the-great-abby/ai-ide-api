@@ -6,8 +6,6 @@ from fastapi.testclient import TestClient
 from db import ApiAccessToken, get_db
 from rule_api_server import app
 
-client = TestClient(app)
-
 # @pytest.fixture(autouse=True)
 # def clean_tokens():
 #     db = next(get_db())
@@ -19,7 +17,7 @@ client = TestClient(app)
 #         db.close()
 
 
-def test_review_code_files(admin_headers):
+def test_review_code_files(admin_headers, client, override_get_db):
     # Create test files
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as py_file:
         py_file.write(
@@ -53,7 +51,7 @@ class MyClass:
     assert any("missing_docstring" in s.get("rule_type", "") for s in suggestions)
 
 
-def test_review_code_snippet(admin_headers):
+def test_review_code_snippet(admin_headers, client, override_get_db):
     response = client.post(
         "/review-code-snippet",
         json={
@@ -81,7 +79,7 @@ class MyClass:
     assert any("missing_docstring" in s.get("rule_type", "") for s in data)
 
 
-def test_review_code_files_llm(admin_headers):
+def test_review_code_files_llm(admin_headers, client, override_get_db):
     # Create test file
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as py_file:
         py_file.write(
@@ -117,7 +115,7 @@ class MyClass:
     assert all("description" in s for s in suggestions)
 
 
-def test_review_code_files_multiple(admin_headers):
+def test_review_code_files_multiple(admin_headers, client, override_get_db):
     # Create multiple test files
     files = []
     file_contents = [
@@ -157,7 +155,7 @@ def test_review_code_files_multiple(admin_headers):
     assert not any(k.endswith(".txt") for k in data.keys())
 
 
-def test_review_code_files_invalid(admin_headers):
+def test_review_code_files_invalid(admin_headers, client, override_get_db):
     # Test with invalid file type
     with tempfile.NamedTemporaryFile(
         suffix=".txt", mode="w+", delete=False
@@ -178,7 +176,7 @@ def test_review_code_files_invalid(admin_headers):
     assert len(data[txt_file.name]) == 0  # No suggestions for non-Python files
 
 
-def test_review_code_snippet_invalid(admin_headers):
+def test_review_code_snippet_invalid(admin_headers, client, override_get_db):
     response = client.post(
         "/review-code-snippet",
         json={"filename": "test.txt", "code": "This is not Python code"},
@@ -190,7 +188,7 @@ def test_review_code_snippet_invalid(admin_headers):
     assert len(data) == 0  # No suggestions for non-Python code
 
 
-def test_review_code_files_empty(admin_headers):
+def test_review_code_files_empty(admin_headers, client, override_get_db):
     # Test with empty file
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as py_file:
         py_file.write("")
@@ -209,7 +207,7 @@ def test_review_code_files_empty(admin_headers):
     assert len(data[py_file.name]) == 0  # No suggestions for empty file
 
 
-def test_review_code_snippet_empty(admin_headers):
+def test_review_code_snippet_empty(admin_headers, client, override_get_db):
     response = client.post(
         "/review-code-snippet",
         json={"filename": "test.py", "code": ""},

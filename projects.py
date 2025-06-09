@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from auth import require_api_token, require_role
-from db import ApiAccessToken, Project, get_db
+from db import ApiAccessToken, Project, get_db, resolve_project_id, resolve_team_id, project_defaults_from_name
+from utils.serialization import serialize_uuids
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -41,7 +42,7 @@ def create_project(
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
-    return db_project
+    return serialize_uuids(db_project.__dict__.copy())
 
 
 @router.get("", response_model=List[ProjectOut])
@@ -50,7 +51,7 @@ def list_projects(
 ):
     """List all projects."""
     projects = db.query(Project).filter(Project.active == True).all()
-    return projects
+    return [serialize_uuids(obj.__dict__.copy()) for obj in projects]
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
@@ -59,15 +60,20 @@ def get_project(
     db: Session = Depends(get_db),
     token: ApiAccessToken = Depends(require_api_token),
 ):
-    """Get a specific project."""
+    """Get a specific project by UUID or name."""
+    try:
+        uuid.UUID(project_id)
+        resolved_id = resolve_project_id(db, project_id)
+    except Exception:
+        resolved_id = resolve_project_id(db, project_id, **project_defaults_from_name(project_id))
     project = (
         db.query(Project)
-        .filter(Project.id == project_id, Project.active == True)
+        .filter(Project.id == resolved_id, Project.active == True)
         .first()
     )
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    return project
+    return serialize_uuids(project.__dict__.copy())
 
 
 @router.put("/{project_id}", response_model=ProjectOut)
@@ -77,22 +83,25 @@ def update_project(
     db: Session = Depends(get_db),
     token: ApiAccessToken = Depends(require_role(["admin"])),
 ):
-    """Update a project."""
+    """Update a project by UUID or name."""
+    try:
+        uuid.UUID(project_id)
+        resolved_id = resolve_project_id(db, project_id)
+    except Exception:
+        resolved_id = resolve_project_id(db, project_id, **project_defaults_from_name(project_id))
     db_project = (
         db.query(Project)
-        .filter(Project.id == project_id, Project.active == True)
+        .filter(Project.id == resolved_id, Project.active == True)
         .first()
     )
     if not db_project:
         raise HTTPException(status_code=404, detail="Project not found")
-
     db_project.name = project.name
     db_project.description = project.description
     db_project.has_llm_access = project.has_llm_access
-
     db.commit()
     db.refresh(db_project)
-    return db_project
+    return serialize_uuids(db_project.__dict__.copy())
 
 
 @router.delete("/{project_id}")
@@ -101,15 +110,19 @@ def delete_project(
     db: Session = Depends(get_db),
     token: ApiAccessToken = Depends(require_role(["admin"])),
 ):
-    """Soft delete a project."""
+    """Soft delete a project by UUID or name."""
+    try:
+        uuid.UUID(project_id)
+        resolved_id = resolve_project_id(db, project_id)
+    except Exception:
+        resolved_id = resolve_project_id(db, project_id, **project_defaults_from_name(project_id))
     db_project = (
         db.query(Project)
-        .filter(Project.id == project_id, Project.active == True)
+        .filter(Project.id == resolved_id, Project.active == True)
         .first()
     )
     if not db_project:
         raise HTTPException(status_code=404, detail="Project not found")
-
     db_project.active = False
     db.commit()
     return {"status": "success"}

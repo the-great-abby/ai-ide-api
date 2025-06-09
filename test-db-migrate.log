@@ -1,0 +1,4 @@
+docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+--- MIGRATION: Starting creation of project_onboarding_progress table ---
+--- MIGRATION: Successfully created project_onboarding_progress table ---
+Skipping memory_vectors foreign key: project_id column does not exist.

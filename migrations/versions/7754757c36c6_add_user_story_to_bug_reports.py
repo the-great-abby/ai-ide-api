@@ -1,7 +1,7 @@
 """add user_story to bug_reports
 
 Revision ID: 7754757c36c6
-Revises: 65fd6b0ba50d
+Revises: None  # Updated: removed 65fd6b0ba50d, which was deleted
 Create Date: 2025-05-17 14:26:14.044720
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = '7754757c36c6'
-down_revision: Union[str, None] = '65fd6b0ba50d'
+down_revision: Union[str, None] = None  # Updated: removed 65fd6b0ba50d, which was deleted
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

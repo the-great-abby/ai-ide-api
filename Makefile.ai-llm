@@ -6,14 +6,14 @@ ai-ollama-pull-model:
 ai-build-ollama-functions-service:
 	docker build -f Dockerfile.ollama_functions -t $(OLLAMA_FUNCTIONS_IMAGE) .
 
-ai-run-ollama-functions-service: ai-build-ollama-functions-service
-	docker run --rm -e RUNNING_IN_DOCKER=1 \
-	  --add-host=host.docker.internal:host-gateway \
-	  -e OLLAMA_URL=$(OLLAMA_URL) \
-	  -e OLLAMA_MODEL=$(OLLAMA_MODEL) \
-	  -v $(PWD):/code -w /code \
-	  -p 8000:8000 \
-	  $(OLLAMA_FUNCTIONS_IMAGE)
+#ai-run-ollama-functions-service: ai-build-ollama-functions-service
+#	docker run --rm -e RUNNING_IN_DOCKER=1 \
+#	  --add-host=host.docker.internal:host-gateway \
+#	  -e OLLAMA_URL=$(OLLAMA_URL) \
+#	  -e OLLAMA_MODEL=$(OLLAMA_MODEL) \
+#	  -v $(PWD):/code -w /code \
+#	  -p 8000:8000 \
+#	  $(OLLAMA_FUNCTIONS_IMAGE)
 
 ai-ollama-serve-docker-gateway:
 	@echo "Starting Ollama with OLLAMA_HOST=0.0.0.0..."
@@ -32,12 +32,16 @@ ai-ollama-serve-docker-gateway-bg:
 	nohup $(MAKE) -f Makefile.ai ai-ollama-serve-docker-gateway > ollama.log 2>&1 &
 
 ai-build-ollama-functions:
+#	docker-compose build test-ollama-functions
 	docker-compose build ollama-functions
 
 ai-up-ollama-functions:
+#	docker-compose up -d test-ollama-functions
 	docker-compose up -d ollama-functions
 
 ai-restart-ollama-functions:
+#	docker-compose build test-ollama-functions
+#	docker-compose up -d test-ollama-functions
 	docker-compose build ollama-functions
 	docker-compose up -d ollama-functions
 
@@ -45,6 +49,7 @@ ai-ollama-functions-health:
 	curl -s http://localhost:9103/healthz || echo '{"error": "API not running"}'
 
 ai-ollama-functions-logs:
+#	docker-compose logs --tail=100 test-ollama-functions
 	docker-compose logs --tail=100 ollama-functions
 
 ai-suggest-llm-rules:
@@ -74,12 +79,15 @@ ai-llm-setup:
 	fi
 
 ai-scan-memory-nodes:
+# 	docker compose run --rm test-ollama-functions python /code/scripts/scan_for_memory_node_opportunities.py
 	docker compose run --rm ollama-functions python /code/scripts/scan_for_memory_node_opportunities.py
 
 ai-stop-ollama-functions:
+	docker compose stop test-ollama-functions
 	docker compose stop ollama-functions
 
 ai-down-ollama-functions:
 	docker compose rm -sf ollama-functions
+	docker compose rm -sf test-ollama-functions
 
 .PHONY: ai-ollama-pull-model ai-build-ollama-functions-service ai-run-ollama-functions-service ai-ollama-serve-docker-gateway ai-ollama-logs ai-ollama-kill ai-ollama-restart-docker-gateway ai-ollama-serve-docker-gateway-bg ai-build-ollama-functions ai-up-ollama-functions ai-restart-ollama-functions ai-ollama-functions-health ai-ollama-functions-logs ai-suggest-llm-rules ai-suggest-llm-rules-docker ai-llm-setup ai-scan-memory-nodes ai-stop-ollama-functions ai-down-ollama-functions 

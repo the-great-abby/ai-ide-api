@@ -5,7 +5,7 @@ import psycopg2
 DB_NAME = os.environ.get("POSTGRES_DB", "rulesdb")
 DB_USER = os.environ.get("POSTGRES_USER", "postgres")
 DB_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "postgres")
-DB_HOST = os.environ.get("POSTGRES_HOST", "db-test")
+DB_HOST = "test-db" if os.environ.get("ENVIRONMENT") == "test" else "db"
 DB_PORT = os.environ.get("POSTGRES_PORT", "5432")
 
 conn = psycopg2.connect(

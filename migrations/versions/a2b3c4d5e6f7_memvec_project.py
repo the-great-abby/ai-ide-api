@@ -1,7 +1,7 @@
 """add project_id to memory_vectors
 
 Revision ID: a2b3c4d5e6f7_memvec_project
-Revises: a1b2c3d4e5f6_projmem
+Revises: None  # Updated: removed a1b2c3d4e5f6_projmem, which was deleted
 Create Date: 2025-05-18 00:00:00.000000
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = "a2b3c4d5e6f7_memvec_project"
-down_revision: Union[str, None] = "a1b2c3d4e5f6_projmem"
+down_revision: Union[str, None] = None  # Updated: removed a1b2c3d4e5f6_projmem, which was deleted
 branch_labels = None
 depends_on = None
 

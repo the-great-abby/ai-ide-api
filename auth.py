@@ -1,7 +1,8 @@
 import json
 from typing import List, Optional
+import logging
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -9,15 +10,26 @@ from db import ApiAccessToken, NamespacePermission, get_db
 
 
 def require_api_token(
-    authorization: Optional[str] = Header(None), db: Session = Depends(get_db)
+    authorization: Optional[str] = Header(None, convert_underscores=False), db: Session = Depends(get_db)
 ):
     """Check if the API token is valid and active."""
-    if not authorization or not authorization.startswith("Bearer "):
+    logger = logging.getLogger("auth.require_api_token")
+    # Accept both 'authorization' and 'Authorization' headers (case-insensitive)
+    logger.debug(f"[require_api_token] Authorization header: {authorization}")
+    if not authorization:
+        logger.warning("[require_api_token] Missing auth header")
+        raise HTTPException(status_code=401, detail="Invalid auth header")
+    if not authorization.startswith("Bearer "):
+        logger.warning(f"[require_api_token] Malformed auth header: {authorization}")
         raise HTTPException(status_code=401, detail="Invalid auth header")
     token = authorization.split(" ", 1)[1]
-    db_token = db.query(ApiAccessToken).filter_by(token=token, active=1).first()
+    logger.debug(f"[require_api_token] Token value: {token}")
+    db_token = db.query(ApiAccessToken).filter_by(token=token, active=True).first()
+    logger.debug(f"[require_api_token] DB token lookup result: {db_token}")
     if not db_token:
+        logger.warning(f"[require_api_token] Invalid or inactive token: {token}")
         raise HTTPException(status_code=401, detail="Invalid or inactive token")
+    logger.info(f"[require_api_token] Valid token: {token}, role: {db_token.role}, active: {db_token.active}")
     return db_token
 
 
@@ -53,7 +65,7 @@ def check_namespace_permission(
             db.query(NamespacePermission)
             .filter(
                 NamespacePermission.namespace == namespace,
-                NamespacePermission.active == 1,
+                NamespacePermission.active == True,
                 or_(
                     NamespacePermission.allowed_project_id == token.project_id,
                     NamespacePermission.allowed_project_id == None,  # Public namespace

@@ -1,0 +1,4 @@
+DEBUG: Inspector tables at start of migration: ['alembic_version', 'feedback', 'proposals', 'rule_versions', 'rules']
+DEBUG: Inspector default schema: public
+DEBUG: bug_reports table creation code executed!
+DEBUG: always_create_test table creation code executed!

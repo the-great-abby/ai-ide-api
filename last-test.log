@@ -1,0 +1,1109 @@
+docker-compose -f docker-compose.test.yml up -d test-db test-api test test-frontend test-misc-scripts test-ollama-functions test-worker
+Waiting for test-api container to be running...
+Checking test database status...
+Database 'rulesdb' detected - not creating
+Running database migrations...
+docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
+docker-compose -f docker-compose.test.yml exec test-api alembic -c alembic_memorydb.ini upgrade head
+Test database setup complete!
+python scripts/onboard_admin.py
+Waiting for API at http://localhost:9104/admin/tokens to become available...
+API is available!
+Normal user token created: QGQFgnRunb7w1GnI6e9wYnQvMZIOzbFkNuSFT0S86SY
+Admin token created: 7jUnOTLHZ17BnmrbgW7VUUtVp67nZ5dHD6213d0xUlk
+Running tests...
+docker-compose -f docker-compose.test.yml run --rm test pytest tests/ --disable-warnings --tb=short
+============================= test session starts ==============================
+platform linux -- Python 3.11.13, pytest-8.4.0, pluggy-1.6.0
+rootdir: /app
+configfile: pytest.ini
+plugins: metadata-3.1.1, anyio-4.9.0, cov-6.1.1, json-report-1.5.0
+collected 169 items
+
+tests/integration/test_embedding_integration.py .                        [  0%]
+tests/test_admin_endpoints.py FFFF                                       [  2%]
+tests/test_auto_code_review.py ...                                       [  4%]
+tests/test_backup_restore.py ss                                          [  5%]
+tests/test_code_review_endpoints.py FFFF....                             [ 10%]
+tests/test_db.py .                                                       [ 11%]
+tests/test_dependency_injection.py F.                                    [ 12%]
+tests/test_misc_scripts_auto_feedback.py .....F                          [ 15%]
+tests/test_misc_scripts_fix_rule_files.py ...                            [ 17%]
+tests/test_onboarding.py .FF..                                           [ 20%]
+tests/test_rule_analytics.py ssss                                        [ 23%]
+tests/test_rule_api_server.py FF.....F.FF..F.F...FFFF..FF.               [ 39%]
+tests/test_rule_conflicts.py FFFFFFFFFF                                  [ 45%]
+tests/test_rule_enforcement.py FFFFFF                                    [ 49%]
+tests/test_rule_enforcement_edge_cases.py .FFFFF                         [ 52%]
+tests/test_rule_filtering.py FFFFF                                       [ 55%]
+tests/test_rule_promotion.py FFF                                         [ 57%]
+tests/test_rule_proposal_feedback.py FFFF                                [ 59%]
+tests/test_rule_suggestion.py F.F...FFFFFFF.F                            [ 68%]
+tests/test_rule_updates.py FF.FF                                         [ 71%]
+tests/test_rule_versioning.py FFFF                                       [ 73%]
+tests/test_scripts.py .ssssss                                            [ 78%]
+tests/test_scripts_llm_rule_suggester_service.py ...                     [ 79%]
+tests/test_scripts_onboarding_health_check.py ...                        [ 81%]
+tests/test_smart_merge_backup.py ...                                     [ 83%]
+tests/test_worker.py ......                                              [ 86%]
+tests/unit/test_env_and_validation.py ...                                [ 88%]
+tests/unit/test_memory_edge_inference.py ....                            [ 91%]
+tests/unit/test_memory_node_embedding.py .                               [ 91%]
+tests/unit/test_proactive_error_handling.py .                            [ 92%]
+tests/unit/test_rule_query.py ..                                         [ 93%]
+tests/unit/test_utils.py ..........F                                     [100%]
+
+=================================== FAILURES ===================================
+_____________________________ test_generate_token ______________________________
+tests/test_admin_endpoints.py:53: in test_generate_token
+    assert data["description"] == "Test token"
+E   AssertionError: assert '' == 'Test token'
+E     
+E     - Test token
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+______________________________ test_error_logging ______________________________
+tests/test_admin_endpoints.py:79: in test_error_logging
+    assert response.status_code == 404
+E   assert 422 == 404
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: GET http://testserver/admin/errors/nonexistent-id "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/admin/errors/nonexistent-id "HTTP/1.1 422 Unprocessable Entity"
+____________________________ test_token_validation _____________________________
+tests/test_admin_endpoints.py:106: in test_token_validation
+    assert response.status_code == 401
+E   assert 422 == 401
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: GET http://testserver/admin/errors/some-error-id "HTTP/1.1 401 Unauthorized"
+INFO:httpx:HTTP Request: GET http://testserver/admin/errors/some-error-id "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/admin/errors/some-error-id "HTTP/1.1 401 Unauthorized"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/admin/errors/some-error-id "HTTP/1.1 422 Unprocessable Entity"
+_________________________ test_token_role_restrictions _________________________
+tests/test_admin_endpoints.py:129: in test_token_role_restrictions
+    assert response2.status_code in (401, 403)  # Unauthorized or forbidden
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 200 in (401, 403)
+E    +  where 200 = <Response [200 OK]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+____________________________ test_review_code_files ____________________________
+tests/test_code_review_endpoints.py:52: in test_review_code_files
+    assert any("long_function" in s.get("rule_type", "") for s in suggestions)
+E   assert False
+E    +  where False = any(<generator object test_review_code_files.<locals>.<genexpr> at 0xffff8b95bc40>)
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/review-code-files "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/review-code-files "HTTP/1.1 200 OK"
+___________________________ test_review_code_snippet ___________________________
+tests/test_code_review_endpoints.py:80: in test_review_code_snippet
+    assert any("long_function" in s.get("rule_type", "") for s in data)
+E   assert False
+E    +  where False = any(<generator object test_review_code_snippet.<locals>.<genexpr> at 0xffff8b951c60>)
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/review-code-snippet "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/review-code-snippet "HTTP/1.1 200 OK"
+__________________________ test_review_code_files_llm __________________________
+tests/test_code_review_endpoints.py:115: in test_review_code_files_llm
+    assert all(isinstance(s, dict) for s in suggestions)
+E   assert False
+E    +  where False = all(<generator object test_review_code_files_llm.<locals>.<genexpr> at 0xffff8c340f20>)
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/review-code-files-llm "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/review-code-files-llm "HTTP/1.1 200 OK"
+_______________________ test_review_code_files_multiple ________________________
+tests/test_code_review_endpoints.py:150: in test_review_code_files_multiple
+    response = client.post("/review-code-files", files=files, headers=admin_headers)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/starlette/testclient.py:538: in post
+    return super().post(
+/usr/local/lib/python3.11/site-packages/httpx/_client.py:1144: in post
+    return self.request(
+/usr/local/lib/python3.11/site-packages/starlette/testclient.py:437: in request
+    return super().request(
+/usr/local/lib/python3.11/site-packages/httpx/_client.py:812: in request
+    request = self.build_request(
+/usr/local/lib/python3.11/site-packages/httpx/_client.py:378: in build_request
+    return Request(
+/usr/local/lib/python3.11/site-packages/httpx/_models.py:408: in __init__
+    headers, stream = encode_request(
+/usr/local/lib/python3.11/site-packages/httpx/_content.py:212: in encode_request
+    return encode_multipart_data(data or {}, files, boundary)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/httpx/_content.py:156: in encode_multipart_data
+    headers = multipart.get_headers()
+              ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/httpx/_multipart.py:288: in get_headers
+    content_length = self.get_content_length()
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/httpx/_multipart.py:274: in get_content_length
+    field_length = field.get_length()
+                   ^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/httpx/_multipart.py:177: in get_length
+    file_length = peek_filelike_length(self.file)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/httpx/_utils.py:102: in peek_filelike_length
+    fd = stream.fileno()
+         ^^^^^^^^^^^^^^^
+E   ValueError: I/O operation on closed file
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+____________________________ test_get_db_uses_mock _____________________________
+tests/test_dependency_injection.py:13: in test_get_db_uses_mock
+    assert isinstance(db_instance, MockSession)
+E   AssertionError: assert False
+E    +  where False = isinstance(<sqlalchemy.orm.session.Session object at 0xffff89ba0810>, <class 'mocks.mock_db.MockSession'>)
+_________________________ test_invalid_input_file_cli __________________________
+tests/test_misc_scripts_auto_feedback.py:58: in test_invalid_input_file_cli
+    with pytest.raises(SystemExit) as excinfo:
+E   Failed: DID NOT RAISE <class 'SystemExit'>
+----------------------------- Captured stdout call -----------------------------
+No pending proposals found.
+__________________________ test_onboarding_validation __________________________
+tests/test_onboarding.py:104: in test_onboarding_validation
+    assert (
+E   AssertionError: Should reject invalid onboarding path
+E   assert 500 == 400
+E    +  where 500 = <Response [500]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+______________________ test_onboarding_progress_retrieval ______________________
+tests/test_onboarding.py:132: in test_onboarding_progress_retrieval
+    assert response.status_code == 404, "Should return 404 for non-existent project"
+E   AssertionError: Should return 404 for non-existent project
+E   assert 500 == 404
+E    +  where 500 = <Response [500]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+______________________ test_protected_route_without_token ______________________
+tests/test_rule_api_server.py:92: in test_protected_route_without_token
+    assert response.status_code == 401
+E   assert 404 == 401
+E    +  where 404 = <Response [404 Not Found]>.status_code
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: GET http://testserver/protected "HTTP/1.1 404 Not Found"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/protected "HTTP/1.1 404 Not Found"
+_______________________ test_protected_route_with_token ________________________
+tests/test_rule_api_server.py:98: in test_protected_route_with_token
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: GET http://testserver/protected "HTTP/1.1 404 Not Found"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/protected "HTTP/1.1 404 Not Found"
+___________________________ test_rules_mdc_endpoint ____________________________
+tests/test_rule_api_server.py:215: in test_rules_mdc_endpoint
+    assert response.headers["content-type"] == "text/markdown"
+E   AssertionError: assert 'application/json' == 'text/markdown'
+E     
+E     - text/markdown
+E     + application/json
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: GET http://testserver/rules-mdc "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/rules-mdc "HTTP/1.1 200 OK"
+______________________ test_review_code_snippet_endpoint _______________________
+tests/test_rule_api_server.py:251: in test_review_code_snippet_endpoint
+    assert len(data) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/review-code-snippet "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/review-code-snippet "HTTP/1.1 200 OK"
+_______________________ test_rule_versioning_and_history _______________________
+tests/test_rule_api_server.py:282: in test_rule_versioning_and_history
+    assert len(history_data) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO:rule_api_server:APPROVE: proposal.id=bf5eda1d-c875-44ff-8b3c-6b288c8e58cb, proposal.rule_id=None, payload={'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0xffff8913c770>, 'version': 1, 'current_rule': None, 'categories': 'test', 'user_story': None, 'description': 'Initial version', 'tags': 'versioning', 'scope_level': 'global', 'diff': '# Rule: Test Versioning\n## Description\nInitial version.\n## Enforcement\nTesting versioning.', 'rule_type': 'test_versioning', 'examples': None, 'scope_id': None, 'id': UUID('bf5eda1d-c875-44ff-8b3c-6b288c8e58cb'), 'status': <StatusEnum.pending: 'pending'>, 'applies_to': '', 'parent_rule_id': None, 'rule_id': None, 'submitted_by': 'tester', 'applies_to_rationale': None, 'project': None, 'reason_for_change': None, 'timestamp': datetime.datetime(2025, 6, 4, 23, 30, 46, 559097), 'references': None}
+INFO:rule_api_server:APPROVE: existing_rule for id=bf5eda1d-c875-44ff-8b3c-6b288c8e58cb: None
+INFO:rule_api_server:APPROVE: new rule version for id=bf5eda1d-c875-44ff-8b3c-6b288c8e58cb: 1
+INFO:httpx:HTTP Request: POST http://testserver/approve-rule-change/bf5eda1d-c875-44ff-8b3c-6b288c8e58cb "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/rules/bf5eda1d-c875-44ff-8b3c-6b288c8e58cb/history "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO     rule_api_server:rule_api_server.py:397 APPROVE: proposal.id=bf5eda1d-c875-44ff-8b3c-6b288c8e58cb, proposal.rule_id=None, payload={'_sa_instance_state': <sqlalchemy.orm.state.InstanceState object at 0xffff8913c770>, 'version': 1, 'current_rule': None, 'categories': 'test', 'user_story': None, 'description': 'Initial version', 'tags': 'versioning', 'scope_level': 'global', 'diff': '# Rule: Test Versioning\n## Description\nInitial version.\n## Enforcement\nTesting versioning.', 'rule_type': 'test_versioning', 'examples': None, 'scope_id': None, 'id': UUID('bf5eda1d-c875-44ff-8b3c-6b288c8e58cb'), 'status': <StatusEnum.pending: 'pending'>, 'applies_to': '', 'parent_rule_id': None, 'rule_id': None, 'submitted_by': 'tester', 'applies_to_rationale': None, 'project': None, 'reason_for_change': None, 'timestamp': datetime.datetime(2025, 6, 4, 23, 30, 46, 559097), 'references': None}
+INFO     rule_api_server:rule_api_server.py:410 APPROVE: existing_rule for id=bf5eda1d-c875-44ff-8b3c-6b288c8e58cb: None
+INFO     rule_api_server:rule_api_server.py:476 APPROVE: new rule version for id=bf5eda1d-c875-44ff-8b3c-6b288c8e58cb: 1
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/approve-rule-change/bf5eda1d-c875-44ff-8b3c-6b288c8e58cb "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/rules/bf5eda1d-c875-44ff-8b3c-6b288c8e58cb/history "HTTP/1.1 200 OK"
+___________________ test_enhancement_to_proposal_and_reject ____________________
+tests/test_rule_api_server.py:353: in test_enhancement_to_proposal_and_reject
+    assert prop_response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/suggest-enhancement "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/rules/5065ec75-f79c-4b47-847d-c95d30702305/promote "HTTP/1.1 404 Not Found"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/suggest-enhancement "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/rules/5065ec75-f79c-4b47-847d-c95d30702305/promote "HTTP/1.1 404 Not Found"
+_________________________ test_proposal_to_enhancement _________________________
+tests/test_rule_api_server.py:417: in test_proposal_to_enhancement
+    assert enh_response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/rules/31647419-b678-4311-8fad-5e09c04e5fcc/promote "HTTP/1.1 404 Not Found"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/rules/31647419-b678-4311-8fad-5e09c04e5fcc/promote "HTTP/1.1 404 Not Found"
+_______________________ test_rules_multi_category_filter _______________________
+tests/test_rule_api_server.py:504: in test_rules_multi_category_filter
+    assert len(data) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/rules?categories=automation "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/rules?categories=automation "HTTP/1.1 200 OK"
+_________________________ test_memory_graph_node_crud __________________________
+tests/test_rule_api_server.py:527: in test_memory_graph_node_crud
+    assert get_response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/memory/nodes/9866e58d-8062-4a08-8506-5dbaa9392cc7 "HTTP/1.1 404 Not Found"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/memory/nodes/9866e58d-8062-4a08-8506-5dbaa9392cc7 "HTTP/1.1 404 Not Found"
+__________________ test_memory_graph_edge_crud_and_traversal ___________________
+tests/test_rule_api_server.py:581: in test_memory_graph_edge_crud_and_traversal
+    assert edge_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/memory/edges "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/memory/edges "HTTP/1.1 422 Unprocessable Entity"
+_______________________ test_memory_graph_vector_search ________________________
+tests/test_rule_api_server.py:625: in test_memory_graph_vector_search
+    assert search_response.status_code == 200
+E   assert 400 == 200
+E    +  where 400 = <Response [400 Bad Request]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stdout call -----------------------------
+Nodes in 'searchns-d0adc625-fba4-4476-824b-f039e335f82a' BEFORE: ['9349eaea-161e-4e55-bd97-293354f1325c', '3c6b7ff6-0321-4eb5-886e-aad42aaddd15', '629871eb-ad1c-4a60-be96-7880322609f3']
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: GET http://testserver/memory/nodes?namespace=searchns-d0adc625-fba4-4476-824b-f039e335f82a "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/memory/nodes/search "HTTP/1.1 400 Bad Request"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/memory/nodes "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/memory/nodes?namespace=searchns-d0adc625-fba4-4476-824b-f039e335f82a "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/memory/nodes/search "HTTP/1.1 400 Bad Request"
+_____________________ test_review_code_files_llm_endpoint ______________________
+tests/test_rule_api_server.py:701: in test_review_code_files_llm_endpoint
+    assert isinstance(data, list)
+E   assert False
+E    +  where False = isinstance({'test.py': ['[ERROR] ollama-functions call failed: HTTPConnectionPool(host=\'ollama-functions\', port=8000): Max retr...nnection object at 0xffff87de0490>: Failed to resolve \'ollama-functions\' ([Errno -2] Name or service not known)"))']}, list)
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/review-code-files-llm "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/review-code-files-llm "HTTP/1.1 200 OK"
+_________________________ test_rule_promotion_endpoint _________________________
+tests/test_rule_api_server.py:732: in test_rule_promotion_endpoint
+    assert promote_response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/rules/f2e9398d-ccfb-4dfd-bb1a-4ff5a780bf8f/promote "HTTP/1.1 404 Not Found"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/rules/f2e9398d-ccfb-4dfd-bb1a-4ff5a780bf8f/promote "HTTP/1.1 404 Not Found"
+_________________________ test_rule_conflict_detection _________________________
+tests/test_rule_conflicts.py:54: in test_rule_conflict_detection
+    assert response1.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+__________________________ test_rule_scope_conflicts ___________________________
+tests/test_rule_conflicts.py:122: in test_rule_scope_conflicts
+    assert team_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_________________________ test_rule_enforcement_in_ci __________________________
+tests/test_rule_conflicts.py:165: in test_rule_enforcement_in_ci
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+________________________ test_rule_violation_reporting _________________________
+tests/test_rule_conflicts.py:214: in test_rule_violation_reporting
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_________________________ test_rule_compliance_report __________________________
+tests/test_rule_conflicts.py:279: in test_rule_compliance_report
+    assert approve_response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: PUT http://testserver/rule-changes/f7a12251-1eab-4635-8d06-7a6971bea72c/approve "HTTP/1.1 404 Not Found"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: PUT http://testserver/rule-changes/f7a12251-1eab-4635-8d06-7a6971bea72c/approve "HTTP/1.1 404 Not Found"
+_____________________________ test_rule_conflicts ______________________________
+tests/test_rule_conflicts.py:331: in test_rule_conflicts
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+____________________ test_rule_conflicts_different_patterns ____________________
+tests/test_rule_conflicts.py:378: in test_rule_conflicts_different_patterns
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+________________________ test_rule_conflicts_same_name _________________________
+tests/test_rule_conflicts.py:429: in test_rule_conflicts_same_name
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+__________________________ test_rule_conflicts_update __________________________
+tests/test_rule_conflicts.py:461: in test_rule_conflicts_update
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+__________________________ test_rule_conflicts_delete __________________________
+tests/test_rule_conflicts.py:510: in test_rule_conflicts_delete
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_____________________ test_rule_validation_and_formatting ______________________
+tests/test_rule_enforcement.py:66: in test_rule_validation_and_formatting
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+__________________ test_rule_enforcement_through_code_review ___________________
+tests/test_rule_enforcement.py:129: in test_rule_enforcement_through_code_review
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+____________________ test_rule_enforcement_scope_hierarchy _____________________
+tests/test_rule_enforcement.py:200: in test_rule_enforcement_scope_hierarchy
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+___________ test_rule_enforcement_scope_hierarchy_invalid_promotion ____________
+tests/test_rule_enforcement.py:263: in test_rule_enforcement_scope_hierarchy_invalid_promotion
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_______________________ test_rule_enforcement_versioning _______________________
+tests/test_rule_enforcement.py:310: in test_rule_enforcement_versioning
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+______________________ test_rule_enforcement_combinations ______________________
+tests/test_rule_enforcement.py:388: in test_rule_enforcement_combinations
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_____________________ test_rule_enforcement_error_handling _____________________
+tests/test_rule_enforcement_edge_cases.py:115: in test_rule_enforcement_error_handling
+    assert "test.txt" not in data
+E   AssertionError: assert 'test.txt' not in {'test.txt': []}
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/review-code-files "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/review-code-files "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/review-code-files "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/review-code-files "HTTP/1.1 200 OK"
+________________________ test_rule_promotion_edge_cases ________________________
+tests/test_rule_enforcement_edge_cases.py:163: in test_rule_promotion_edge_cases
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_______________________ test_rule_versioning_edge_cases ________________________
+tests/test_rule_enforcement_edge_cases.py:225: in test_rule_versioning_edge_cases
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+________________________ test_rule_feedback_edge_cases _________________________
+tests/test_rule_enforcement_edge_cases.py:301: in test_rule_feedback_edge_cases
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://testserver/api/rule_proposals/4ddb7bce-3845-4c68-b028-fb3acf730e44/feedback "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/rule_proposals/4ddb7bce-3845-4c68-b028-fb3acf730e44/feedback "HTTP/1.1 422 Unprocessable Entity"
+_______________________ test_rule_enforcement_edge_cases _______________________
+tests/test_rule_enforcement_edge_cases.py:362: in test_rule_enforcement_edge_cases
+    assert response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_______________________ test_rule_filtering_by_category ________________________
+tests/test_rule_filtering.py:88: in test_rule_filtering_by_category
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+__________________________ test_rule_filtering_by_tag __________________________
+tests/test_rule_filtering.py:167: in test_rule_filtering_by_tag
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_________________________ test_rule_filtering_by_scope _________________________
+tests/test_rule_filtering.py:240: in test_rule_filtering_by_scope
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_______________________ test_rule_filtering_combinations _______________________
+tests/test_rule_filtering.py:322: in test_rule_filtering_combinations
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_______________________________ test_rule_search _______________________________
+tests/test_rule_filtering.py:394: in test_rule_search
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+___________________________ test_rule_promotion_flow ___________________________
+tests/test_rule_promotion.py:35: in test_rule_promotion_flow
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+____________________________ test_invalid_promotion ____________________________
+tests/test_rule_promotion.py:102: in test_invalid_promotion
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_____________________ test_promotion_with_missing_scope_id _____________________
+tests/test_rule_promotion.py:157: in test_promotion_with_missing_scope_id
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+________________________ test_submit_and_list_feedback _________________________
+tests/test_rule_proposal_feedback.py:32: in test_submit_and_list_feedback
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+________________________ test_multiple_feedback_entries ________________________
+tests/test_rule_proposal_feedback.py:88: in test_multiple_feedback_entries
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+____________________ test_feedback_on_nonexistent_proposal _____________________
+tests/test_rule_proposal_feedback.py:127: in test_feedback_on_nonexistent_proposal
+    assert response.status_code == 404
+E   assert 422 == 404
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/api/rule_proposals/f2c5b225-8a9c-4972-8efb-da22b059865a/feedback "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/rule_proposals/f2c5b225-8a9c-4972-8efb-da22b059865a/feedback "HTTP/1.1 422 Unprocessable Entity"
+__________________________ test_invalid_feedback_type __________________________
+tests/test_rule_proposal_feedback.py:156: in test_invalid_feedback_type
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+______________________ test_direct_pytest_usage_detection ______________________
+tests/test_rule_suggestion.py:40: in test_direct_pytest_usage_detection
+    assert len(suggestions) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+________________________ test_print_statement_detection ________________________
+tests/test_rule_suggestion.py:72: in test_print_statement_detection
+    assert len(suggestions) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+__________________________ test_eval_usage_detection ___________________________
+tests/test_rule_suggestion.py:137: in test_eval_usage_detection
+    assert len(suggestions) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+__________________________ test_bare_except_detection __________________________
+tests/test_rule_suggestion.py:155: in test_bare_except_detection
+    assert len(suggestions) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+_______________________ test_wildcard_imports_detection ________________________
+tests/test_rule_suggestion.py:170: in test_wildcard_imports_detection
+    assert len(suggestions) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+________________________ test_long_functions_detection _________________________
+tests/test_rule_suggestion.py:190: in test_long_functions_detection
+    assert len(suggestions) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+______________________ test_missing_docstrings_detection _______________________
+tests/test_rule_suggestion.py:206: in test_missing_docstrings_detection
+    assert len(suggestions) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+_____________________ test_deprecated_libraries_detection ______________________
+tests/test_rule_suggestion.py:221: in test_deprecated_libraries_detection
+    assert len(suggestions) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+___________________________ test_scan_file_function ____________________________
+tests/test_rule_suggestion.py:245: in test_scan_file_function
+    assert len(suggestions) >= 3  # Should detect multiple issues
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 0 >= 3
+E    +  where 0 = len([])
+______________________ test_review_code_snippet_endpoint _______________________
+tests/test_rule_suggestion.py:292: in test_review_code_snippet_endpoint
+    assert len(suggestions) >= 4  # Should detect multiple issues
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 0 >= 4
+E    +  where 0 = len([])
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/review-code-snippet "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/review-code-snippet "HTTP/1.1 200 OK"
+____________________________ test_basic_rule_update ____________________________
+tests/test_rule_updates.py:33: in test_basic_rule_update
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+___________________________ test_partial_rule_update ___________________________
+tests/test_rule_updates.py:97: in test_partial_rule_update
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+________________________ test_update_with_invalid_data _________________________
+tests/test_rule_updates.py:158: in test_update_with_invalid_data
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+_________________________ test_update_immutable_fields _________________________
+tests/test_rule_updates.py:211: in test_update_immutable_fields
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+__________________________ test_rule_versioning_flow ___________________________
+tests/test_rule_versioning.py:33: in test_rule_versioning_flow
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+________________________ test_rule_history_nonexistent _________________________
+tests/test_rule_versioning.py:105: in test_rule_history_nonexistent
+    assert response.status_code == 404
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: GET http://testserver/rules/704b6f76-1a94-429a-a35d-c2e7bb6b8b13/history "HTTP/1.1 200 OK"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/rules/704b6f76-1a94-429a-a35d-c2e7bb6b8b13/history "HTTP/1.1 200 OK"
+__________________________ test_multiple_rule_updates __________________________
+tests/test_rule_versioning.py:129: in test_multiple_rule_updates
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+__________________________ test_rule_version_metadata __________________________
+tests/test_rule_versioning.py:214: in test_rule_version_metadata
+    assert prop_response.status_code == 200
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+---------------------------- Captured stderr setup -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+------------------------------ Captured log setup ------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/admin/generate-token "HTTP/1.1 200 OK"
+----------------------------- Captured stderr call -----------------------------
+INFO:httpx:HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/propose-rule-change "HTTP/1.1 422 Unprocessable Entity"
+________________________ test_get_default_api_base_env _________________________
+tests/unit/test_utils.py:110: in test_get_default_api_base_env
+    assert get_default_api_base() == "http://api:8000"
+E   AssertionError: assert 'http://test-api:8000' == 'http://api:8000'
+E     
+E     - http://api:8000
+E     + http://test-api:8000
+E     ?        +++++
+=========================== short test summary info ============================
+FAILED tests/test_admin_endpoints.py::test_generate_token - AssertionError: a...
+FAILED tests/test_admin_endpoints.py::test_error_logging - assert 422 == 404
+FAILED tests/test_admin_endpoints.py::test_token_validation - assert 422 == 401
+FAILED tests/test_admin_endpoints.py::test_token_role_restrictions - assert 2...
+FAILED tests/test_code_review_endpoints.py::test_review_code_files - assert F...
+FAILED tests/test_code_review_endpoints.py::test_review_code_snippet - assert...
+FAILED tests/test_code_review_endpoints.py::test_review_code_files_llm - asse...
+FAILED tests/test_code_review_endpoints.py::test_review_code_files_multiple
+FAILED tests/test_dependency_injection.py::test_get_db_uses_mock - AssertionE...
+FAILED tests/test_misc_scripts_auto_feedback.py::test_invalid_input_file_cli
+FAILED tests/test_onboarding.py::test_onboarding_validation - AssertionError:...
+FAILED tests/test_onboarding.py::test_onboarding_progress_retrieval - Asserti...
+FAILED tests/test_rule_api_server.py::test_protected_route_without_token - as...
+FAILED tests/test_rule_api_server.py::test_protected_route_with_token - asser...
+FAILED tests/test_rule_api_server.py::test_rules_mdc_endpoint - AssertionErro...
+FAILED tests/test_rule_api_server.py::test_review_code_snippet_endpoint - ass...
+FAILED tests/test_rule_api_server.py::test_rule_versioning_and_history - asse...
+FAILED tests/test_rule_api_server.py::test_enhancement_to_proposal_and_reject
+FAILED tests/test_rule_api_server.py::test_proposal_to_enhancement - assert 4...
+FAILED tests/test_rule_api_server.py::test_rules_multi_category_filter - asse...
+FAILED tests/test_rule_api_server.py::test_memory_graph_node_crud - assert 40...
+FAILED tests/test_rule_api_server.py::test_memory_graph_edge_crud_and_traversal
+FAILED tests/test_rule_api_server.py::test_memory_graph_vector_search - asser...
+FAILED tests/test_rule_api_server.py::test_review_code_files_llm_endpoint - a...
+FAILED tests/test_rule_api_server.py::test_rule_promotion_endpoint - assert 4...
+FAILED tests/test_rule_conflicts.py::test_rule_conflict_detection - assert 42...
+FAILED tests/test_rule_conflicts.py::test_rule_scope_conflicts - assert 422 =...
+FAILED tests/test_rule_conflicts.py::test_rule_enforcement_in_ci - assert 422...
+FAILED tests/test_rule_conflicts.py::test_rule_violation_reporting - assert 4...
+FAILED tests/test_rule_conflicts.py::test_rule_compliance_report - assert 404...
+FAILED tests/test_rule_conflicts.py::test_rule_conflicts - assert 422 == 200
+FAILED tests/test_rule_conflicts.py::test_rule_conflicts_different_patterns
+FAILED tests/test_rule_conflicts.py::test_rule_conflicts_same_name - assert 4...
+FAILED tests/test_rule_conflicts.py::test_rule_conflicts_update - assert 422 ...
+FAILED tests/test_rule_conflicts.py::test_rule_conflicts_delete - assert 422 ...
+FAILED tests/test_rule_enforcement.py::test_rule_validation_and_formatting - ...
+FAILED tests/test_rule_enforcement.py::test_rule_enforcement_through_code_review
+FAILED tests/test_rule_enforcement.py::test_rule_enforcement_scope_hierarchy
+FAILED tests/test_rule_enforcement.py::test_rule_enforcement_scope_hierarchy_invalid_promotion
+FAILED tests/test_rule_enforcement.py::test_rule_enforcement_versioning - ass...
+FAILED tests/test_rule_enforcement.py::test_rule_enforcement_combinations - a...
+FAILED tests/test_rule_enforcement_edge_cases.py::test_rule_enforcement_error_handling
+FAILED tests/test_rule_enforcement_edge_cases.py::test_rule_promotion_edge_cases
+FAILED tests/test_rule_enforcement_edge_cases.py::test_rule_versioning_edge_cases
+FAILED tests/test_rule_enforcement_edge_cases.py::test_rule_feedback_edge_cases
+FAILED tests/test_rule_enforcement_edge_cases.py::test_rule_enforcement_edge_cases
+FAILED tests/test_rule_filtering.py::test_rule_filtering_by_category - assert...
+FAILED tests/test_rule_filtering.py::test_rule_filtering_by_tag - assert 422 ...
+FAILED tests/test_rule_filtering.py::test_rule_filtering_by_scope - assert 42...
+FAILED tests/test_rule_filtering.py::test_rule_filtering_combinations - asser...
+FAILED tests/test_rule_filtering.py::test_rule_search - assert 422 == 200
+FAILED tests/test_rule_promotion.py::test_rule_promotion_flow - assert 422 ==...
+FAILED tests/test_rule_promotion.py::test_invalid_promotion - assert 422 == 200
+FAILED tests/test_rule_promotion.py::test_promotion_with_missing_scope_id - a...
+FAILED tests/test_rule_proposal_feedback.py::test_submit_and_list_feedback - ...
+FAILED tests/test_rule_proposal_feedback.py::test_multiple_feedback_entries
+FAILED tests/test_rule_proposal_feedback.py::test_feedback_on_nonexistent_proposal
+FAILED tests/test_rule_proposal_feedback.py::test_invalid_feedback_type - ass...
+FAILED tests/test_rule_suggestion.py::test_direct_pytest_usage_detection - as...
+FAILED tests/test_rule_suggestion.py::test_print_statement_detection - assert...
+FAILED tests/test_rule_suggestion.py::test_eval_usage_detection - assert 0 > 0
+FAILED tests/test_rule_suggestion.py::test_bare_except_detection - assert 0 > 0
+FAILED tests/test_rule_suggestion.py::test_wildcard_imports_detection - asser...
+FAILED tests/test_rule_suggestion.py::test_long_functions_detection - assert ...
+FAILED tests/test_rule_suggestion.py::test_missing_docstrings_detection - ass...
+FAILED tests/test_rule_suggestion.py::test_deprecated_libraries_detection - a...
+FAILED tests/test_rule_suggestion.py::test_scan_file_function - assert 0 >= 3
+FAILED tests/test_rule_suggestion.py::test_review_code_snippet_endpoint - ass...
+FAILED tests/test_rule_updates.py::test_basic_rule_update - assert 422 == 200
+FAILED tests/test_rule_updates.py::test_partial_rule_update - assert 422 == 200
+FAILED tests/test_rule_updates.py::test_update_with_invalid_data - assert 422...
+FAILED tests/test_rule_updates.py::test_update_immutable_fields - assert 422 ...
+FAILED tests/test_rule_versioning.py::test_rule_versioning_flow - assert 422 ...
+FAILED tests/test_rule_versioning.py::test_rule_history_nonexistent - assert ...
+FAILED tests/test_rule_versioning.py::test_multiple_rule_updates - assert 422...
+FAILED tests/test_rule_versioning.py::test_rule_version_metadata - assert 422...
+FAILED tests/unit/test_utils.py::test_get_default_api_base_env - AssertionErr...
+============ 77 failed, 80 passed, 12 skipped, 2 warnings in 1.99s =============

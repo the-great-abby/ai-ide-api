@@ -7,7 +7,7 @@ import uuid
 import pytest
 import requests
 
-API_URL = os.environ.get("API_URL", "http://api:9103")
+API_URL = os.environ.get("API_URL", "http://localhost:9104")
 MAKE = ["make", "-f", "Makefile.ai"]
 BACKUP_RESTORE_PHASE = os.environ.get("BACKUP_RESTORE_PHASE", "setup")
 

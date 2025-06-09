@@ -44,6 +44,39 @@ All suggestions will include the `project` field.
 
 ---
 
+## 🛡️ API Access & Onboarding Flow (Updated June 2024)
+
+- **API Port for Host Access:** Always use `http://localhost:9104` to access the API from your host machine. Never use `localhost:8000` for direct API access from the host.
+- **Internal Docker Service:** Use `test-api:8000` for service-to-service communication within the Docker test network.
+- **Token Requirement:** All endpoints except `/onboarding/init` require a valid token. Always start onboarding by calling `/onboarding/init` with `project_name` (and optionally `team_name`).
+
+### Example: Onboarding Flow (Host Machine)
+
+```python
+import requests
+
+# Step 1: Obtain token
+resp = requests.post("http://localhost:9104/onboarding/init", json={"project_name": "my-project", "path": "internal_dev"})
+token = resp.json()["token"]
+
+# Step 2: Use token for all other requests
+headers = {"Authorization": f"Bearer {token}"}
+rules = requests.get("http://localhost:9104/rules", headers=headers).json()
+print(rules)
+```
+
+### Example: Onboarding Flow (Inside Docker Network)
+
+```python
+resp = requests.post("http://test-api:8000/onboarding-init", json={"project_name": "my-cool-app"})
+token = resp.json()["token"]
+headers = {"Authorization": f"Bearer {token}"}
+rules = requests.get("http://test-api:8000/rules", headers=headers).json()
+print(rules)
+```
+
+---
+
 ## Step 1: Run the Rule API (Preferred: Makefile & Docker Compose)
 
 For local development and testing, use the provided Makefile and Docker Compose setup:
@@ -215,4 +248,11 @@ python scripts/export_approved_rules.py
 
 ---
 
-**Now your project can always stay up-to-date with the latest rules—no manual copying required!** 
+**Now your project can always stay up-to-date with the latest rules—no manual copying required!**
+
+> **Quartermaster “Patch” McDebug says:**
+> - Use `http://localhost:9104` for API access from your host machine.
+> - Use `http://test-api:8000` for API access from inside Docker/test containers.
+> - If you must reach the host from a container, use `http://host.docker.internal:9104`.
+> - Never use `localhost:8000`, `api:8000`, or `localhost:9103` for direct API access from the host or test containers.
+> - And remember, Patch is always watching for scallywags who break the rules! 

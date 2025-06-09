@@ -5,14 +5,14 @@ import os
 API_URL = os.environ.get("ONBOARDING_API_URL", "http://api:8000")
 
 
-def simulate_onboarding(project_id, path):
-    print(f"\n--- Simulating onboarding for project_id='{project_id}', path='{path}' ---")
+def simulate_onboarding(project_name, path):
+    print(f"\n--- Simulating onboarding for project_name='{project_name}', path='{path}' ---")
     # 1. Initialize onboarding
-    resp = requests.post(f"{API_URL}/onboarding/init", json={"project_id": project_id, "path": path})
+    resp = requests.post(f"{API_URL}/onboarding/init", json={"project_name": project_name, "path": path})
     print("Init:", resp.status_code, resp.json())
 
     # 2. Fetch progress
-    resp = requests.get(f"{API_URL}/onboarding/progress/{project_id}?path={path}")
+    resp = requests.get(f"{API_URL}/onboarding/progress/{project_name}?path={path}")
     print("Progress:", resp.status_code)
     progress = resp.json()
     for step in progress:
@@ -33,12 +33,12 @@ def simulate_onboarding(project_id, path):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python scripts/simulate_onboarding.py <project_id> <onboarding_path>")
+        print("Usage: python scripts/simulate_onboarding.py <project_name> <onboarding_path>")
         print("Example: python scripts/simulate_onboarding.py test_onboarding external_project")
         sys.exit(1)
-    project_id = sys.argv[1]
+    project_name = sys.argv[1]
     path = sys.argv[2]
-    simulate_onboarding(project_id, path)
+    simulate_onboarding(project_name, path)
 
 if __name__ == "__main__":
     main() 

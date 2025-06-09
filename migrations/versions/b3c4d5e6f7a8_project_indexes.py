@@ -28,11 +28,11 @@ def upgrade() -> None:
         # Add project_id if it doesn't exist
         if "project_id" not in columns:
             op.add_column(
-                "api_access_tokens", sa.Column("project_id", sa.String(), nullable=True)
+                "api_access_tokens", sa.Column("project_id", sa.UUID(), nullable=True)
             )
             op.execute(
                 """
-                UPDATE api_access_tokens SET project_id = '00000000-0000-0000-0000-000000000000' WHERE project_id IS NULL;
+                UPDATE api_access_tokens SET project_id = '00000000-0000-0000-0000-000000000000'::uuid WHERE project_id IS NULL;
             """
             )
             op.create_index(
@@ -69,18 +69,7 @@ def upgrade() -> None:
                 unique=False,
             )
 
-    # Add indexes to all relevant tables using IF NOT EXISTS for safety
-    op.execute("CREATE INDEX IF NOT EXISTS ix_rules_project ON rules (project);")
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_proposals_project ON proposals (project);"
-    )
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_enhancements_project ON enhancements (project);"
-    )
-    op.execute("CREATE INDEX IF NOT EXISTS ix_feedback_project ON feedback (project);")
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_rule_versions_project ON rule_versions (project);"
-    )
+    # Indexes for rules, proposals, enhancements, feedback, and rule_versions are now created in the consolidated schema migration (20240614_consolidated_schema.py). Removed here to avoid duplicate index errors and dependency issues.
 
 
 def downgrade() -> None:

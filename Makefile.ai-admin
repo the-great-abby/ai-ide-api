@@ -51,22 +51,11 @@ ai-frontend-volumes:
 	@echo "Checking for volume mounts in docker-compose.yml (frontend service):"
 	@awk '/frontend:/, /^[^ ]/' docker-compose.yml | grep -A 5 'volumes:' || echo "No volumes found for frontend."
 
-ai-logs-help:
-	@echo "\n==== Log Viewing Quick Reference ===="
-	@echo "Ollama backend logs:         make -f Makefile.ai ai-ollama-logs"
-	@echo "Ollama gateway logs:         make -f Makefile.ai ai-ollama-functions-logs"
-	@echo "API logs:                    make -f Makefile.ai logs-api"
-	@echo "Frontend logs:               make -f Makefile.ai logs-frontend"
-	@echo "Database logs:               make -f Makefile.ai logs-db"
-	@echo "\nAll of these show the last 100 lines of logs for the relevant service."
-	@echo "For more, see docs/user_stories/unified_system_startup.md or onboarding docs."
-	@echo "==== End Log Viewing Help ===="
-
 logs:
 	docker compose logs --tail=100 api db-test frontend || docker-compose logs --tail=100 api db-test frontend
 
 logs-api:
-	docker compose logs --tail=100 api || docker-compose logs --tail=100 api
+	docker compose logs --tail=100 api || docker compose logs --tail=100 api
 
 logs-db:
 	docker compose logs --tail=100 db-test || docker compose logs --tail=100 db-test
@@ -74,4 +63,4 @@ logs-db:
 logs-frontend:
 	docker compose logs --tail=100 frontend || docker compose logs --tail=100 frontend
 
-.PHONY: ai-admin-frontend-restart ai-admin-frontend-nocache-restart ai-docs open-docs open-admin ai-playwright-test ai-playwright-build-nocache ai-onboarding-help ai-port-3000-procs ai-docker-stop-all ai-kill-port-3000 ai-frontend-volumes ai-logs-help logs logs-api logs-db logs-frontend 
+.PHONY: ai-admin-frontend-restart ai-admin-frontend-nocache-restart ai-docs open-docs open-admin ai-playwright-test ai-playwright-build-nocache ai-onboarding-help ai-port-3000-procs ai-docker-stop-all ai-kill-port-3000 ai-frontend-volumes logs logs-api logs-db logs-frontend 

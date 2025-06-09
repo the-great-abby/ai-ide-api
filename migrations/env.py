@@ -2,7 +2,7 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text, create_engine
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -60,17 +60,20 @@ def run_migrations_online() -> None:
 
     """
     url = os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
-    connectable = engine_from_config(
-        {"sqlalchemy.url": url},
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-
+    print(f"DEBUG: Entering run_migrations_online, using URL: {url}")
+    connectable = create_engine(url, poolclass=pool.NullPool, isolation_level="AUTOCOMMIT")
+    print("DEBUG: Engine created")
     with connectable.connect() as connection:
+        print("DEBUG: Connection established")
+        # Print the current database name for verification
+        db_name = connection.execute(text("SELECT current_database();")).scalar()
+        print(f"DEBUG: Connected to database: {db_name}")
         context.configure(connection=connection, target_metadata=target_metadata)
-
+        print("DEBUG: Context configured")
         with context.begin_transaction():
+            print("DEBUG: Before context.run_migrations()")
             context.run_migrations()
+            print("DEBUG: After context.run_migrations()")
 
 
 if context.is_offline_mode():

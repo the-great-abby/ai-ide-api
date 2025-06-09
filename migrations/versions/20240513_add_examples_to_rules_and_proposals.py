@@ -24,12 +24,7 @@ def upgrade() -> None:
         columns = [c["name"] for c in inspector.get_columns("rules")]
         if "examples" not in columns:
             op.add_column("rules", sa.Column("examples", sa.Text(), nullable=True))
-    if "proposals" in inspector.get_table_names():
-        columns = [c["name"] for c in inspector.get_columns("proposals")]
-        if "examples" not in columns:
-            op.add_column("proposals", sa.Column("examples", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:
     op.drop_column("rules", "examples")
-    op.drop_column("proposals", "examples")

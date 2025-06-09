@@ -8,6 +8,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
+    profiles: ["dev", "llm"]  # Used in both dev and llm workflows
 
   api:
     build: .
@@ -28,6 +29,9 @@ services:
       - db
       - rabbitmq
     command: ["uvicorn", "rule_api_server:app", "--host", "0.0.0.0", "--reload"]
+    env_file:
+      - .env.dev
+    profiles: ["dev"]
 
   frontend:
     build:
@@ -40,6 +44,7 @@ services:
       - api
     environment:
       - VITE_API_BASE_URL=http://localhost:${PORT:-9103}
+    profiles: ["dev"]
 
   # Playwright service for UI testing (CI/CD friendly)
   playwright:
@@ -52,6 +57,7 @@ services:
     command: ["npx", "playwright", "test"]
     environment:
       - CI=true
+    profiles: ["dev"]
     # No volume mount: tests the built image, not local code
 
   db:
@@ -72,6 +78,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    profiles: ["dev"]
 
   misc-scripts:
     build:
@@ -90,12 +97,13 @@ services:
       - RUNNING_IN_DOCKER=1
       - PGUSER=postgres
       - PGPASSWORD=postgres
-      - PGHOST=db-test
+      - PGHOST=db
       - PGPORT=5432
       - MEMORY_API_URL=http://api:8000/memory/nodes
       - OLLAMA_URL=http://host.docker.internal:11434/api/generate
       - OLLAMA_MODEL=llama3.1:8b-instruct-q6_K
     command: tail -f /dev/null
+    profiles: ["dev"]
 
   ollama-functions:
     build:
@@ -109,6 +117,7 @@ services:
       - api
     volumes:
       - .:/code
+    profiles: ["llm"]
 
   worker:
     build: ./worker
@@ -118,12 +127,15 @@ services:
     depends_on:
       - rabbitmq
       - ollama-functions
-    # ... merge with any existing worker config ...
+    env_file:
+      - change-this-env.llm-worker.example
+    profiles: ["llm"]
 
   valkey:
     image: valkey/valkey:latest
     ports:
       - "6379:6379"
+    profiles: ["dev", "llm"]
 
 volumes:
   rules_postgres_data: 

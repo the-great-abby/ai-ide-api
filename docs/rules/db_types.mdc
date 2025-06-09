@@ -1,0 +1,27 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# ARR! DB Types: UUIDs vs Strings for IDs and Foreign Keys
+
+## Policy
+- All ID columns and foreign keys in this codebase are `sa.String()` (VARCHAR), not native UUID.
+- Always cast `uuid.UUID` objects to `str()` before passing to queries.
+- Validate UUIDs at the API/model layer to avoid storing garbage.
+
+## Rationale
+- Native UUID columns and FKs cause trouble with migrations, drivers, and test data.
+- Mixing types (UUID in one table, String in another) breaks foreign keys and migrations.
+- String columns work everywhere, but ye lose strict type safety.
+
+## Migration Advice
+- If ye ever want to switch to native UUIDs, plan a full migration:
+  - Update all models and migrations to use `sa.UUID(as_uuid=True)`.
+  - Update all code and test data to use `uuid.UUID` objects.
+  - Run a one-time migration to convert all string UUIDs to native UUIDs.
+- Do it all at once, or not at all!
+
+## See Also
+- [ONBOARDING_INTERNAL.md](mdc:../onboarding/ONBOARDING_INTERNAL.md) for onboarding context and warnings.
+

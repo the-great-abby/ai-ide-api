@@ -24,11 +24,11 @@ As an external project owner or integrator, I want a simple, automated way to in
      - `GET /onboarding-docs` (automation and Makefile best practices)
      - `GET /onboarding/user_story/external_project` (this user story)
 2. **Call the onboarding initialization endpoint:**
-   - Send a POST request to `/onboarding/init` with your `project_id` and `path` set to `external_project`.
+   - Send a POST request to `/onboarding/init` with your `project_name` and `path` set to `external_project`.
    - Example:
      ```json
      {
-       "project_id": "rebel_container",
+       "project_name": "rebel_container",
        "path": "external_project"
      }
      ```
@@ -188,6 +188,6 @@ For more advanced usage, traversal, and best practices, see [`docs/user_stories/
 ## References
 - Endpoint: `POST /onboarding/init`
 - Step template: `onboarding_paths.json`
-- Progress: `GET /onboarding/progress/{project_id}?path=external_project`
+- Progress: `GET /onboarding/progress/{project_name}?path=external_project`
 - Automation docs: `GET /onboarding-docs`
 - Rule promotion: `POST /rules/{rule_id}/promote` 
