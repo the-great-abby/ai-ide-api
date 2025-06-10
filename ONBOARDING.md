@@ -88,6 +88,36 @@ The curious and eager intern, Bitsy is always asking questions, picking up new s
 
 ---
 
+## 🫂 Buddy System
+
+To make sure every new crew member feels welcome and supported, we use a buddy system. Each new crew member (real or persona) is paired with a buddy who matches their interests or needs. Your buddy is your go-to for questions, code reviews, and general support during your first weeks aboard.
+
+| New Crew Member (Persona)      | Buddy (Persona)                  | Why This Works                                 |
+|-------------------------------|----------------------------------|------------------------------------------------|
+| Sammy “Shipmate” Gale         | Shipmate Gale (default buddy)    | Friendly, junior-focused, always available     |
+| “Bitsy” Byte (Intern)         | Shipmate Gale                    | Both are learning, Gale is a step ahead        |
+| New Dev (real person)         | Shipmate Gale or Rusty Stack     | Gale for onboarding, Rusty for code reviews    |
+| New AI/LLM Contributor        | Dr. Ada Deepmind                 | AI/LLM expertise, collaborative spirit         |
+| New Database/Backend Dev      | Dave the Database Deckhand       | Database, migrations, and backend guidance     |
+| New Automation/CI/CD Dev      | Mike the Automation Mechanic     | Automation, scripting, CI/CD best practices    |
+| New Product/UX Contributor    | Navigator “Maple” Cartwright     | Product, UX, and user journey expertise        |
+| New Security/DevSecOps        | Lookout “Eyes” Hawkins           | Security, best practices, threat modeling      |
+| New QA/Test Specialist        | Surgeon “Doc” Testwell           | Testing, QA, and bug triage                    |
+| New Ops/Infra Specialist      | Boatswain “Bosun” Riggs          | Infrastructure, deployment, monitoring         |
+| New Project Manager/Scrum     | Quartermaster “Penny” Ledger     | Agile, process, and team coordination          |
+
+**Default fallback buddy:**
+If you're not sure who your buddy is, Shipmate Gale is always happy to help or point you in the right direction!
+
+### How It Works
+- When you join the crew, you'll be paired with a buddy based on your interests or role.
+- Your buddy will help you get set up, answer questions, and review your first PRs.
+- If you're ever unsure who to ask, Shipmate Gale is always available for a chat!
+
+*Don't be shy—your buddy is here to help you succeed!*
+
+---
+
 # Pirate Rule: Ship's Log Entry Order
 
 > **Always prepend new entries to the top of `PIRATES_LOG.md` so the most recent log is first, like a true ship's log.**
@@ -103,6 +133,12 @@ The curious and eager intern, Bitsy is always asking questions, picking up new s
 # Pirate Rule: Automated Log Entry Reminders
 
 > **After every major update, milestone, or challenge, a reminder should be issued (by the Captain, Quartermaster Patch, or automation) for crew members to add a new entry to `PIRATES_LOG.md`. This ensures the log stays up to date and reflects the evolving story of the project.**
+
+---
+
+# Pirate Rule: Celebrate Every Win
+
+> **After every major win, the crew must log a celebratory entry in `PIRATES_LOG.md`, with reflections from at least two crew members (personas). This keeps morale high and the crew's story alive!**
 
 ---
 

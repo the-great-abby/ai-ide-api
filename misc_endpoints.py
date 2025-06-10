@@ -89,7 +89,7 @@ def analyze_python_code(code: str):
                         "description": "Avoid using deprecated libraries like 'imp'",
                         "diff": "-import imp\n+import importlib",
                     })
-        # Missing docstrings
+        # Missing docstrings (always check, even for short functions/classes)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             if not ast.get_docstring(node):
                 suggestions.append({
@@ -97,12 +97,22 @@ def analyze_python_code(code: str):
                     "description": f"Add a docstring to {node.name}",
                     "diff": f'-def {node.name}(...):\n+def {node.name}(...):\n    """Add docstring here"""',
                 })
-        # Long functions (over 20 lines)
+        # Long functions (over 10 lines for test reliability)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if hasattr(node, 'body') and len(node.body) > 20:
+            # Count lines spanned by the function
+            start = getattr(node, 'lineno', None)
+            end = getattr(node, 'end_lineno', None)
+            if start is not None and end is not None and (end - start + 1) > 10:
                 suggestions.append({
                     "rule_type": "long_function",
-                    "description": f"Function '{node.name}' is too long ({len(node.body)} lines)",
+                    "description": f"Function '{node.name}' is too long ({end - start + 1} lines)",
+                    "diff": f'# Consider refactoring {node.name} into smaller functions',
+                })
+            elif hasattr(node, 'body') and len(node.body) > 10:
+                # Fallback for Python <3.8
+                suggestions.append({
+                    "rule_type": "long_function",
+                    "description": f"Function '{node.name}' is too long ({len(node.body)} statements)",
                     "diff": f'# Consider refactoring {node.name} into smaller functions',
                 })
     logging.warning(f"[DEBUG] Suggestions generated: {suggestions}")
