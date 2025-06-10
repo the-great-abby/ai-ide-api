@@ -100,6 +100,8 @@ def test_propose_rule_change(client, admin_headers, override_get_db):
             "tags": ["validation"],
             "reason_for_change": "Testing API server.",
             "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         headers=admin_headers,
     )
@@ -134,6 +136,8 @@ def test_approve_and_reject_rule_change(client, admin_headers, override_get_db):
             "tags": ["approval"],
             "reason_for_change": "Testing approval.",
             "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         headers=admin_headers,
     )
@@ -169,6 +173,8 @@ def test_reject_rule_change(client, admin_headers, override_get_db):
             "tags": ["rejection"],
             "reason_for_change": "Testing rejection.",
             "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         headers=admin_headers,
     )
@@ -256,8 +262,12 @@ def test_rule_versioning_and_history(client, admin_headers, override_get_db):
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["versioning"],
+            "project": "test-project",
+            "examples": ["Example 1"],
+            "applies_to": ["python"],
             "reason_for_change": "Testing API server.",
             "references": "Test reference.",
+            "scope_level": "project",
         },
         headers=admin_headers,
     )
@@ -280,9 +290,10 @@ def test_rule_versioning_and_history(client, admin_headers, override_get_db):
     assert isinstance(history_data, list)
     assert len(history_data) > 0
 
-    # Get rule history for nonexistent rule (should 404)
-    bad_history_response = client.get(f"/rules/nonexistent-id/history", headers=admin_headers)
-    assert bad_history_response.status_code == 404
+    # Try to get history for non-existent rule (valid UUID)
+    fake_id = str(uuid.uuid4())
+    response = client.get(f"/rules/{fake_id}/history", headers=admin_headers)
+    assert response.status_code == 404  # API returns 404 for non-existent rule
 
 
 def test_bug_report_endpoint(client, admin_headers, override_get_db):
@@ -405,6 +416,8 @@ def test_proposal_to_enhancement(client, admin_headers, override_get_db):
             "tags": ["enhancement"],
             "reason_for_change": "Testing proposal to enhancement.",
             "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         headers=admin_headers,
     )
@@ -496,6 +509,8 @@ def test_rules_multi_category_filter(client, admin_headers, override_get_db):
             "user_story": "As a user, I want automation rules.",
             "reason_for_change": "Testing API server.",
             "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         headers=admin_headers,
     )
@@ -655,6 +670,8 @@ def test_rule_proposal_categories_field(client, admin_headers, override_get_db):
             "user_story": "As a user, I want categories to be correctly handled.",
             "reason_for_change": "Testing API server.",
             "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         headers=admin_headers,
     )
@@ -728,13 +745,10 @@ def test_rule_promotion_endpoint(
     assert promote_data["status"] == "promoted"
     assert promote_data["id"] == proposal_id
 
-    # Promote a nonexistent rule (should 404)
-    bad_promote_response = client.post(
-        f"/rules/nonexistent-id/promote",
-        json={"target_scope": "team", "target_scope_id": test_team_uuid},
-        headers=admin_headers,
-    )
-    assert bad_promote_response.status_code == 404
+    # Try to promote a non-existent rule (valid UUID)
+    fake_id = str(uuid.uuid4())
+    response = client.post(f"/rules/{fake_id}/promote", json={"scope_level": "team", "scope_id": "team-1"}, headers=admin_headers)
+    assert response.status_code == 404  # API returns 404 for non-existent rule
 
 
 def test_onboarding_init_idempotency(client, admin_headers, override_get_db):
@@ -764,3 +778,44 @@ def test_onboarding_init_idempotency(client, admin_headers, override_get_db):
     data3 = response3.json()
     # Team IDs should be different
     assert data1["team_id"] != data3["team_id"]
+
+
+def test_rule_patch_endpoint(client, admin_headers, override_get_db):
+    # First propose a rule change
+    prop_response = client.post(
+        "/propose-rule-change",
+        json={
+            "rule_type": "test_api",
+            "description": "Test API rule",
+            "diff": "# Rule: test_api\n## Description\nTest API rule\n## Enforcement\nThis rule is enforced through API testing.",
+            "submitted_by": "tester",
+            "categories": ["test"],
+            "tags": ["api"],
+            "reason_for_change": "Testing API server.",
+            "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
+            "examples": ["Example 1"],
+            "applies_to": ["python"],
+        },
+        headers=admin_headers,
+    )
+    assert prop_response.status_code == 200
+    rule_id = prop_response.json()["id"]
+
+    # PATCH/update payload: only include fields accepted by the update endpoint
+    update_payload = {
+        "description": "Updated API test rule",
+        "diff": "# Rule: test_api\n## Description\nUpdated API test rule\n## Enforcement\nThis rule is enforced through API testing.",
+        "examples": ["Example 1", "Example 2"],
+        "applies_to": ["python", "javascript"],
+    }
+    update_response = client.patch(
+        f"/rules/{rule_id}", json=update_payload, headers=admin_headers
+    )
+    assert update_response.status_code == 200
+    updated_rule = update_response.json()
+    assert updated_rule["description"] == "Updated API test rule"
+    assert updated_rule["examples"] == ["Example 1", "Example 2"]
+    assert updated_rule["applies_to"] == ["python", "javascript"]
+    # Remove assertions for 'project' and 'scope_level' if not present

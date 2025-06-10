@@ -32,7 +32,7 @@ Welcome aboard! Here are the core members of our AI-augmented development crew:
 
 ```
    Captain Abby   Vice Captain Rusty   Dr. Ada Deepmind   Shipmate Gale   Patch McDebug   Dave the Database Deckhand   Mike the Automation Mechanic   Maple Cartwright   Eyes Hawkins   Penny Ledger   Doc Testwell   Bosun Riggs   Bitsy Byte
-      (You)             (🧔)                (👩‍🔬)             (🧑‍🎓)            (🤖)             (🧔)                (🤖)                  (🧭)            (👀)         (💼)         (🩺)         (⚓️)        (🧒)
+      (You)             (🧔)                (👩‍🔬)             (🧑‍🎓)            (🤖)             (🧔)                (🤖)                  (🧭)            (👀)         (💼)         (🩺)         [⚓️]        [🧒]
 
       [⚓️]         [🪝]                [🔬]              [🌊]           [🦾]             [🧔]                [🤖]                  [🧭]            [👀]         [💼]         [🩺]         [⚓️]        [🧒]
 
@@ -118,6 +118,55 @@ If you're not sure who your buddy is, Shipmate Gale is always happy to help or p
 
 ---
 
+## ⚠️ Common Pitfalls & How to Avoid Them
+
+Every crew member—junior or senior—can get tripped up by something new. Here are some common pitfalls and how to steer clear of them:
+
+| Area                | What Trips People Up?         | How to Make It Easier                |
+|---------------------|------------------------------|--------------------------------------|
+| Setup               | Which command/env to use      | Follow the First Day Checklist, use provided scripts, and check examples in the docs. |
+| Navigation          | Where's the code for X?       | Use the codebase tour, diagrams, and "You are here" comments. Don't hesitate to ask your buddy! |
+| Testing             | How to run tests?             | Always use Makefile targets (not direct pytest). See the Testing Quickstart for commands and sample output. |
+| Debugging           | How to check logs/fix errors? | Check the Troubleshooting section, use log commands, and look at real Pirate's Log entries for examples. |
+| Contribution        | How to PR/review?             | Follow the First PR Walkthrough, ask your buddy for a review, and celebrate your first PR in the Pirate's Log! |
+| Jargon              | What does X mean?             | Check the Glossary, look for tooltips/callouts, and ask if you're unsure. |
+| Fear of Mistakes    | Will I break things?          | Mistakes are part of learning! Use backups, follow recovery steps, and know the crew has your back. |
+
+**Pro tip:** If you get stuck, you're not alone—ask your buddy, check the docs, or add a question to the Pirate's Log. Every challenge is a chance to learn and improve the ship for the next crew!
+
+---
+
+## 🧠 First Memory Node Checklist
+
+Getting your first memory node working is a rite of passage for every new crew member! Follow these steps to set up and verify the memory system:
+
+1. **Start the dev environment:**
+   ```bash
+   make dev-up
+   ```
+2. **Check that the API and memory endpoints are running:**
+   - Visit [http://localhost:9103/docs](http://localhost:9103/docs) and look for `/memory/nodes` endpoints.
+3. **Add your first memory node (using curl):**
+   ```bash
+   curl -X POST http://localhost:9103/memory/nodes \
+     -H 'Content-Type: application/json' \
+     -d '{"namespace": "onboarding", "content": "My first memory node!", "meta": "{\"tags\":[\"onboarding\"]}"}'
+   ```
+   - Or use the API docs "Try it out" button.
+4. **Verify your memory node exists:**
+   ```bash
+   curl http://localhost:9103/memory/nodes?namespace=onboarding | jq .
+   ```
+   - You should see your node in the output.
+5. **(Optional) Explore more:**
+   - Try adding an edge, searching, or traversing the memory graph (see the Memory System Guide for examples).
+6. **Celebrate your achievement:**
+   - Add an entry to the [Pirate's Log](PIRATES_LOG.md) sharing your success!
+
+**Pro tip:** If you get stuck, check the troubleshooting section, ask your buddy, or look for real examples in the Pirate's Log.
+
+---
+
 # Pirate Rule: Ship's Log Entry Order
 
 > **Always prepend new entries to the top of `PIRATES_LOG.md` so the most recent log is first, like a true ship's log.**
@@ -149,6 +198,9 @@ If you're not sure who your buddy is, Shipmate Gale is always happy to help or p
 
 - **[External/Partner Onboarding →](ONBOARDING_EXTERNAL.md)**
   - For external users, partners, or integrators who want a streamlined setup, essential Makefile targets, and extension instructions.
+
+- **[First Memory Node Onboarding →](FIRST_MEMORY_ONBOARDING.md)**
+  - For anyone (internal or external) who wants a focused, step-by-step guide to getting the memory system working and adding their first memory node.
 
 - **[Onboarding Adventures (Advanced/Experimental) →](ONBOARDING_ADVENTURES.md)**
   - For those interested in advanced, experimental, or power-user onboarding stories and integrations.
@@ -1023,3 +1075,44 @@ If you encounter issues running the update-project-map workflow, follow these st
 6. **If the problem persists, check for Python or dependency errors in `scripts/update_project_map.py`.**
 
 This ensures you are using the new profile-based workflow and the correct Makefile target for bringing up the required service. 
+
+---
+
+## 🏴‍☠️ Port Consultant Program: External Onboarding Experience Scouts
+
+To keep our onboarding shipshape, we now have Port Consultants at every port! These crew (or friendly outsiders) simulate the journey of an external user, follow the onboarding path, and report back on the experience. Their feedback helps us continuously improve the onboarding process for all newcomers.
+
+- **Learn more and see the Port Report template:** [Port Consultant Program →](PORT_CONSULTANT_PROGRAM.md) 
+
+---
+
+## 🗺️ Glossary for New Crew Members
+
+**Namespace:**
+A category or group for your memory nodes (e.g., 'onboarding', 'project-x'). Helps organize and search your memories.
+
+**Content:**
+The actual information or data you want to store in a memory node.
+
+**Memory Node:**
+A single unit of information in the memory system, consisting of a namespace, content, and optional metadata.
+
+**Port (in our context):**
+A major entry point or system in the project (e.g., Memory System, API, Admin Frontend) where users can begin their journey.
+
+**Onboarding Path:**
+A guided set of steps or documentation designed to help new crew members get started with a specific part of the project.
+
+**Pirate's Log:**
+Our living record of achievements, milestones, and onboarding victories. Add your story to inspire future crew!
+
+**Port Consultant:**
+A crew member (or friendly outsider) who simulates the onboarding journey of an external user at a specific port, providing feedback to improve the experience.
+
+**First Memory Node:**
+The first piece of information you add to the memory system—a rite of passage for all new crew.
+
+**Pull Request (PR):**
+A way to propose changes to the codebase or docs, including adding your onboarding story to the Pirate's Log.
+
+--- 

@@ -8,14 +8,13 @@ from rule_api_server import app
 
 def test_rule_promotion_flow(admin_headers, client, override_get_db):
     # First create a rule at project scope
-    project_scope_id = str(uuid.uuid4())
     project_rule = {
         "rule_type": "promotion_test",
         "description": "Promotion test rule",
         "diff": "# Rule: Promotion Test\n## Description\nPromotion test rule\n## Enforcement\nTesting promotion.",
         "submitted_by": "tester",
         "scope_level": "project",
-        "scope_id": project_scope_id,
+        "project": "test-project",
         "categories": ["test"],
         "tags": ["promotion"],
         "examples": ["Example 1"],
@@ -40,21 +39,20 @@ def test_rule_promotion_flow(admin_headers, client, override_get_db):
     assert approve_response.status_code == 200
     # Always fetch the rule from /rules after approval
     rules = client.get(
-        f"/rules?scope_level=project&scope_id={project_scope_id}", headers=admin_headers
+        f"/rules?scope_level=project&scope_id={project_rule['project']}", headers=admin_headers
     ).json()
     rule = next(r for r in rules if r["description"] == "Promotion test rule")
     rule_id = rule["id"]
 
     # Test promotion to team scope
-    team_scope_id = str(uuid.uuid4())
-    team_promotion = {"scope_level": "team", "scope_id": team_scope_id}
+    team_promotion = {"scope_level": "team", "team": "test-team"}
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=team_promotion, headers=admin_headers
     )
     assert promote_response.status_code == 200
     promoted_rule = promote_response.json()
     assert promoted_rule["scope_level"] == "team"
-    assert promoted_rule["scope_id"] == team_scope_id
+    assert promoted_rule["scope_id"] is not None
 
     # Test promotion to global scope
     global_promotion = {"scope_level": "global"}

@@ -93,10 +93,25 @@ This is a placeholder for the user story documentation for {path}.
 async def onboarding_progress(
     project_name: str, path: str = "", db: Session = Depends(get_db)
 ):
-    # Use project_name (string) as project_id in onboarding progress
     logger.info(
         f"Fetching onboarding progress for project_id={project_name}, path={path or 'internal_dev'}"
     )
+    # Load onboarding_paths to get doc_links
+    onboarding_paths_path = os.path.join(os.path.dirname(__file__), "onboarding_paths.json")
+    with open(onboarding_paths_path, "r") as f:
+        onboarding_paths = json.load(f)
+    path_entry = None
+    if isinstance(onboarding_paths, dict) and "paths" in onboarding_paths:
+        for entry in onboarding_paths["paths"]:
+            if entry.get("name") == (path or "internal_dev"):
+                path_entry = entry
+                break
+    doc_links = {}
+    if path_entry and "steps" in path_entry:
+        for step in path_entry["steps"]:
+            instruction = step["instruction"] if isinstance(step, dict) and "instruction" in step else step
+            doc_link = step.get("doc_link") if isinstance(step, dict) else None
+            doc_links[instruction] = doc_link
     progress = (
         db.query(ProjectOnboardingProgress)
         .filter(
@@ -114,17 +129,25 @@ async def onboarding_progress(
             f"No onboarding progress found for project_id={project_name}, path={path or 'internal_dev'}"
         )
         raise HTTPException(status_code=404, detail="Project not found")
-    return [
+    steps_out = [
         {
             "id": str(step.id),
             "path": step.path,
-            "step": step.step,
+            "instruction": step.step,
+            "doc_link": doc_links.get(step.step),
             "completed": step.completed,
             "details": step.details,
             "timestamp": step.timestamp,
+            "status": getattr(step, "status", "not_started"),
         }
         for step in progress
     ]
+    # If all steps are completed, add a congratulatory message
+    all_completed = all(s.get("status") == "completed" for s in steps_out)
+    response = {"steps": steps_out}
+    if all_completed and steps_out:
+        response["congratulations"] = "Congratulations! All onboarding steps are complete. Welcome aboard!"
+    return response
 
 
 @router.patch("/progress/{step_id}")
@@ -139,11 +162,16 @@ async def patch_onboarding_progress(
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
     data = await request.json()
+    allowed_statuses = ["not_started", "in_progress", "completed", "skipped", "needs_help"]
     if "completed" in data:
         step.completed = data["completed"]
+        if data["completed"]:
+            step.status = "completed"
     if "details" in data:
         step.details = data["details"]
     if "status" in data:
+        if data["status"] not in allowed_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {data['status']}. Allowed: {allowed_statuses}")
         step.status = data["status"]
     db.commit()
     db.refresh(step)
@@ -154,7 +182,7 @@ async def patch_onboarding_progress(
         "completed": step.completed,
         "details": step.details,
         "timestamp": step.timestamp,
-        "status": getattr(step, "status", None),
+        "status": getattr(step, "status", "not_started"),
     }
 
 
@@ -165,9 +193,10 @@ async def patch_onboarding_progress(
 async def onboarding_init(request: Request, db: Session = Depends(get_db)):
     import traceback
     data = await request.json()
-    project_name = data.get("project_name")
+    project_name = str(data.get("project_name"))
     team_name = data.get("team_name")
     path = data.get("path")
+    pirate_mode = data.get("pirate_mode", False)
     if not project_name or not path:
         raise HTTPException(status_code=400, detail="Missing project_name or path")
     # Always create or get project/team by name, providing sensible defaults
@@ -184,38 +213,77 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
     try:
         with open(onboarding_paths_path, "r") as f:
             onboarding_paths = json.load(f)
-        if path not in onboarding_paths:
+        # Support new structure: onboarding_paths['paths'] is a list of dicts with 'name' and 'steps'
+        path_entry = None
+        if isinstance(onboarding_paths, dict) and "paths" in onboarding_paths:
+            for entry in onboarding_paths["paths"]:
+                if entry.get("name") == path:
+                    path_entry = entry
+                    break
+        if not path_entry or "steps" not in path_entry:
             raise HTTPException(status_code=400, detail="Invalid onboarding path")
-        steps = onboarding_paths[path]
+        buddy = path_entry.get("buddy")
+        # Define buddy intros (can be moved to a config file if needed)
+        buddy_intros = {
+            "Patch McDebug": "Arrr, I be Patch McDebug, yer relentless bug-hunter! Let's get ye shipshape.",
+            "Captain Abby": "Welcome aboard! Captain Abby here to chart your course to greatness.",
+            "Doc Testwell": "Ahoy! Doc Testwell at your service—let's keep things healthy and well-tested.",
+            "Dave the Database Deckhand": "Dave here! I'll help you wrangle the data seas.",
+            "Maple Cartwright": "Maple Cartwright, navigator extraordinaire—let's find your way.",
+            "Bosun Riggs": "Bosun Riggs reporting! Automation and efficiency be my game.",
+        }
+        pirate_buddy_intros = {
+            "Patch McDebug": "Arrr matey! Patch McDebug at yer service. Let's hunt bugs and plunder technical debt! 🏴‍☠️",
+            "Captain Abby": "Avast! Captain Abby here to chart a course through these code-infested waters.",
+            "Doc Testwell": "Shiver me test cases! Doc Testwell's the name, and healthy code's me game.",
+            "Dave the Database Deckhand": "Hoist the data sails! Dave'll keep yer tables afloat.",
+            "Maple Cartwright": "Maple Cartwright, navigator of the digital seas—let's find yer way to glory!",
+            "Bosun Riggs": "Bosun Riggs, at yer command! Automation be the wind in our sails.",
+        }
+        buddy_intro = None
+        if buddy:
+            if pirate_mode:
+                buddy_intro = pirate_buddy_intros.get(buddy, f"Arrr! {buddy} be yer guide on this voyage.")
+            else:
+                buddy_intro = buddy_intros.get(buddy, f"Welcome! {buddy} will guide you on this path.")
+        steps = path_entry["steps"]
         created_steps = []
         for step in steps:
+            instruction = step["instruction"] if isinstance(step, dict) and "instruction" in step else step
+            doc_link = step.get("doc_link") if isinstance(step, dict) else None
             # Use project_name (string) as project_id in onboarding progress
             existing = db.query(ProjectOnboardingProgress).filter_by(
-                project_id=project_name, path=path, step=step, version=1
+                project_id=project_name, path=path, step=instruction, version=1
             ).first()
             if existing:
                 created_steps.append({
                     "id": str(existing.id),
                     "path": path,
-                    "step": step,
-                    "completed": existing.completed
+                    "instruction": instruction,
+                    "doc_link": doc_link,
+                    "completed": existing.completed,
+                    "status": getattr(existing, "status", "not_started"),
                 })
                 continue
             progress = ProjectOnboardingProgress(
-                project_id=project_name, path=path, step=step, completed=False
+                project_id=project_name, path=path, step=instruction, completed=False, status="not_started"
             )
             db.add(progress)
             db.flush()
             created_steps.append({
                 "id": str(progress.id),
                 "path": path,
-                "step": step,
-                "completed": False
+                "instruction": instruction,
+                "doc_link": doc_link,
+                "completed": False,
+                "status": "not_started",
             })
         db.commit()
         return {
             "project_name": project_name,
             "team_name": team_name,
+            "buddy": buddy,
+            "buddy_intro": buddy_intro,
             "steps": created_steps,
             "team_id": str(team.id) if team else None
         }

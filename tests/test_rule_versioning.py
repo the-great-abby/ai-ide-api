@@ -16,6 +16,8 @@ def test_rule_versioning_flow(admin_headers, client, override_get_db):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning"],
+        "scope_level": "project",
+        "project": "test-project",
         "examples": ["Example 1"],
         "applies_to": ["python"],
         "applies_to_rationale": "For Python code",
@@ -48,6 +50,8 @@ def test_rule_versioning_flow(admin_headers, client, override_get_db):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning", "updated"],
+        "scope_level": "project",
+        "project": "test-project",
         "examples": ["Example 1", "Example 2"],
         "applies_to": ["python", "javascript"],
         "applies_to_rationale": "For Python and JavaScript code",
@@ -97,10 +101,15 @@ def test_rule_versioning_flow(admin_headers, client, override_get_db):
 @pytest.mark.unit
 @pytest.mark.negative
 def test_rule_history_nonexistent(admin_headers, client, override_get_db):
-    # Try to get history for non-existent rule
+    # Try to get history for non-existent rule (valid UUID)
     fake_id = str(uuid.uuid4())
     response = client.get(f"/rules/{fake_id}/history", headers=admin_headers)
     assert response.status_code == 404
+
+    # Try to get history for invalid UUID
+    invalid_id = "not-a-uuid"
+    response = client.get(f"/rules/{invalid_id}/history", headers=admin_headers)
+    assert response.status_code == 422
 
 
 @pytest.mark.unit
@@ -113,6 +122,8 @@ def test_multiple_rule_updates(admin_headers, client, override_get_db):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning"],
+        "scope_level": "project",
+        "project": "test-project",
         "examples": ["Example 1"],
         "applies_to": ["python"],
         "user_story": "Test user story",
@@ -151,6 +162,8 @@ def test_multiple_rule_updates(admin_headers, client, override_get_db):
             "user_story": "Test user story",
             "reason_for_change": f"Testing multiple updates. Reason for change: {f'v{i+2}'}",
             "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
         }
         for i in range(3)  # Create 3 more versions
     ]
@@ -197,6 +210,8 @@ def test_rule_version_metadata(admin_headers, client, override_get_db):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning"],
+        "scope_level": "project",
+        "project": "test-project",
         "examples": ["Example 1"],
         "applies_to": ["python"],
         "applies_to_rationale": "For Python code",
@@ -236,6 +251,8 @@ def test_rule_version_metadata(admin_headers, client, override_get_db):
         "user_story": "Test user story",
         "reason_for_change": "Testing versioning flow.",
         "references": "Test reference.",
+        "scope_level": "project",
+        "project": "test-project",
     }
 
     # Create and approve update

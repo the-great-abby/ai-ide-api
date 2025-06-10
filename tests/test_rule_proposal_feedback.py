@@ -15,13 +15,14 @@ def test_submit_and_list_feedback(admin_headers, client, override_get_db):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["feedback"],
+        "scope_level": "project",
+        "project": "test-project",
         "examples": ["Example 1"],
         "applies_to": ["python"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",
         "reason_for_change": "Testing feedback flow.",
         "references": "Test reference.",
-        "project": "test-project",
     }
 
     # Create the proposal
@@ -35,6 +36,8 @@ def test_submit_and_list_feedback(admin_headers, client, override_get_db):
     feedback = {
         "feedback_type": "suggestion",
         "comments": "This rule could be improved by adding more examples.",
+        "scope_level": "project",
+        "project": "test-project",
     }
     feedback_response = client.post(
         f"/api/rule_proposals/{proposal_id}/feedback",
@@ -58,10 +61,7 @@ def test_submit_and_list_feedback(admin_headers, client, override_get_db):
     feedback_list = list_response.json()
     assert len(feedback_list) == 1
     assert feedback_list[0]["feedback_type"] == "suggestion"
-    assert (
-        feedback_list[0]["comments"]
-        == "This rule could be improved by adding more examples."
-    )
+    assert feedback_list[0]["comments"] == "This rule could be improved by adding more examples."
 
 
 def test_multiple_feedback_entries(admin_headers, client, override_get_db):
@@ -73,13 +73,14 @@ def test_multiple_feedback_entries(admin_headers, client, override_get_db):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["feedback"],
+        "scope_level": "project",
+        "project": "test-project",
         "examples": ["Example 1"],
         "applies_to": ["python"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",
         "reason_for_change": "Testing feedback flow.",
         "references": "Test reference.",
-        "project": "test-project",
     }
 
     prop_response = client.post(
@@ -90,9 +91,9 @@ def test_multiple_feedback_entries(admin_headers, client, override_get_db):
 
     # Submit multiple feedback entries
     feedback_entries = [
-        {"feedback_type": "suggestion", "comments": "First suggestion"},
-        {"feedback_type": "question", "comments": "How will this be enforced?"},
-        {"feedback_type": "concern", "comments": "This might be too restrictive"},
+        {"feedback_type": "suggestion", "comments": "First suggestion", "scope_level": "project", "project": "test-project"},
+        {"feedback_type": "question", "comments": "How will this be enforced?", "scope_level": "project", "project": "test-project"},
+        {"feedback_type": "concern", "comments": "This might be too restrictive", "scope_level": "project", "project": "test-project"},
     ]
 
     for feedback in feedback_entries:
@@ -119,7 +120,7 @@ def test_multiple_feedback_entries(admin_headers, client, override_get_db):
 @pytest.mark.negative
 def test_feedback_on_nonexistent_proposal(admin_headers, client, override_get_db):
     # Try to submit feedback for a non-existent proposal
-    feedback = {"feedback_type": "suggestion", "comments": "Test feedback"}
+    feedback = {"feedback_type": "suggestion", "comments": "Test feedback", "scope_level": "project", "project": "test-project"}
     fake_id = str(uuid.uuid4())
     response = client.post(
         f"/api/rule_proposals/{fake_id}/feedback", json=feedback, headers=admin_headers
@@ -142,13 +143,14 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["feedback"],
+        "scope_level": "project",
+        "project": "test-project",
         "examples": ["Example 1"],
         "applies_to": ["python"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",
         "reason_for_change": "Testing feedback flow.",
         "references": "Test reference.",
-        "project": "test-project",
     }
 
     prop_response = client.post(
@@ -158,7 +160,7 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
     proposal_id = prop_response.json()["id"]
 
     # Submit feedback with invalid type
-    invalid_feedback = {"feedback_type": "invalid_type", "comments": "Test feedback"}
+    invalid_feedback = {"feedback_type": "invalid_type", "comments": "Test feedback", "scope_level": "project", "project": "test-project"}
     response = client.post(
         f"/api/rule_proposals/{proposal_id}/feedback",
         json=invalid_feedback,
@@ -199,20 +201,21 @@ def test_feedback_type_enforcement(admin_headers, client, feedback_type, expecte
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["feedback"],
+        "scope_level": "project",
+        "project": "test-project",
         "examples": ["Example 1"],
         "applies_to": ["python"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",
         "reason_for_change": "Testing feedback type enforcement.",
         "references": "Test reference.",
-        "project": "test-project",
     }
     prop_response = client.post(
         "/propose-rule-change", json=proposal, headers=admin_headers
     )
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
-    feedback = {"feedback_type": feedback_type, "comments": "Test feedback"}
+    feedback = {"feedback_type": feedback_type, "comments": "Test feedback", "scope_level": "project", "project": "test-project"}
     response = client.post(
         f"/api/rule_proposals/{proposal_id}/feedback",
         json=feedback,

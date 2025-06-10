@@ -35,4 +35,11 @@ As a developer or API client, I want to use human-readable project names when in
 
 ## References
 - `db.py` Project model and `get_or_create_project_by_name` function
-- Example endpoints: `/proposals`, `/rules`, `/onboarding/init` 
+- Example endpoints: `/proposals`, `/rules`, `/onboarding/init`
+
+## Global Scope UUID
+
+- The system uses a reserved UUID for global-scope rules: `99999999-9999-9999-9999-999999999999`
+- This value is defined in `.env` as `GLOBAL_SCOPE_UUID` and must match the value in the codebase.
+- All global-scope rules and proposals use this UUID for `scope_id`.
+- Reference this value in onboarding, documentation, and when debugging global rule logic. 

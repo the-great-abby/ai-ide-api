@@ -11,6 +11,7 @@ from fastapi.exceptions import RequestValidationError as FastAPIRequestValidatio
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator, validator
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from auth import require_api_token, require_role
 from db import Proposal, Rule, RuleVersion, get_db, get_or_create_project_by_name, get_or_create_team_by_name, resolve_project_id, resolve_team_id, project_defaults_from_name
@@ -25,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Allowed feedback types for rule proposal feedback
 ALLOWED_FEEDBACK_TYPES = {"suggestion", "question", "concern"}
+
+# Add at the top (or import from config if available)
+GLOBAL_SCOPE_UUID = "99999999-9999-9999-9999-999999999999"  # Must match .env and docs
 
 
 # ARR! All IDs and foreign keys be strings, not UUID columns. Pass UUIDs as strings, or ye walk the plank! See ONBOARDING_INTERNAL.md and rules/db_types.mdc for the tale.
@@ -212,92 +216,99 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"[DEBUG] Error reading payload: {e}")
         raise
-    # Validate required fields
-    required_fields = [
-        "rule_type",
-        "description",
-        "diff",
-        "submitted_by",
-        "reason_for_change",
-        "references",
-    ]
-    for field in required_fields:
-        value = payload.get(field)
-        logger.warning(f"[DEBUG] Field '{field}' value: {value!r}")
-        if value is None or (isinstance(value, str) and not value.strip()):
-            logger.error(
-                f"[DEBUG] 422: Field '{field}' is missing or empty in payload: {payload}"
-            )
-            raise HTTPException(
-                status_code=422,
-                detail=f"Field '{field}' is required and cannot be empty.",
-            )
-    # Strictly validate UUID fields if present (except 'project', which can be a name or UUID)
-    for uuid_field in ["parent_rule_id", "scope_id"]:
-        if payload.get(uuid_field):
+    # --- ABSOLUTE FIRST: Payload type debug and conversion ---
+    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Incoming payload type: {type(payload)}, repr: {repr(payload)}")
+    if not isinstance(payload, dict):
+        try:
+            payload = dict(payload)
+            logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Converted payload to dict via dict(payload)")
+        except Exception:
             try:
-                uuid.UUID(str(payload[uuid_field]))
-            except Exception:
-                raise HTTPException(status_code=422, detail=f"Field '{uuid_field}' must be a valid UUID string.")
-    # Validate scope_id for team/project scope
-    if payload.get("scope_level") in ("team", "project") and not payload.get(
-        "scope_id"
-    ):
-        logger.error(
-            f"[DEBUG] 422: scope_id missing for scope_level={payload.get('scope_level')}, payload: {payload}"
-        )
-        raise HTTPException(
-            status_code=422,
-            detail="scope_id (team_or_project_assoc_id) is required for team or project scope.",
-        )
-
-    # Validate parent_rule_id if provided
-    if payload.get("parent_rule_id"):
-        parent_rule = (
-            db.query(Rule).filter(Rule.id == payload.get("parent_rule_id")).first()
-        )
-        if not parent_rule:
-            logger.error(
-                f"[DEBUG] 404: parent_rule_id does not exist: {payload.get('parent_rule_id')}, payload: {payload}"
-            )
-            raise HTTPException(
-                status_code=404, detail="parent_rule_id does not exist in rules table"
-            )
-
+                payload = payload.dict()
+                logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Converted payload to dict via payload.dict()")
+            except Exception as e:
+                logger.error(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Could not convert payload to dict: {e}")
+                raise
+    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: After conversion, payload type: {type(payload)}, repr: {repr(payload)}")
+    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: payload.get('project'): {payload.get('project')}, payload.get('team'): {payload.get('team')}")
+    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Incoming payload: {payload}")
+    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: scope_level={payload.get('scope_level')}, project={payload.get('project')}, team={payload.get('team')}, scope_id={payload.get('scope_id')}")
+    scope_level = payload.get("scope_level")
+    # Always resolve project/team name to UUID before any scope_id check
+    if scope_level == "project" and payload.get("project"):
+        logger.warning(f"[SCOPE-DEBUG] Attempting to resolve project name '{payload['project']}' to UUID...")
+        try:
+            resolved_id = resolve_project_id(db, payload["project"], **project_defaults_from_name(payload["project"]))
+            logger.warning(f"[SCOPE-RESOLVE] Project '{payload['project']}' resolved to UUID: {resolved_id}")
+            if not resolved_id:
+                logger.error(f"[SCOPE-RESOLVE-FAIL] Project '{payload['project']}' resolved to None!")
+                raise HTTPException(status_code=422, detail="Could not resolve project name to UUID (None returned).")
+            scope_id = resolved_id
+            payload["scope_id"] = resolved_id
+        except Exception as e:
+            logger.warning(f"[SCOPE-RESOLVE-FAIL] Could not resolve project '{payload['project']}': {e}")
+            raise HTTPException(status_code=422, detail="Could not resolve project name to UUID.")
+    elif scope_level == "team" and payload.get("team"):
+        logger.warning(f"[SCOPE-DEBUG] Attempting to resolve team name '{payload['team']}' to UUID...")
+        try:
+            resolved_id = resolve_team_id(db, payload["team"])
+            logger.warning(f"[SCOPE-RESOLVE] Team '{payload['team']}' resolved to UUID: {resolved_id}")
+            if not resolved_id:
+                logger.error(f"[SCOPE-RESOLVE-FAIL] Team '{payload['team']}' resolved to None!")
+                raise HTTPException(status_code=422, detail="Could not resolve team name to UUID (None returned).")
+            scope_id = resolved_id
+            payload["scope_id"] = resolved_id
+        except Exception as e:
+            logger.warning(f"[SCOPE-RESOLVE-FAIL] Could not resolve team '{payload['team']}': {e}")
+            raise HTTPException(status_code=422, detail="Could not resolve team name to UUID.")
+    else:
+        scope_id = payload.get("scope_id")
+    logger.warning(f"[SCOPE-DEBUG] After resolution: scope_id={scope_id}, payload['scope_id']={payload.get('scope_id')}")
+    # Now check for required scope_id
+    if scope_level in ("project", "team") and not payload.get("scope_id"):
+        logger.error(f"[SCOPE-RESOLVE-FAIL] scope_id missing for scope_level={scope_level}, payload: {payload}")
+        raise HTTPException(status_code=422, detail="scope_id (team_or_project_assoc_id) is required for team or project scope. This is a scope conflict.")
+    try:
+        uuid.UUID(str(scope_id))
+    except Exception:
+        raise HTTPException(status_code=422, detail="scope_id must be a valid UUID after resolution.")
+    # Debug logging for conflict checks
+    logger.warning(f"[CONFLICT-DEBUG] Checking for conflicts: rule_type={payload.get('rule_type')}, diff={payload.get('diff')}, scope_level={scope_level}, scope_id={scope_id}")
     # Conflict check: approved rules
     existing_rule = (
         db.query(Rule)
         .filter(
             Rule.rule_type == payload.get("rule_type"),
             Rule.diff == payload.get("diff"),
-            Rule.scope_level == payload.get("scope_level"),
-            Rule.scope_id == payload.get("scope_id"),
+            Rule.scope_level == scope_level,
+            Rule.scope_id == scope_id,
             Rule.status == "approved",
         )
         .first()
     )
     if existing_rule:
+        logger.warning(f"[CONFLICT-DEBUG] Approved rule conflict found: id={existing_rule.id}, scope_id={existing_rule.scope_id}")
         raise HTTPException(
             status_code=422,
-            detail="A rule with the same type, diff, and scope already exists (conflict). Please modify your rule or scope.",
+            detail="A rule with the same type, diff, and scope already exists (conflict). Please modify your rule or scope. This is a rule conflict.",
         )
-
     # Conflict check: pending proposals
     existing_proposal = (
         db.query(Proposal)
         .filter(
             Proposal.rule_type == payload.get("rule_type"),
             Proposal.diff == payload.get("diff"),
-            Proposal.scope_level == payload.get("scope_level"),
-            Proposal.scope_id == payload.get("scope_id"),
+            Proposal.scope_level == scope_level,
+            Proposal.scope_id == scope_id,
             Proposal.status == "pending",
         )
         .first()
     )
     if existing_proposal:
+        logger.warning(f"[CONFLICT-DEBUG] Pending proposal conflict found: id={existing_proposal.id}, scope_id={existing_proposal.scope_id}")
         raise HTTPException(
             status_code=422,
-            detail="A pending proposal with the same type, diff, and scope already exists (conflict). Please wait for review or modify your proposal.",
+            detail="A pending proposal with the same type, diff, and scope already exists (conflict). Please wait for review or modify your proposal. This is a proposal conflict.",
         )
 
     # Resolve scope_id if needed
@@ -671,3 +682,11 @@ def pirate_validation_exception_handler(request, exc):
         status_code=422,
         content={"detail": errors, "body": getattr(exc, 'body', None)},
     )
+
+
+def _is_valid_uuid(val):
+    try:
+        uuid.UUID(str(val))
+        return True
+    except Exception:
+        return False

@@ -44,6 +44,14 @@ This roadmap outlines the planned features, improvements, and research direction
 
 ---
 
+## Planned Improvements
+
+- Add feedback endpoints for onboarding and user experience
+  - We already invite feedback, but endpoints are not yet set up
+  - Consider using or adapting the test feedback endpoint as inspiration
+
+---
+
 ## How to Use This Roadmap
 - **Contributors:** Pick an item, check the linked user story/design, and open a PR or issue to discuss or implement.
 - **Team Leads:** Update priorities, add new features, and mark completed items.

@@ -47,10 +47,18 @@ sequenceDiagram
 ---
 
 ## 5. How Tokens Are Issued & Used
-- **Login**: User or admin logs in via `/login` endpoint, receives a token.
-- **Token Storage**: Token is stored client-side (in memory, localStorage, or as a test fixture).
-- **Authenticated Requests**: All protected API calls must include the token in the `Authorization` header.
-- **Token Validation**: Backend checks token validity and permissions on every request.
+- **Token Generation:** To generate an API token, send a POST request to `/admin/generate-token`.
+  - For the first user token, no authentication is required (bootstrapping).
+  - After the first token is created, an admin token is required in the Authorization header to generate additional tokens.
+- **Sample curl command:**
+  ```bash
+  curl -X POST <api_url>/admin/generate-token \
+    -H 'Content-Type: application/json' \
+    -d '{"description": "My first user token", "role": "user"}'
+  ```
+  The response will include your new token. Save it securely!
+- **Authenticated Requests:** All protected API calls must include the token in the `Authorization` header as `Bearer <token>`.
+- **Token Validation:** Backend checks token validity and permissions on every request.
 
 ---
 

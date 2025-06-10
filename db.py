@@ -292,6 +292,7 @@ class ProjectOnboardingProgress(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     details = Column(sa.JSON, nullable=True)
     version = Column(sa.Integer, nullable=False, default=1)
+    status = Column(String, nullable=False, default="not_started")
 
     __table_args__ = (
         sa.UniqueConstraint(
@@ -433,14 +434,14 @@ def get_or_create_team_by_name(db: Session, name: str, **kwargs):
 def resolve_project_id(db: Session, identifier: str, **kwargs) -> str:
     """
     Given a project identifier (UUID or name), return the UUID string.
-    If identifier is a valid UUID, return as-is. Otherwise, look up or create by name.
+    If identifier is a valid UUID (object or string), return as string. Otherwise, look up or create by name.
     """
     try:
-        # If it's a valid UUID, return as string
-        return str(uuid.UUID(identifier))
+        uid = uuid.UUID(str(identifier))
+        return str(uid)
     except Exception:
         # Otherwise, treat as name and look up/create
-        project = get_or_create_project_by_name(db, identifier, **kwargs)
+        project = get_or_create_project_by_name(db, str(identifier), **kwargs)
         return str(project.id)
 
 def resolve_team_id(db: Session, identifier: str, **kwargs) -> str:

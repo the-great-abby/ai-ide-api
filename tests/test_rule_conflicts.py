@@ -87,16 +87,12 @@ def test_rule_scope_conflicts(client, admin_headers, override_get_db):
     team_rule = {
         "rule_type": "test_scope_conflict",
         "description": "Team rule",
-        "diff": """# Rule: test_scope_conflict
-## Description
-Team rule description.
-## Enforcement
-Team rule enforcement.""",
+        "diff": """# Rule: test_scope_conflict\n## Description\nTeam rule description.\n## Enforcement\nTeam rule enforcement.""",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["scope"],
         "scope_level": "team",
-        "scope_id": "team-1",
+        "team": "test-team",
         "examples": ["Example 1"],
         "applies_to_rationale": "For Python code",
         "user_story": "Test user story",

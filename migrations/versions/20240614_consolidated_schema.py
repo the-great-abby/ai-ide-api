@@ -15,7 +15,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy import inspect
 
 revision = '20240614_consolidated_schema'
-down_revision = '98d34407c6f1'
+down_revision = None
 branch_labels = None
 depends_on = None
 
@@ -237,6 +237,42 @@ def upgrade():
         op.create_index("ix_enhancements_project", "enhancements", ["project"], unique=False)
         op.create_index("ix_enhancements_scope_id", "enhancements", ["scope_id"], unique=False)
         op.create_index("ix_enhancements_scope_level", "enhancements", ["scope_level"], unique=False)
+
+    # project_onboarding_progress
+    if 'project_onboarding_progress' not in inspector.get_table_names():
+        op.create_table(
+            "project_onboarding_progress",
+            sa.Column("id", sa.String(), primary_key=True),
+            sa.Column("project_id", sa.String(), nullable=False),
+            sa.Column("path", sa.String(), nullable=False),
+            sa.Column("step", sa.String(), nullable=False),
+            sa.Column("completed", sa.Boolean(), default=False),
+            sa.Column("timestamp", sa.DateTime()),
+            sa.Column("details", sa.JSON(), nullable=True),
+            sa.Column("version", sa.Integer(), nullable=False, default=1),
+            sa.Column("status", sa.String(), nullable=False, server_default="not_started"),
+            sa.UniqueConstraint(
+                "project_id",
+                "path",
+                "step",
+                "version",
+                name="uix_project_path_step_version",
+            ),
+        )
+
+    # rule_proposal_feedback
+    if 'rule_proposal_feedback' not in inspector.get_table_names():
+        op.create_table(
+            "rule_proposal_feedback",
+            sa.Column("id", sa.String(), primary_key=True, nullable=False),
+            sa.Column("rule_proposal_id", sa.String(), nullable=False),
+            sa.Column("user_id", sa.String(), nullable=True),
+            sa.Column("feedback_type", sa.String(), nullable=False),
+            sa.Column("comments", sa.Text(), nullable=True),
+            sa.Column("created_at", sa.DateTime(), nullable=True),
+        )
+        op.create_index("ix_rule_proposal_feedback_rule_proposal_id", "rule_proposal_feedback", ["rule_proposal_id"], unique=False)
+        op.create_index("ix_rule_proposal_feedback_created_at", "rule_proposal_feedback", ["created_at"], unique=False)
 
 # No downgrade for consolidated migration (irreversible)
 def downgrade():

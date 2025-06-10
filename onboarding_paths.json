@@ -1,86 +1,34 @@
 {
-  "external_project": [
-    "review_onboarding_docs",
-    "review_automation_docs",
-    "register_project",
-    "obtain_api_token",
-    "configure_api_url",
-    "verify_api_connectivity",
-    "create_project_namespace",
-    "configure_namespace_permissions",
-    "create_namespace_token",
-    "submit_first_rule",
-    "run_onboarding_health_check",
-    "complete_code_review_objective",
-    "explore_api_docs_and_user_stories",
-    "setup_automated_testing",
-    "explore_memory_graph_api",
-    "add_sample_memory_node",
-    "add_sample_memory_edge",
-    "review_sample_memories",
-    "search_memory_nodes",
-    "promote_rule_if_needed"
-  ],
-  "future_steps": [
-    "setup_webhook_endpoint",
-    "enable_logging_and_monitoring",
-    "review_api_rate_limits",
-    "accept_terms_of_service"
-  ],
-  "internal_dev": [
-    "read_onboarding_guide",
-    "clone_repo",
-    "install_dependencies",
-    "setup_env",
-    "run_linting",
-    "run_tests",
-    "review_coding_standards",
-    "explore_api_docs_and_user_stories",
-    "review_ci_cd_pipeline",
-    "request_service_access",
-    "start_services",
-    "obtain_api_token",
-    "create_project_namespace",
-    "configure_namespace_permissions",
-    "create_namespace_token",
-    "submit_first_rule",
-    "make_first_contribution",
-    "review_changelog",
-    "explore_memory_graph_api",
-    "add_sample_memory_node",
-    "add_sample_memory_edge",
-    "review_sample_memories",
-    "search_memory_nodes"
-  ],
-  "ai_agent": [
-    "fetch_rules",
-    "sync_rule_index",
-    "submit_test_proposal",
-    "validate_api_token",
-    "report_onboarding_status"
-  ],
-  "novice_user": [
-    "review_getting_started_guide",
-    "install_development_tools",
-    "verify_tool_installations",
-    "clone_repository",
-    "start_services",
-    "explore_api_documentation",
-    "make_first_api_call",
-    "understand_basic_concepts",
-    "try_sample_workflow",
-    "review_common_issues",
-    "practice_basic_commands",
-    "explore_memory_graph",
-    "create_first_memory_node",
-    "review_progress"
-  ],
-  "test_path": [
-    "obtain_api_token",
-    "create_project_namespace",
-    "configure_namespace_permissions",
-    "create_namespace_token",
-    "submit_first_rule",
-    "run_onboarding_health_check"
+  "paths": [
+    {
+      "name": "test_path",
+      "buddy": "Doc Testwell",
+      "steps": [
+        {"instruction": "Run 'make -f Makefile.ai ai-test' to start the test suite.", "doc_link": "ONBOARDING.md#testing-workflow-guidelines"},
+        {"instruction": "Check the test results in 'last-test.log'.", "doc_link": "ONBOARDING.md#troubleshooting"},
+        {"instruction": "If a test fails, review the error and rerun with 'make -f Makefile.ai ai-test PYTEST_ARGS=\"-x\"'."}
+      ]
+    },
+    {
+      "name": "internal_dev",
+      "buddy": "Captain Abby",
+      "steps": [
+        {"instruction": "Clone the repository and install dependencies.", "doc_link": "ONBOARDING_INTERNAL.md#setup"},
+        {"instruction": "Start the dev environment with 'make dev-up'.", "doc_link": "ONBOARDING_INTERNAL.md#dev-environment"},
+        {"instruction": "Run 'make lint' to check code style."}
+      ]
+    },
+    {
+      "name": "external_project",
+      "buddy": "Maple Cartwright",
+      "steps": [
+        {"instruction": "Access the API documentation at the provided URL (e.g., http://localhost:9103/docs or your production API endpoint). If you are unsure of the correct URL, check your onboarding email or ask your project admin.", "doc_link": "ONBOARDING_EXTERNAL.md#api-access"},
+        {"instruction": "Generate your API token by sending a POST request to /admin/generate-token. For the first user token, no authentication is required. After the first token, an admin token is required to generate additional tokens.", "doc_link": "ONBOARDING_EXTERNAL.md#api-token-generation"},
+        {"instruction": "Sample curl command to generate a user token (replace <api_url> as needed):\n\n  curl -X POST <api_url>/admin/generate-token \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"description\": \"My first user token\", \"role\": \"user\"}'\n\nThe response will include your new token. Save it securely!\n\nAfter the first token is created, you must include an admin token in the Authorization header to generate more tokens.", "doc_link": "ONBOARDING_EXTERNAL.md#api-token-generation"},
+        {"instruction": "Once you have your token, add 'Authorization: Bearer <your_token>' to your API request headers. Your token will look like a long string of letters and numbers.", "doc_link": "ONBOARDING_EXTERNAL.md#authentication"},
+        {"instruction": "Try making your first API call! For example, to add a memory node, use the following command (replace <your_token> and <api_url> as needed):\n\n  curl -X POST <api_url>/memory/nodes \\\n    -H 'Authorization: Bearer <your_token>' \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"namespace\": \"external\", \"content\": \"Hello from the outside!\", \"meta\": \"{\\\"tags\\\":[\\\"external\\\"]}\"}'\n\nA successful response will return your new memory node as JSON. If you get a 401 error, check your token. If you get a 404, check the endpoint URL.", "doc_link": "ONBOARDING_EXTERNAL.md#first-api-call"},
+        {"instruction": "If you run into trouble, check the troubleshooting section in the docs or use the support resources linked there.", "doc_link": "ONBOARDING_EXTERNAL.md#troubleshooting"}
+      ]
+    }
   ]
 } 

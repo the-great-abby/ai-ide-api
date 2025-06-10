@@ -490,3 +490,17 @@ prune:
 	docker system prune -f
 
 # --- End of Profile Targets ---
+
+.PHONY: ai-maintenance-up ai-maintenance-down ai-maintenance-logs ai-maintenance-status
+
+aio-maintenance-up:
+	docker compose up --build -d rabbitmq maintenance-worker maintenance-scheduler
+
+aio-maintenance-down:
+	docker compose down
+
+aio-maintenance-logs:
+	docker compose logs -f maintenance-worker maintenance-scheduler
+
+aio-maintenance-status:
+	docker compose ps
