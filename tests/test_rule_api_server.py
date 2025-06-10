@@ -218,7 +218,9 @@ def test_review_code_files_endpoint(client, admin_headers, override_get_db):
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, dict)
-        assert any(k.endswith('.py') for k in data.keys())
+        assert "test.py" in data or any(k.endswith('.py') for k in data.keys())
+        suggestions = data.get("test.py", [])
+        assert isinstance(suggestions, list)
     finally:
         os.unlink(test_file)
 
@@ -236,6 +238,11 @@ def test_review_code_snippet_endpoint(client, admin_headers, override_get_db):
     data = response.json()
     assert isinstance(data, list)
     assert len(data) > 0
+    rule_types = {s["rule_type"] for s in data}
+    assert "deprecated_library" in rule_types
+    assert "no_wildcard_imports" in rule_types
+    assert "missing_docstring" in rule_types
+    assert "no_print" in rule_types
 
 
 def test_rule_versioning_and_history(client, admin_headers, override_get_db):
