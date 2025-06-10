@@ -96,6 +96,8 @@ See `docs/user_stories/batch_rule_suggestion.md` for a real example.
 ## 9. Further Reading
 - See the [Codebase Tour](CODEBASE_TOUR.md) for links to all major docs.
 - Browse `docs/user_stories/` for real examples.
+- [User Story: Submitting a Rule Proposal](../user_stories/rule_proposal_submission.md)
+- [User Story: Providing Feedback on Rule Proposals](../user_stories/rule_proposal_feedback_types.md)
 
 ---
 

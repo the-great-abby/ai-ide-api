@@ -51,7 +51,7 @@ def upgrade():
             sa.Column("diff", sa.Text(), nullable=True),
             sa.Column("status", sa.String(), nullable=True),
             sa.Column("submitted_by", sa.String(), nullable=True),
-            sa.Column("project", sa.String(), nullable=True),
+            sa.Column("project", sa.UUID(), nullable=True),
             sa.Column("timestamp", sa.DateTime(), nullable=True),
             sa.Column("version", sa.Integer(), nullable=True),
             sa.Column("categories", sa.JSON(), nullable=True),

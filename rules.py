@@ -6,9 +6,11 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_, cast, String, func
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy.sql import select, literal_column, lateral
 
 from auth import require_api_token, require_role
 from db import Rule, RuleVersion, get_db, resolve_project_id, resolve_team_id, project_defaults_from_name
@@ -144,26 +146,19 @@ def list_rules(
 
     if category:
         categories = [c.strip() for c in category.split(",")]
-        # Match if any category is present in the comma-separated string
-        category_filters = []
-        for cat in categories:
-            # Match at start, middle, or end
-            category_filters.append(Rule.categories.ilike(f"{cat}"))
-            category_filters.append(Rule.categories.ilike(f"{cat},%"))
-            category_filters.append(Rule.categories.ilike(f"%,{cat}"))
-            category_filters.append(Rule.categories.ilike(f"%,{cat},%"))
-        query = query.filter(or_(*category_filters))
+        category_filters = [Rule.categories.op('@>')(json.dumps([cat])) for cat in categories]
+        if len(category_filters) == 1:
+            query = query.filter(category_filters[0])
+        else:
+            query = query.filter(or_(*category_filters))
 
     if tag:
         tags = [t.strip() for t in tag.split(",")]
-        # Match if any tag is present in the comma-separated string
-        tag_filters = []
-        for t in tags:
-            tag_filters.append(Rule.tags.ilike(f"{t}"))
-            tag_filters.append(Rule.tags.ilike(f"{t},%"))
-            tag_filters.append(Rule.tags.ilike(f"%,{t}"))
-            tag_filters.append(Rule.tags.ilike(f"%,{t},%"))
-        query = query.filter(or_(*tag_filters))
+        tag_filters = [Rule.tags.op('@>')(json.dumps([tag])) for tag in tags]
+        if len(tag_filters) == 1:
+            query = query.filter(tag_filters[0])
+        else:
+            query = query.filter(or_(*tag_filters))
 
     if scope_level:
         query = query.filter(Rule.scope_level == scope_level)
@@ -190,15 +185,24 @@ def list_rules(
 
     if search:
         search_term = f"%{search.lower()}%"
+        # Lateral join for tags
+        tags_lateral = select(func.jsonb_array_elements_text(Rule.tags).label('tag_elem')).lateral()
+        applies_to_lateral = select(func.jsonb_array_elements_text(Rule.applies_to).label('applies_to_elem')).lateral()
+        query = query.outerjoin(tags_lateral, literal_column('true')).outerjoin(applies_to_lateral, literal_column('true'))
         query = query.filter(
             or_(
                 Rule.description.ilike(search_term),
                 Rule.diff.ilike(search_term),
-                Rule.tags.ilike(search_term),
-                Rule.applies_to.ilike(search_term),
+                literal_column('tag_elem').ilike(search_term),
+                literal_column('applies_to_elem').ilike(search_term),
             )
         )
 
+    # Before executing the query, log the SQL for debugging
+    try:
+        logger.debug(f"[FILTER-DEBUG] SQL: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}")
+    except Exception as e:
+        logger.error(f"[FILTER-DEBUG] Could not compile SQL: {e}")
     rules = query.order_by(Rule.timestamp.desc()).all()
     result = []
     for rule in rules:
@@ -258,7 +262,7 @@ def get_rule_history(
 
 
 @router.patch("/rules/{rule_id}", response_model=RuleOut)
-def update_rule(
+async def update_rule(
     rule_id: str,
     update: RuleUpdateModel = Body(...),
     request: Request = None,
@@ -276,14 +280,67 @@ def update_rule(
     if not rule:
         logger.error(f"[UPDATE-DEBUG] Rule not found: {rule_id}")
         raise HTTPException(status_code=404, detail="Rule not found")
-    # Prevent updates to immutable fields
-    immutable_fields = ["rule_type", "submitted_by", "version", "id"]
+    # Log the raw incoming payload for debugging
+    try:
+        raw_payload = await request.json() if request and hasattr(request, 'json') and callable(request.json) else None
+    except Exception:
+        raw_payload = None
+    logger.debug(f"[UPDATE-DEBUG] Raw incoming payload: {raw_payload}")
+    # Strictly reject any unknown or forbidden fields in the payload
+    allowed_fields = set(RuleUpdateModel.__fields__.keys())
+    immutable_fields = {"rule_type", "submitted_by", "version", "id"}
+    if raw_payload:
+        for key in raw_payload:
+            if key not in allowed_fields:
+                logger.error(f"[UPDATE-DEBUG] Unknown field in update payload: {key}")
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Unknown field '{key}' in update.",
+                )
+            if key in immutable_fields:
+                logger.error(f"[UPDATE-DEBUG] Attempt to update immutable field in payload: {key}")
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Field '{key}' is immutable and cannot be updated.",
+                )
+    # Prevent updates to immutable fields (for extra safety)
     for field in immutable_fields:
         if field in update.__fields_set__:
             logger.error(f"[UPDATE-DEBUG] Attempt to update immutable field: {field}")
             raise HTTPException(
-                status_code=400,
+                status_code=422,
                 detail=f"Field '{field}' is immutable and cannot be updated.",
+            )
+    # Validate required string fields are not set to empty string
+    required_string_fields = ["description", "diff"]
+    for field in required_string_fields:
+        if field in update.__fields_set__:
+            value = getattr(update, field)
+            if value is not None and isinstance(value, str) and value.strip() == "":
+                logger.error(f"[UPDATE-DEBUG] Field '{field}' cannot be empty string.")
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Field '{field}' cannot be empty.",
+                )
+    # Validate list fields are not set to None
+    list_fields = ["categories", "tags", "examples", "applies_to"]
+    for field in list_fields:
+        if field in update.__fields_set__:
+            value = getattr(update, field)
+            if value is None:
+                logger.error(f"[UPDATE-DEBUG] Field '{field}' cannot be None.")
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Field '{field}' cannot be None.",
+                )
+    # Validate no unknown fields are present
+    allowed_fields = set(RuleUpdateModel.__fields__.keys())
+    for field in update.__fields_set__:
+        if field not in allowed_fields:
+            logger.error(f"[UPDATE-DEBUG] Unknown field in update: {field}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown field '{field}' in update.",
             )
     logger.debug(f"[UPDATE-DEBUG] All checks passed for rule {rule_id}")
     # All checks passed, perform update
@@ -362,7 +419,10 @@ async def promote_rule(
     logger.debug(f"[PROMOTE-DEBUG] All checks passed for rule {rule_id}")
     # All checks passed, perform promotion
     try:
-        # ... existing promotion logic ...
+        # Actually update the rule's scope_level and scope_id
+        logger.info(f"[PROMOTE-DEBUG] Promoting rule {rule_id} from {rule.scope_level}/{rule.scope_id} to {scope_level}/{scope_id}")
+        rule.scope_level = scope_level
+        rule.scope_id = scope_id if scope_level != "global" else None
         for field in ['categories', 'tags', 'examples', 'applies_to']:
             if hasattr(rule, field):
                 setattr(rule, field, ensure_list(getattr(rule, field)))
@@ -372,10 +432,28 @@ async def promote_rule(
         data = normalize_rule_fields(data)
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
-        logger.info(f"[PROMOTE-DEBUG] Promotion successful for rule {rule_id}")
+        logger.info(f"[PROMOTE-DEBUG] Promotion successful for rule {rule_id} to {scope_level}/{scope_id}")
         return data
     except Exception as e:
         logger.error(f"[PROMOTE-DEBUG] Internal server error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     logger.error(f"[PROMOTE-DEBUG] Unexpected fall-through in promote_rule for rule {rule_id}")
     raise HTTPException(status_code=500, detail="Unexpected error in promote_rule")
+
+
+@router.get("/rules-mdc")
+def rules_mdc(
+    project: Optional[str] = None,
+    db: Session = Depends(get_db),
+    token: dict = Depends(require_api_token),
+):
+    """
+    Return all approved rules as a single Markdown (MDC) document.
+    Optionally filter by project.
+    """
+    query = db.query(Rule).filter(Rule.status == "approved")
+    if project:
+        query = query.filter(Rule.project == project)
+    rules = query.order_by(Rule.timestamp.asc()).all()
+    mdc = "\n\n".join(r.diff for r in rules if r.diff)
+    return Response(content=mdc, media_type="text/markdown")

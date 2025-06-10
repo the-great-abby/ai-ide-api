@@ -43,6 +43,7 @@ def test_rule_filtering_by_category(client, clean_db, admin_headers, override_ge
             "user_story": "Test user story",
             "reason_for_change": "Testing filtering flow.",
             "references": "Test reference.",
+            "project": "test-project-1",
         },
         {
             "rule_type": "test_category_2",
@@ -126,6 +127,7 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
             "user_story": "Test user story 4",
             "reason_for_change": "Testing filtering flow 4.",
             "references": "Test reference 4.",
+            "project": "test-project-4",
         },
         {
             "rule_type": "test_tag_2",
@@ -140,6 +142,7 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
             "user_story": "Test user story 5",
             "reason_for_change": "Testing filtering flow 5.",
             "references": "Test reference 5.",
+            "project": "test-project-5",
         },
         {
             "rule_type": "test_tag_3",
@@ -154,6 +157,7 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
             "user_story": "Test user story 6",
             "reason_for_change": "Testing filtering flow 6.",
             "references": "Test reference 6.",
+            "project": "test-project-6",
         },
     ]
 
@@ -400,8 +404,8 @@ def test_rule_search(client, clean_db, admin_headers, override_get_db):
     response = client.get("/rules?search=Python")
     assert response.status_code == 200
     filtered_rules = response.json()
-    # Expect 2 results: 'Python code style rule' and 'General code style rule' both match 'Python' in description, tags, or applies_to
-    assert len(filtered_rules) == 2
+    # Expect 3 results: all rules have 'Python' in description, tags, or applies_to
+    assert len(filtered_rules) == 3
     descriptions = [r["description"] for r in filtered_rules]
     assert "Python code style rule" in descriptions
     assert "General code style rule" in descriptions

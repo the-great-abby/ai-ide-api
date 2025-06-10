@@ -67,7 +67,7 @@ class Rule(Base):
     status = Column(String, default="approved")
     submitted_by = Column(String, index=True)
     added_by = Column(String, index=True, nullable=True)
-    project = Column(String, index=True, nullable=True)
+    project = Column(UUID(as_uuid=True), index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     version = Column(Integer, default=1)
     categories = Column(JSON, nullable=True)
@@ -92,7 +92,7 @@ class Proposal(Base):
     diff = Column(Text)
     status = Column(String, default="pending")
     submitted_by = Column(String, index=True)
-    project = Column(String, index=True, nullable=True)
+    project = Column(UUID(as_uuid=True), index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     version = Column(Integer, default=1)
     categories = Column(JSON, nullable=True)
@@ -134,7 +134,7 @@ class RuleVersion(Base):
     status = Column(String)
     submitted_by = Column(String)
     added_by = Column(String, nullable=True)
-    project = Column(String, nullable=True)
+    project = Column(UUID(as_uuid=True), nullable=True)
     timestamp = Column(DateTime)
     categories = Column(JSON, nullable=True)
     tags = Column(JSON, nullable=True)
@@ -243,6 +243,7 @@ class MemoryVector(Base):
     meta = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
+    confidence = Column(sa.Float, nullable=True)
 
 
 # Edge/relationship model for memory graph

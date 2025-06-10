@@ -1,14 +1,16 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path, Body, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import text
 
 from auth import require_api_token, require_role
 from db import (
     ApiAccessToken,
     MemorySessionLocal,
     MemoryVector,
+    MemoryEdge,
     NamespacePermission,
     get_db,
 )
@@ -17,6 +19,7 @@ from memory import (
     MemoryEdgeOut,
     MemoryNodeCreate,
     MemoryNodeOut,
+    MemoryNodeSearchOut,
     NamespacePermissionCreate,
     NamespacePermissionOut,
     check_llm_access,
@@ -52,6 +55,7 @@ def create_memory_node(
             embedding=embedding,
             meta=node.meta,
             project_id=token.project_id,
+            confidence=node.confidence,  # Store confidence if provided
         )
         session.add(db_node)
         session.commit()
@@ -59,12 +63,13 @@ def create_memory_node(
         # --- Patch: ensure embedding is a list ---
         embedding = db_node.embedding
         result = {
-            "id": db_node.id,
+            "id": str(db_node.id),
             "namespace": db_node.namespace,
             "content": db_node.content,
             "embedding": embedding,
             "meta": db_node.meta,
             "created_at": db_node.created_at,
+            "confidence": db_node.confidence,
         }
         session.close()
         return result
@@ -95,7 +100,7 @@ def list_memory_nodes(
         embedding = db_node.embedding
         result.append(
             {
-                "id": db_node.id,
+                "id": str(db_node.id),
                 "namespace": db_node.namespace,
                 "content": db_node.content,
                 "embedding": embedding,
@@ -145,3 +150,224 @@ def create_namespace_permission(
     db.commit()
     db.refresh(db_permission)
     return db_permission
+
+
+@router.post("/edges", response_model=MemoryEdgeOut)
+def create_memory_edge(
+    edge: dict,  # Accept raw dict to allow both relation_type and relationship
+    token: ApiAccessToken = Depends(require_api_token),
+    db: Session = Depends(get_db),
+):
+    # Accept both 'relation_type' and 'relationship' for backward compatibility
+    relation_type = edge.get("relation_type") or edge.get("relationship")
+    if not relation_type:
+        raise HTTPException(status_code=422, detail="Missing 'relation_type' or 'relationship' field")
+    from_id = edge.get("from_id")
+    to_id = edge.get("to_id")
+    meta = edge.get("meta")
+    # For now, check write permission for the 'from' node's namespace only (can be extended)
+    check_namespace_permission(from_id, token, "write", db)  # TODO: resolve namespace from node if needed
+    session = MemorySessionLocal()
+    db_edge = MemoryEdge(
+        from_id=from_id,
+        to_id=to_id,
+        relation_type=relation_type,
+        meta=meta,
+    )
+    session.add(db_edge)
+    session.commit()
+    session.refresh(db_edge)
+    edge_dict = db_edge.__dict__.copy()
+    edge_dict.pop("_sa_instance_state", None)
+    import uuid
+    for key in ("id", "from_id", "to_id"):
+        if key in edge_dict and isinstance(edge_dict[key], uuid.UUID):
+            edge_dict[key] = str(edge_dict[key])
+    session.close()
+    return edge_dict
+
+
+@router.get("/edges", response_model=List[MemoryEdgeOut])
+def list_memory_edges(
+    from_id: Optional[str] = None,
+    to_id: Optional[str] = None,
+    relation_type: Optional[str] = None,
+    token: ApiAccessToken = Depends(require_api_token),
+    db: Session = Depends(get_db),
+):
+    """List memory edges. Requires read permission for the namespace of the 'from' node (if provided)."""
+    session = MemorySessionLocal()
+    q = session.query(MemoryEdge)
+    if from_id:
+        q = q.filter(MemoryEdge.from_id == from_id)
+    if to_id:
+        q = q.filter(MemoryEdge.to_id == to_id)
+    if relation_type:
+        q = q.filter(MemoryEdge.relation_type == relation_type)
+    edges = q.all()
+    session.close()
+    result = []
+    import uuid
+    for e in edges:
+        edge_dict = e.__dict__.copy()
+        edge_dict.pop("_sa_instance_state", None)
+        for key in ("id", "from_id", "to_id"):
+            if key in edge_dict and isinstance(edge_dict[key], uuid.UUID):
+                edge_dict[key] = str(edge_dict[key])
+        result.append(edge_dict)
+    return result
+
+
+@router.get("/nodes/{id}", response_model=MemoryNodeOut)
+def get_memory_node(
+    id: str = Path(..., description="Memory node ID"),
+    token: ApiAccessToken = Depends(require_api_token),
+    db: Session = Depends(get_db),
+):
+    session = MemorySessionLocal()
+    db_node = session.query(MemoryVector).filter(MemoryVector.id == id).first()
+    session.close()
+    if not db_node:
+        raise HTTPException(status_code=404, detail="Memory node not found")
+    return {
+        "id": str(db_node.id),
+        "namespace": db_node.namespace,
+        "content": db_node.content,
+        "embedding": db_node.embedding,
+        "meta": db_node.meta,
+        "created_at": db_node.created_at,
+    }
+
+
+@router.put("/nodes/{id}", response_model=MemoryNodeOut)
+def update_memory_node(
+    id: str = Path(..., description="Memory node ID"),
+    payload: dict = Body(...),
+    token: ApiAccessToken = Depends(require_api_token),
+    db: Session = Depends(get_db),
+):
+    session = MemorySessionLocal()
+    db_node = session.query(MemoryVector).filter(MemoryVector.id == id).first()
+    if not db_node:
+        session.close()
+        raise HTTPException(status_code=404, detail="Memory node not found")
+    # Only allow updating content, meta, and confidence
+    if "content" in payload:
+        db_node.content = payload["content"]
+    if "meta" in payload:
+        db_node.meta = payload["meta"]
+    if "confidence" in payload:
+        db_node.confidence = payload["confidence"]
+    session.commit()
+    session.refresh(db_node)
+    result = {
+        "id": str(db_node.id),
+        "namespace": db_node.namespace,
+        "content": db_node.content,
+        "embedding": db_node.embedding,
+        "meta": db_node.meta,
+        "created_at": db_node.created_at,
+        "confidence": db_node.confidence,
+    }
+    session.close()
+    return result
+
+
+@router.delete("/nodes/{id}")
+def delete_memory_node(
+    id: str = Path(..., description="Memory node ID"),
+    token: ApiAccessToken = Depends(require_api_token),
+    db: Session = Depends(get_db),
+):
+    session = MemorySessionLocal()
+    db_node = session.query(MemoryVector).filter(MemoryVector.id == id).first()
+    if not db_node:
+        session.close()
+        raise HTTPException(status_code=404, detail="Memory node not found")
+    # Check write permission for the node's namespace
+    check_namespace_permission(db_node.namespace, token, "write", db)
+    session.delete(db_node)
+    session.commit()
+    session.close()
+    return {"detail": f"Memory node {id} deleted"}
+
+
+@router.get("/nodes/{id}/connected", response_model=List[MemoryNodeOut])
+def get_connected_nodes(
+    id: str = Path(..., description="Memory node ID"),
+    relation_type: Optional[str] = None,
+    token: ApiAccessToken = Depends(require_api_token),
+    db: Session = Depends(get_db),
+):
+    session = MemorySessionLocal()
+    # Find all edges where this node is from_id or to_id
+    q = session.query(MemoryEdge)
+    if relation_type:
+        q = q.filter(MemoryEdge.relation_type == relation_type)
+    edges = q.filter((MemoryEdge.from_id == id) | (MemoryEdge.to_id == id)).all()
+    # Collect all connected node IDs (excluding the original node)
+    connected_ids = set()
+    for edge in edges:
+        if str(edge.from_id) != id:
+            connected_ids.add(str(edge.from_id))
+        if str(edge.to_id) != id:
+            connected_ids.add(str(edge.to_id))
+    if not connected_ids:
+        session.close()
+        return []
+    nodes = session.query(MemoryVector).filter(MemoryVector.id.in_(connected_ids)).all()
+    result = [
+        {
+            "id": str(n.id),
+            "namespace": n.namespace,
+            "content": n.content,
+            "embedding": n.embedding,
+            "meta": n.meta,
+            "created_at": n.created_at,
+        }
+        for n in nodes
+    ]
+    session.close()
+    return result
+
+
+@router.post("/nodes/search", response_model=List[MemoryNodeSearchOut])
+async def search_memory_nodes(
+    request: Request,
+    token: ApiAccessToken = Depends(require_api_token),
+    db: Session = Depends(get_db),
+):
+    body = await request.json()
+    query_text = body.get("query")
+    namespace = body.get("namespace")
+    limit = body.get("limit", 10)
+    if not query_text:
+        raise HTTPException(status_code=400, detail="Missing 'query' field for vector search.")
+    embedding = get_embedding_ollama(query_text)
+    session = MemorySessionLocal()
+    sql = "SELECT *, embedding <=> CAST(:query_vec AS vector) AS distance FROM memory_vectors"
+    params = {"query_vec": embedding, "limit": limit}
+    if namespace:
+        sql += " WHERE namespace = :namespace"
+        params["namespace"] = namespace
+    sql += " ORDER BY distance ASC LIMIT :limit"
+    results = session.execute(text(sql), params)
+    # Each row: (*fields, distance)
+    result = []
+    for row in results:
+        row_dict = dict(row._mapping)
+        # Compute similarity as 1 - distance (if distance is cosine distance)
+        distance = row_dict.get("distance")
+        similarity = 1.0 - distance if distance is not None else None
+        result.append({
+            "id": str(row_dict["id"]),
+            "namespace": row_dict["namespace"],
+            "content": row_dict["content"],
+            "embedding": row_dict["embedding"],
+            "meta": row_dict["meta"],
+            "created_at": row_dict["created_at"],
+            "confidence": row_dict.get("confidence"),
+            "similarity": similarity,
+        })
+    session.close()
+    return result

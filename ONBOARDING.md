@@ -8,6 +8,104 @@ Want a more fun, themed onboarding experience? [Enable Pirate Mode](ONBOARDING_P
 
 Welcome to the AI IDE API project! This onboarding guide will help you get started, whether you are a core team member, an external collaborator, or an adventurous power user.
 
+## 🏴‍☠️ Meet the Crew
+
+Welcome aboard! Here are the core members of our AI-augmented development crew:
+
+| Role                      | Name                              | Description                                      |
+|---------------------------|-----------------------------------|--------------------------------------------------|
+| Captain (You!)            | Captain Abby (or your name)       | Vision, leadership, final say                    |
+| Vice Captain (Senior Dev) | Vice Captain "Rusty" Stack        | Cautious, experienced, witty; trusted second-in-command |
+| AI Researcher             | Dr. Ada Deepmind                  | Visionary, collaborative, always exploring new frontiers |
+| Junior Dev                | Sammy "Shipmate" Gale             | Eager, optimistic, quick to learn                |
+| AI Assistant              | Quartermaster "Patch" McDebug     | Surly, relentless bug-hunter (AI assistant)      |
+| Database Specialist       | Dave the Database Deckhand        | Steady, detail-oriented, keeps the data flowing  |
+| Automation Engineer       | Mike the Automation Mechanic      | Inventive, efficient, always scripting something |
+| Product/UX Specialist     | Navigator "Maple" Cartwright      | Insightful, user-focused, charts the best course |
+| Security/DevSecOps        | Lookout "Eyes" Hawkins            | Vigilant, sharp-eyed, always scanning for threats|
+| Project Manager           | Quartermaster "Penny" Ledger      | Organized, diplomatic, keeps the crew on schedule|
+| QA/Test Specialist        | Surgeon "Doc" Testwell            | Methodical, precise, always ready with a test    |
+| Ops/Infra Specialist      | Boatswain "Bosun" Riggs           | Practical, hands-on, keeps the ship afloat       |
+| Intern/Apprentice         | "Bitsy" Byte                      | Curious, eager, learning the ropes               |
+
+**Group Photo:**
+
+```
+   Captain Abby   Vice Captain Rusty   Dr. Ada Deepmind   Shipmate Gale   Patch McDebug   Dave the Database Deckhand   Mike the Automation Mechanic   Maple Cartwright   Eyes Hawkins   Penny Ledger   Doc Testwell   Bosun Riggs   Bitsy Byte
+      (You)             (🧔)                (👩‍🔬)             (🧑‍🎓)            (🤖)             (🧔)                (🤖)                  (🧭)            (👀)         (💼)         (🩺)         (⚓️)        (🧒)
+
+      [⚓️]         [🪝]                [🔬]              [🌊]           [🦾]             [🧔]                [🤖]                  [🧭]            [👀]         [💼]         [🩺]         [⚓️]        [🧒]
+
+   (Imagine a group of pirates, scientists, and an AI robot on the deck of a ship!)
+```
+
+*This crew will appear in onboarding stories, user scenarios, and feedback loops throughout the docs. Add your own character if you like!*
+
+**📝 See the [Pirate's Log](PIRATES_LOG.md) for the latest crew updates, perspectives, and project milestones. New crew are encouraged to add their own entries!**
+
+---
+
+## 🧑‍🚀 Crew Bios
+
+**Captain Abby (or your name)**  
+Visionary leader and captain of the ship. Guides the crew through uncharted waters, always ready to chart a new course or rally the team in a storm.
+
+**Vice Captain "Rusty" Stack**  
+A seasoned developer with a sharp eye for detail and a healthy skepticism of newfangled tech. Keeps the ship running tight and never shies from a code review duel.
+
+**Dr. Ada Deepmind**  
+The ship's AI researcher and scientific mind. Always curious, always experimenting, and always ready to explain the latest breakthrough to the crew.
+
+**Sammy "Shipmate" Gale**  
+The eager junior dev, full of questions and energy. Quick to learn, quick to help, and always the first to try out a new feature or fix a bug.
+
+**Quartermaster "Patch" McDebug**  
+The surliest, most relentless bug-hunter on the seven seas (and your AI assistant). Patch keeps the codebase shipshape and never lets a bug escape justice.
+
+**Dave the Database Deckhand**  
+Steady and detail-oriented, Dave keeps the databases running smooth and the backups safe. If there's a data leak or a migration storm, he's the first to grab a bucket (or a psql prompt).
+
+**Mike the Automation Mechanic**  
+Inventive and efficient, Mike is always building new scripts, CI jobs, and clever tools to keep the ship running with minimal manual effort. If it can be automated, Mike's already halfway done.
+
+**Navigator "Maple" Cartwright**  
+Insightful and user-focused, Maple charts the best course for the ship, ensuring features are discoverable and the user experience is smooth. Always ready with a new map or a fresh perspective.
+
+**Lookout "Eyes" Hawkins**  
+Vigilant and sharp-eyed, Eyes is always scanning the horizon for threats, vulnerabilities, or storms. No patch goes uninspected, and no bug sneaks past their watch.
+
+**Quartermaster "Penny" Ledger**  
+Organized and diplomatic, Penny keeps the crew on schedule, the backlog in order, and the cargo (tasks) accounted for. Every sprint is shipshape under Penny's watch.
+
+**Surgeon "Doc" Testwell**  
+Methodical and precise, Doc patches up bugs and keeps the codebase healthy. Always ready with a test case or a fix for a failing build.
+
+**Boatswain "Bosun" Riggs**  
+Practical and hands-on, Bosun keeps the ship (infrastructure) afloat and the sails (servers) trimmed. First to respond to a failing build or a downed service.
+
+**"Bitsy" Byte**  
+The curious and eager intern, Bitsy is always asking questions, picking up new skills, and bringing fresh energy to the crew. Learning the ropes from everyone aboard.
+
+---
+
+# Pirate Rule: Ship's Log Entry Order
+
+> **Always prepend new entries to the top of `PIRATES_LOG.md` so the most recent log is first, like a true ship's log.**
+
+---
+
+# Pirate Rule: Crew Log Participation
+
+> **As the project progresses, crew members (personas) should make log entries in `PIRATES_LOG.md` to record their unique perspectives on major updates, milestones, or challenges. This keeps the log lively, diverse, and true to the spirit of the crew.**
+
+---
+
+# Pirate Rule: Automated Log Entry Reminders
+
+> **After every major update, milestone, or challenge, a reminder should be issued (by the Captain, Quartermaster Patch, or automation) for crew members to add a new entry to `PIRATES_LOG.md`. This ensures the log stays up to date and reflects the evolving story of the project.**
+
+---
+
 ## Choose Your Onboarding Path:
 
 - **[Internal Developer Onboarding →](ONBOARDING_INTERNAL.md)**

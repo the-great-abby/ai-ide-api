@@ -35,16 +35,22 @@ def client():
 def override_get_db():
     """Override the app's get_db dependency with a fresh session for the test session. Ensures all tests and fixtures share DB state with the API."""
     db = TestingSessionLocal()
+    logger.debug(f"[override_get_db] Created TestingSessionLocal: {db}")
     def _override_get_db():
         try:
+            logger.debug(f"[_override_get_db] Yielding db session: {db}")
             yield db
         finally:
+            logger.debug(f"[_override_get_db] Finally block for db session: {db}")
             pass
     from rule_api_server import app
     app.dependency_overrides[get_db] = _override_get_db
+    logger.debug("[override_get_db] Dependency override set.")
     yield db
+    logger.debug(f"[override_get_db] Closing db session: {db}")
     db.close()
     app.dependency_overrides.pop(get_db, None)
+    logger.debug("[override_get_db] Dependency override removed.")
 
 @pytest.fixture(autouse=True)
 # def clean_tokens(override_get_db):
@@ -58,24 +64,32 @@ def clean_tokens():
 
 @pytest.fixture(scope="function")
 def admin_token(client, override_get_db):
-    # Create user token
+    logger.debug("[admin_token] Creating user token...")
     user_response = client.post(
         "/admin/generate-token", json={"description": "Test user token", "role": "user"}
     )
+    logger.debug(f"[admin_token] User token response: {user_response.status_code}, {user_response.text}")
     assert user_response.status_code == 200, f"Failed to create user token: {user_response.text}"
     user_token = user_response.json()["token"]
-    # Create admin token
+    logger.debug(f"[admin_token] User token: {user_token}")
+    logger.debug("[admin_token] Creating admin token...")
     admin_response = client.post(
         "/admin/generate-token", json={"description": "Test admin token", "role": "admin"},
         headers={"Authorization": f"Bearer {user_token}"}
     )
+    logger.debug(f"[admin_token] Admin token response: {admin_response.status_code}, {admin_response.text}")
     assert admin_response.status_code == 200, f"Failed to create admin token: {admin_response.text}"
     admin_token = admin_response.json()["token"]
+    logger.debug(f"[admin_token] Admin token: {admin_token}")
     # Confirm token is present and active in the shared DB session
     from db import ApiAccessToken
-    db = override_get_db
-    token_obj = db.query(ApiAccessToken).filter_by(token=admin_token, active=True).first()
-    assert token_obj is not None, "Admin token not present or not active in DB after creation."
+    db = TestingSessionLocal()
+    try:
+        token_obj = db.query(ApiAccessToken).filter_by(token=admin_token, active=True).first()
+        logger.debug(f"[admin_token] DB lookup for admin token: {token_obj}")
+        assert token_obj is not None, "Admin token not present or not active in DB after creation."
+    finally:
+        db.close()
     return admin_token
 
 @pytest.fixture(scope="function")

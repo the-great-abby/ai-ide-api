@@ -14,6 +14,7 @@ def require_api_token(
 ):
     """Check if the API token is valid and active."""
     logger = logging.getLogger("auth.require_api_token")
+    logger.debug(f"[require_api_token] DB session id: {id(db)}")
     # Accept both 'authorization' and 'Authorization' headers (case-insensitive)
     logger.debug(f"[require_api_token] Authorization header: {authorization}")
     if not authorization:
@@ -26,6 +27,8 @@ def require_api_token(
     logger.debug(f"[require_api_token] Token value: {token}")
     db_token = db.query(ApiAccessToken).filter_by(token=token, active=True).first()
     logger.debug(f"[require_api_token] DB token lookup result: {db_token}")
+    if db_token:
+        logger.debug(f"[require_api_token] Token role: {db_token.role}, active: {db_token.active}")
     if not db_token:
         logger.warning(f"[require_api_token] Invalid or inactive token: {token}")
         raise HTTPException(status_code=401, detail="Invalid or inactive token")

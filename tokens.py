@@ -45,6 +45,9 @@ async def generate_token(
     db: Session = Depends(get_db),
 ):
     print(f"[PRINT-DEBUG] /admin/generate-token endpoint called. request={request.dict()}, Authorization={authorization}")
+    logger.debug(f"[generate_token] DB session id: {id(db)}")
+    logger.debug(f"[generate_token] DB in transaction: {getattr(db, 'in_transaction', lambda: None)()}")
+    logger.debug(f"[generate_token] Existing tokens: {db.query(ApiAccessToken).all()}")
     """Generate a new API token with optional project and namespace scoping.
 
     Bootstrapping logic:
@@ -67,11 +70,13 @@ async def generate_token(
             db.query(ApiAccessToken).filter(ApiAccessToken.active == True).count()
         )
         logger.debug(f"Existing tokens count: {existing_tokens}")
+        logger.debug(f"[generate_token] All tokens in DB: {db.query(ApiAccessToken).all()}")
 
         token_obj = None
         if existing_admin_tokens == 0:
             print(f"[PRINT-DEBUG] Bootstrapping: request.role={request.role}, Authorization={authorization}")
             logger.warning(f"[DEBUG] Bootstrapping: request.role={request.role}, Authorization={authorization}")
+            logger.debug(f"[generate_token] All tokens before admin creation: {db.query(ApiAccessToken).all()}")
             # Bootstrapping: allow unauthenticated creation of first non-admin token
             if request.role == "admin":
                 print(f"[PRINT-DEBUG] Attempting to create first admin token. Authorization={authorization}")
@@ -86,6 +91,7 @@ async def generate_token(
                         detail="A valid non-admin API token is required to generate the first admin token.",
                     )
                 token_obj = require_api_token(authorization, db)
+                logger.debug(f"[generate_token] require_api_token returned: {token_obj}")
                 print(f"[PRINT-DEBUG] First admin token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
                 logger.warning(f"[DEBUG] First admin token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
                 if token_obj.role == "admin":
@@ -174,6 +180,7 @@ async def generate_token(
         logger.info(
             f"Successfully created new token with description: {request.description}"
         )
+        logger.debug(f"[generate_token] Token committed. All tokens now: {db.query(ApiAccessToken).all()}")
 
         return {
             "token": new_token,

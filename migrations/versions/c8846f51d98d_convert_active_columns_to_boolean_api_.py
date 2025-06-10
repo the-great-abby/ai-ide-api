@@ -33,8 +33,8 @@ def upgrade() -> None:
 
     # 1. api_access_tokens
     if column_exists("api_access_tokens", "active"):
-        op.execute("UPDATE api_access_tokens SET active = 1 WHERE active IS NOT NULL AND active <> 0;")
-        op.execute("UPDATE api_access_tokens SET active = 0 WHERE active IS NULL OR active = 0;")
+        op.execute("UPDATE api_access_tokens SET active = TRUE WHERE active IS NOT NULL AND active::text != '0';")
+        op.execute("UPDATE api_access_tokens SET active = FALSE WHERE active IS NULL OR active::text = '0';")
         op.alter_column(
             'api_access_tokens',
             'active',
@@ -46,8 +46,8 @@ def upgrade() -> None:
 
     # 2. projects
     if column_exists("projects", "active"):
-        op.execute("UPDATE projects SET active = 1 WHERE active IS NOT NULL AND active <> 0;")
-        op.execute("UPDATE projects SET active = 0 WHERE active IS NULL OR active = 0;")
+        op.execute("UPDATE projects SET active = TRUE WHERE active IS NOT NULL AND active::text != '0';")
+        op.execute("UPDATE projects SET active = FALSE WHERE active IS NULL OR active::text = '0';")
         op.alter_column(
             'projects',
             'active',
@@ -59,8 +59,8 @@ def upgrade() -> None:
 
     # 3. namespace_permissions
     if column_exists("namespace_permissions", "active"):
-        op.execute("UPDATE namespace_permissions SET active = 1 WHERE active IS NOT NULL AND active <> 0;")
-        op.execute("UPDATE namespace_permissions SET active = 0 WHERE active IS NULL OR active = 0;")
+        op.execute("UPDATE namespace_permissions SET active = TRUE WHERE active IS NOT NULL AND active::text != '0';")
+        op.execute("UPDATE namespace_permissions SET active = FALSE WHERE active IS NULL OR active::text = '0';")
         op.alter_column(
             'namespace_permissions',
             'active',
@@ -72,8 +72,8 @@ def upgrade() -> None:
 
     # 4. teams
     if column_exists("teams", "active"):
-        op.execute("UPDATE teams SET active = 1 WHERE active IS NOT NULL AND active <> 0;")
-        op.execute("UPDATE teams SET active = 0 WHERE active IS NULL OR active = 0;")
+        op.execute("UPDATE teams SET active = TRUE WHERE active IS NOT NULL AND active::text != '0';")
+        op.execute("UPDATE teams SET active = FALSE WHERE active IS NULL OR active::text = '0';")
         op.alter_column(
             'teams',
             'active',

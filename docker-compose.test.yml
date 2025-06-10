@@ -3,12 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.pgvector
+    container_name: test-db
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_MULTIPLE_DATABASES: memorydb,rulesdb
-    # ports:
-    #   - "5433:5432"  # Removed to avoid host port conflict
+    ports:
+      - "5433:5432"
     volumes:
       - rules_postgres_data_test:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d
@@ -128,7 +129,7 @@ services:
     depends_on:
       - test-ollama-functions
     env_file:
-      - change-this-env.llm-worker-test.example
+      - .env.llm-worker-test
     profiles: ["llm-test"]
 
   test-rabbitmq:

@@ -4,6 +4,7 @@ A central index of all user stories for workflows, onboarding, automation, and b
 
 | User Story | Description | Link |
 |------------|-------------|------|
+| API Status Code Guide | A concise reference for HTTP status codes, their meaning, and usage in the API, to help with debugging, test writing, and endpoint design. | [status_code_guide.md](status_code_guide.md) |
 | User Story: External Project Onboarding via API | As an external project owner or integrator, I want a simple, automated way to initialize and track onboarding progress for my project, so I can ensure all required steps are completed and visible to my team. | [external_project_onboarding.md](external_project_onboarding.md) |
 | User Story: Internal Developer Onboarding via API | As a core team member or internal developer, I want a standardized onboarding checklist for local development, so I can quickly set up my environment and follow best practices. | [internal_dev_onboarding.md](internal_dev_onboarding.md) |
 | User Story: AI Agent Onboarding via API | As an AI agent or automated client, I want to initialize and track my onboarding process programmatically, so I can ensure all integration steps are completed and visible to maintainers. | [ai_agent_onboarding.md](ai_agent_onboarding.md) |
@@ -36,5 +37,8 @@ A central index of all user stories for workflows, onboarding, automation, and b
 | User Story: Database Schema Recovery and Data-Only Restore | **As a developer or maintainer,** | [db_schema_recovery_and_data_restore.md](db_schema_recovery_and_data_restore.md) |
 | User Story: Reviewing Recent Commits with Makefile Target | To streamline the process of reviewing recent code changes and enhancements, a Makefile target (`git-log-recent`) was added. This helps team members quickly audit recent activity, track enhancements, and support better communication and documentation of ongoing work. | [git_log_recent_commits.md](git_log_recent_commits.md) |
 | [Rule Promotion and Hierarchical Scopes](rule_promotion_and_hierarchical_scopes.md)
+| User Story: Submitting a Rule Proposal | As a contributor or API client, I want to propose new rules or changes to existing ones, so the system's rules remain current and collaborative. | [rule_proposal_submission.md](rule_proposal_submission.md) |
+| User Story: Providing Feedback on Rule Proposals | As a reviewer or peer, I want to provide structured feedback on rule proposals, using allowed feedback types, so proposals can be improved efficiently and consistently. | [rule_proposal_feedback_types.md](rule_proposal_feedback_types.md) |
+| User Story: Validation Consistency Across the API | As a consumer or maintainer, I want all endpoints to validate input consistently and return clear, standard error codes, so clients and tests can rely on predictable behavior. | [validation_consistency.md](validation_consistency.md) |
 
 **Tip:** Reference this index when onboarding, reviewing code, or adding new workflows.

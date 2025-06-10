@@ -268,6 +268,7 @@ test-quickstart: test-env-up test-db-migrate ai-memorydb-migrate ai-test
 # Nuke and reset the test DB/services, then run test quickstart (for CI/test cycles)
 test-db-nuke:
 	docker compose -f docker-compose.test.yml down -v
+	docker volume rm rules_postgres_data_test || true
 	SKIP_TOKEN_POLLUTION_GUARD=1 $(MAKE) -f Makefile.ai test-quickstart
 
 # Nuke and reset the dev DB/services, then run dev quickstart (for local dev only)

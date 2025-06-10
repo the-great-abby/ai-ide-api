@@ -46,20 +46,6 @@ services:
       - VITE_API_BASE_URL=http://localhost:${PORT:-9103}
     profiles: ["dev"]
 
-  # Playwright service for UI testing (CI/CD friendly)
-  playwright:
-    build:
-      context: ./admin-frontend
-      dockerfile: Dockerfile.playwright
-    working_dir: /app
-    depends_on:
-      - frontend
-    command: ["npx", "playwright", "test"]
-    environment:
-      - CI=true
-    profiles: ["dev"]
-    # No volume mount: tests the built image, not local code
-
   db:
     build:
       context: .

@@ -60,6 +60,8 @@ def test_rule_validation_and_formatting(admin_headers, client, override_get_db):
     response = client.post(
         "/propose-rule-change", json=valid_rule, headers=admin_headers
     )
+    if response.status_code != 200:
+        print("RESPONSE BODY:", response.text)
     assert response.status_code == 200
 
     # Test invalid rule format (missing sections)
@@ -75,6 +77,8 @@ def test_rule_validation_and_formatting(admin_headers, client, override_get_db):
     response = client.post(
         "/propose-rule-change", json=invalid_rule, headers=admin_headers
     )
+    if response.status_code != 422:
+        print("RESPONSE BODY:", response.text)
     assert response.status_code == 422  # Validation error
 
 
@@ -123,11 +127,15 @@ Automated code review will check for missing docstrings in functions and methods
         prop_response = client.post(
             "/propose-rule-change", json=rule, headers=admin_headers
         )
+        if prop_response.status_code != 200:
+            print("RESPONSE BODY:", prop_response.text)
         assert prop_response.status_code == 200
         proposal_id = prop_response.json()["id"]
         approve_response = client.put(
             f"/rule-changes/{proposal_id}/approve", headers=admin_headers
         )
+        if approve_response.status_code != 200:
+            print("RESPONSE BODY:", approve_response.text)
         assert approve_response.status_code == 200
 
         # Test code review with the file
@@ -194,11 +202,15 @@ Enforced at team level.""",
         prop_response = client.post(
             "/propose-rule-change", json=rule, headers=admin_headers
         )
+        if prop_response.status_code != 200:
+            print("RESPONSE BODY:", prop_response.text)
         assert prop_response.status_code == 200
         proposal_id = prop_response.json()["id"]
         approve_response = client.put(
             f"/rule-changes/{proposal_id}/approve", headers=admin_headers
         )
+        if approve_response.status_code != 200:
+            print("RESPONSE BODY:", approve_response.text)
         assert approve_response.status_code == 200
         rule_id = approve_response.json().get("rule_id")
         # If rule_id is None, this is an edge case where no rule was created/updated
@@ -257,11 +269,15 @@ def test_rule_enforcement_scope_hierarchy_invalid_promotion(
     prop_response = client.post(
         "/propose-rule-change", json=rule, headers=admin_headers
     )
+    if prop_response.status_code != 200:
+        print("RESPONSE BODY:", prop_response.text)
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
     approve_response = client.put(
         f"/rule-changes/{proposal_id}/approve", headers=admin_headers
     )
+    if approve_response.status_code != 200:
+        print("RESPONSE BODY:", approve_response.text)
     assert approve_response.status_code == 200
     rule_id = approve_response.json().get("rule_id")
     # If rule_id is None, this is an edge case where no rule was created/updated
@@ -304,11 +320,15 @@ Initial enforcement mechanism.""",
     prop_response = client.post(
         "/propose-rule-change", json=rule, headers=admin_headers
     )
+    if prop_response.status_code != 200:
+        print("RESPONSE BODY:", prop_response.text)
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
     approve_response = client.put(
         f"/rule-changes/{proposal_id}/approve", headers=admin_headers
     )
+    if approve_response.status_code != 200:
+        print("RESPONSE BODY:", approve_response.text)
     assert approve_response.status_code == 200
     initial_rule = approve_response.json()
 
@@ -337,11 +357,15 @@ Updated enforcement mechanism.""",
     prop_response = client.post(
         "/propose-rule-change", json=updated_rule, headers=admin_headers
     )
+    if prop_response.status_code != 200:
+        print("RESPONSE BODY:", prop_response.text)
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
     approve_response = client.put(
         f"/rule-changes/{proposal_id}/approve", headers=admin_headers
     )
+    if approve_response.status_code != 200:
+        print("RESPONSE BODY:", approve_response.text)
     assert approve_response.status_code == 200
     updated_rule = approve_response.json()
 
@@ -382,11 +406,15 @@ def test_rule_enforcement_combinations(
     prop_response = client.post(
         "/propose-rule-change", json=rule, headers=admin_headers
     )
+    if prop_response.status_code != 200:
+        print("RESPONSE BODY:", prop_response.text)
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
     approve_response = client.put(
         f"/rule-changes/{proposal_id}/approve", headers=admin_headers
     )
+    if approve_response.status_code != 200:
+        print("RESPONSE BODY:", approve_response.text)
     assert approve_response.status_code == 200
     approved_rule = approve_response.json()
     rule_id = approved_rule["rule_id"]

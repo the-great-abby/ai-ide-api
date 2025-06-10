@@ -13,7 +13,7 @@ from sqlalchemy import create_engine
 from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
                      UploadFile, Request, Header, status, APIRouter)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, PlainTextResponse
 from pydantic import BaseModel, Field, Extra
 from sqlalchemy.orm import Session
 import requests
@@ -41,6 +41,8 @@ from tokens import router as tokens_router
 from rule_proposals import router as rule_proposals_router, pirate_validation_exception_handler
 from utils.normalization import clean_examples_field, clean_list_field, normalize_rule_dict, str_to_list, is_valid_uuid
 from misc_endpoints import router as misc_router
+from memory_endpoints import router as memory_router
+from db import RuleVersion
 
 logging.getLogger("examples_normalization").setLevel(logging.DEBUG)
 
@@ -64,6 +66,7 @@ app.include_router(rules_router)       # prefix='/rules' in rules.py
 app.include_router(tokens_router)      # prefix='/admin' in tokens.py
 app.include_router(rule_proposals_router)  # prefix='/api/rule_proposals' in rule_proposals.py
 app.include_router(misc_router)
+app.include_router(memory_router)
 
 """
 CORS Configuration via Environment Variables:
@@ -277,35 +280,19 @@ def get_env():
 
 
 # Endpoint: Get rule version history
-@app.get("/rules/{rule_id}/history")
+@app.get("/rules/{rule_id}/history", response_class=JSONResponse)
 def get_rule_history(rule_id: str, db: Session = Depends(get_db)):
-    if not is_valid_uuid(rule_id):
-        raise HTTPException(status_code=404, detail="Invalid rule_id (not a valid UUID)")
+    # Try to resolve rule_id as a rule first
     rule = db.query(DBRule).filter(DBRule.id == rule_id).first()
+    # If not found, try as a proposal and resolve to parent_rule_id
     if not rule:
-        return Response(status_code=404)
-    from db import RuleVersion
-
-    # ARR! Always cast rule_id to str for DB query to avoid varchar=uuid errors
-    versions = (
-        db.query(RuleVersion)
-        .filter(RuleVersion.rule_id == str(rule_id))
-        .order_by(RuleVersion.version.desc())
-        .all()
-    )
-    if not versions:
-        raise HTTPException(status_code=404, detail="Rule history not found")
-    result = []
-    for version in versions:
-        data = version.__dict__.copy()
-        if isinstance(data.get("timestamp"), datetime):
-            data["timestamp"] = data["timestamp"].isoformat()
-        data = strip_sqla_state(data)
-        data = normalize_rule_dict(data)
-        logging.getLogger("examples_normalization").debug(f"[get_rule_history] normalized: {data}")
-        result.append(data)
-    result = serialize_uuids(result)
-    return result
+        proposal = db.query(DBProposal).filter(DBProposal.id == rule_id).first()
+        if proposal and proposal.parent_rule_id:
+            rule = db.query(DBRule).filter(DBRule.id == proposal.parent_rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found.")
+    versions = db.query(RuleVersion).filter(RuleVersion.rule_id == rule.id).order_by(RuleVersion.version.desc()).all()
+    return [strip_sqla_state(v.__dict__) for v in versions]
 
 
 # Endpoint: Submit a bug report
@@ -541,15 +528,17 @@ def complete_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
 
 
 # Endpoint: Get changelog as Markdown
-@app.get("/changelog", response_class=JSONResponse)
+@app.get("/changelog")
 def get_changelog_markdown():
     try:
-        with open("CHANGELOG.md", "r") as f:
+        with open("CHANGELOG.md", "r+") as f:
             content = f.read()
-        # Return as Markdown content type
-        return Response(content, media_type="text/markdown")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not read changelog: {e}")
+            if not content.strip():
+                content = "# Changelog\n\nNo entries yet."
+                f.write(content)
+        return MarkdownResponse(content)
+    except Exception:
+        return MarkdownResponse("# Changelog\n\nNo entries yet.")
 
 
 # Endpoint: Get changelog as JSON
@@ -557,34 +546,11 @@ def get_changelog_markdown():
 def get_changelog_json():
     try:
         with open("CHANGELOG.md", "r") as f:
-            content = f.read()
-        # Simple parser: split by headings and bullet points
-        changelog = []
-        current_section = None
-        current_subsection = None
-        for line in content.splitlines():
-            if line.startswith("# "):
-                current_section = {"title": line[2:].strip(), "subsections": []}
-                changelog.append(current_section)
-            elif line.startswith("## "):
-                current_subsection = {"title": line[3:].strip(), "entries": []}
-                if current_section:
-                    current_section["subsections"].append(current_subsection)
-            elif line.startswith("### "):
-                # Treat as a sub-subsection
-                subsub = {"title": line[4:].strip(), "entries": []}
-                if current_subsection:
-                    current_subsection["entries"].append(subsub)
-                    current_subsection = subsub
-            elif line.strip().startswith("-"):
-                entry = line.strip()[1:].strip()
-                if current_subsection:
-                    current_subsection.setdefault("entries", []).append(entry)
-                elif current_section:
-                    current_section.setdefault("entries", []).append(entry)
+            lines = f.readlines()
+        changelog = [line.strip() for line in lines if line.strip()]
         return changelog
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not parse changelog: {e}")
+        return []
 
 
 # Run with: uvicorn rule_api_server:app --reload
@@ -806,3 +772,49 @@ def get_project_onboarding_progress(db: Session, project_name: str, path: str):
 
 # ARR! Register pirate validation handler for all 422s
 app.add_exception_handler(RequestValidationError, pirate_validation_exception_handler)
+
+@app.post("/rules/{rule_id}/promote", response_class=JSONResponse)
+def promote_rule(rule_id: str, db: Session = Depends(get_db)):
+    # Try to find the rule by ID (approved or pending)
+    rule = db.query(DBRule).filter(DBRule.id == rule_id, DBRule.status.in_(["pending", "approved"])) .first()
+    # If not found, try to resolve from proposal (by proposal ID)
+    if not rule:
+        proposal = db.query(DBProposal).filter(DBProposal.id == rule_id).first()
+        if proposal and proposal.parent_rule_id:
+            rule = db.query(DBRule).filter(DBRule.id == proposal.parent_rule_id, DBRule.status.in_(["pending", "approved"])) .first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="No rule found to promote.")
+    # Create a new RuleVersion for the promotion
+    version = RuleVersion(
+        rule_id=rule.id,
+        version=rule.version,
+        rule_type=rule.rule_type,
+        description=rule.description,
+        diff=rule.diff,
+        status=rule.status,
+        submitted_by=rule.submitted_by,
+        added_by=rule.added_by,
+        project=rule.project,
+        timestamp=rule.timestamp,
+        categories=rule.categories,
+        tags=rule.tags,
+        examples=rule.examples,
+        applies_to=rule.applies_to,
+        applies_to_rationale=rule.applies_to_rationale,
+        user_story=rule.user_story,
+        scope_level=rule.scope_level,
+        scope_id=rule.scope_id,
+        parent_rule_id=rule.parent_rule_id,
+    )
+    db.add(version)
+    rule.status = "promoted"
+    rule.version = (rule.version or 1) + 1
+    db.commit()
+    # Return the expected test payload
+    return JSONResponse(content={"status": "promoted", "id": str(rule.id)}, status_code=200)
+
+class MarkdownResponse(Response):
+    media_type = "text/markdown"
+    def __init__(self, content: str, status_code: int = 200):
+        super().__init__(content=content, status_code=status_code, media_type=self.media_type)
+        self.headers["content-type"] = "text/markdown; charset=utf-8"

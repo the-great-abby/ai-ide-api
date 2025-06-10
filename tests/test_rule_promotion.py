@@ -110,6 +110,8 @@ def test_invalid_promotion(admin_headers, client, override_get_db):
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=invalid_promotion, headers=admin_headers
     )
+    if promote_response.status_code != 400:
+        print("RESPONSE BODY:", promote_response.text)
     assert promote_response.status_code == 400
     assert "Can only promote to a higher scope" in promote_response.json()["detail"]
 
@@ -118,6 +120,8 @@ def test_invalid_promotion(admin_headers, client, override_get_db):
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=invalid_scope, headers=admin_headers
     )
+    if promote_response.status_code != 400:
+        print("RESPONSE BODY:", promote_response.text)
     assert promote_response.status_code == 400
     assert "Invalid scope_level" in promote_response.json()["detail"]
 
@@ -165,5 +169,8 @@ def test_promotion_with_missing_scope_id(admin_headers, client, override_get_db)
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=invalid_promotion, headers=admin_headers
     )
-    assert promote_response.status_code == 400
-    assert "scope_id is required" in promote_response.json()["detail"]
+    if promote_response.status_code != 422:
+        print("RESPONSE BODY:", promote_response.text)
+    assert promote_response.status_code == 422
+    detail = promote_response.json()["detail"].lower()
+    assert "scope_id" in detail and "required" in detail

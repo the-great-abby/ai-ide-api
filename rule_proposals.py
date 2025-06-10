@@ -30,9 +30,8 @@ ALLOWED_FEEDBACK_TYPES = {"suggestion", "question", "concern"}
 # ARR! All IDs and foreign keys be strings, not UUID columns. Pass UUIDs as strings, or ye walk the plank! See ONBOARDING_INTERNAL.md and rules/db_types.mdc for the tale.
 class ProposalModel(BaseModel):
     """
-    ARR! Pirate warning: All fields meant to be UUIDs (like 'project', 'parent_rule_id') must be valid UUID strings or None.
-    If ye pass a barnacle like 'not-a-uuid', ye'll get a 422 and a dunk in the briny deep!
-    All DB columns are sa.String().
+    ARR! Pirate warning: The 'project' field may be a project name or a UUID string. It will be resolved to a UUID in the endpoint logic.
+    Only 'parent_rule_id' and 'scope_id' are strictly validated as UUIDs here.
     """
     rule_type: str = Field(..., min_length=1, description="Type of the rule")
     description: str = Field(..., min_length=1, description="Description of the rule")
@@ -53,22 +52,15 @@ class ProposalModel(BaseModel):
 
     @staticmethod
     def _validate_uuid_field(value, field_name):
-        import uuid
-        print(f"[PIRATE-DEBUG] UUID validator called for field '{field_name}' with value: {value}")
-        # ARR! Treat empty string as None/null for UUID fields
         if value is None or value == "":
             return None
         try:
-            # Only accept valid UUID strings
-            if isinstance(value, uuid.UUID):
-                return str(value)
-            uuid_obj = uuid.UUID(str(value))
-            return str(uuid_obj)
-        except Exception as e:
-            print(f"[PIRATE-DEBUG] UUID validation failed for field '{field_name}': {value} ({e})")
-            raise ValueError(f"ARR! Field '{field_name}' must be a valid UUID string or null, got: {value}")
+            uuid.UUID(str(value))
+            return value
+        except Exception:
+            raise ValueError(f"Field '{field_name}' must be a valid UUID string.")
 
-    @field_validator("project", "parent_rule_id", "scope_id", mode="before")
+    @field_validator("parent_rule_id", "scope_id", mode="before")
     @classmethod
     def validate_uuid_fields(cls, v, info):
         return cls._validate_uuid_field(v, info.field_name)
@@ -240,6 +232,13 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
                 status_code=422,
                 detail=f"Field '{field}' is required and cannot be empty.",
             )
+    # Strictly validate UUID fields if present (except 'project', which can be a name or UUID)
+    for uuid_field in ["parent_rule_id", "scope_id"]:
+        if payload.get(uuid_field):
+            try:
+                uuid.UUID(str(payload[uuid_field]))
+            except Exception:
+                raise HTTPException(status_code=422, detail=f"Field '{uuid_field}' must be a valid UUID string.")
     # Validate scope_id for team/project scope
     if payload.get("scope_level") in ("team", "project") and not payload.get(
         "scope_id"
@@ -446,7 +445,8 @@ def approve_rule_change(
         rule.scope_level = proposal.scope_level
         rule.scope_id = proposal.scope_id
         rule.timestamp = datetime.utcnow()
-        # Create version history entry
+        rule.status = "approved"
+        # Always create version history entry on approval
         version = RuleVersion(
             rule_id=str(rule.id),
             version=rule.version,
@@ -505,8 +505,8 @@ def approve_rule_change(
             parent_rule_id=proposal.parent_rule_id,
         )
         db.add(rule)
-        db.flush()  # Ensure rule is written to DB before setting parent_rule_id
-        # Create version history entry (include all fields for consistency)
+        db.flush()
+        # Always create version history entry on approval
         version = RuleVersion(
             rule_id=str(rule.id),
             version=1,
