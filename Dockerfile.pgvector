@@ -1,10 +1,10 @@
 # Dockerfile.pgvector
 # Arrr! Patch McDebug's custom Postgres image with all the extensions a pirate could want!
 
-FROM postgres:15
+FROM pgvector/pgvector:pg15
 
-# Install required extensions (pgvector and pg_trgm are included in official images, but this is where you'd add more)
-# No extra install needed for pg_trgm or vector in official images, but you could add OS packages here if needed
+# Copy the official entrypoint to a known location for the pirate script
+RUN cp /usr/local/bin/docker-entrypoint.sh /docker-entrypoint.sh
 
 # Copy the pirate entrypoint script
 COPY docker/initdb/entrypoint-pirate.sh /docker-entrypoint-initdb.d/entrypoint-pirate.sh
