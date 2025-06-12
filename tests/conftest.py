@@ -158,6 +158,38 @@ def fail_if_tokens_exist():
         )
     db.close()
 
+@pytest.fixture(scope="session", autouse=True)
+def ensure_token_bootstrap(client):
+    """
+    Ensure that after DB reset, the token bootstrap flow is run and a valid admin token exists.
+    """
+    # Clean up any tokens
+    db = TestingSessionLocal()
+    db.query(ApiAccessToken).delete()
+    db.commit()
+    db.close()
+
+    # Step 1: Create user token
+    user_response = client.post(
+        "/admin/generate-token", json={"description": "Test user token", "role": "user"}
+    )
+    assert user_response.status_code == 200, f"Failed to create user token: {user_response.text}"
+    user_token = user_response.json()["token"]
+
+    # Step 2: Create admin token
+    admin_response = client.post(
+        "/admin/generate-token", json={"description": "Test admin token", "role": "admin"},
+        headers={"Authorization": f"Bearer {user_token}"}
+    )
+    assert admin_response.status_code == 200, f"Failed to create admin token: {admin_response.text}"
+    admin_token = admin_response.json()["token"]
+
+    # Step 3: Confirm admin token is present and active
+    db = TestingSessionLocal()
+    token_obj = db.query(ApiAccessToken).filter_by(token=admin_token, active=True).first()
+    db.close()
+    assert token_obj is not None, "Admin token not present or not active in DB after creation."
+
 # ARR! Pirate UUID guard: fail any test that passes a uuid.UUID object to a query!
 def pytest_sessionstart(session):
     orig_filter = Query.filter

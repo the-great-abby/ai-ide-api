@@ -193,12 +193,15 @@ async def patch_onboarding_progress(
 async def onboarding_init(request: Request, db: Session = Depends(get_db)):
     import traceback
     data = await request.json()
-    project_name = str(data.get("project_name"))
+    project_name = data.get("project_name")
     team_name = data.get("team_name")
     path = data.get("path")
     pirate_mode = data.get("pirate_mode", False)
-    if not project_name or not path:
-        raise HTTPException(status_code=400, detail="Missing project_name or path")
+    # Strictly require non-empty project_name and path
+    if not isinstance(project_name, str) or not project_name.strip() or not isinstance(path, str) or not path.strip():
+        raise HTTPException(status_code=400, detail="Missing project_name or path (must be non-empty strings)")
+    project_name = project_name.strip()
+    path = path.strip()
     # Always create or get project/team by name, providing sensible defaults
     default_namespace = f"{project_name}/private"
     namespace_prefix = project_name

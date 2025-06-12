@@ -55,6 +55,8 @@ def test_rule_validation_and_formatting(admin_headers, client, override_get_db):
         "user_story": "Test user story",
         "reason_for_change": "Testing enforcement flow.",
         "references": "Test reference.",
+        "scope_level": "project",
+        "project": "test-project",
     }
 
     response = client.post(
@@ -72,6 +74,8 @@ def test_rule_validation_and_formatting(admin_headers, client, override_get_db):
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["validation"],
+        "scope_level": "project",
+        "project": "test-project",
     }
 
     response = client.post(
@@ -121,6 +125,8 @@ Automated code review will check for missing docstrings in functions and methods
             "user_story": "Test user story",
             "reason_for_change": "Testing enforcement flow.",
             "references": "Test reference.",
+            "scope_level": "project",
+            "project": "test-project",
         }
 
         # Propose and approve the rule
@@ -234,6 +240,8 @@ def test_rule_enforcement_scope_hierarchy_invalid_promotion(
         "user_story": "Test user story",
         "reason_for_change": "Testing enforcement flow.",
         "references": "Test reference.",
+        "scope_level": "project",
+        "project": "test-project",
     }
     prop_response = client.post(
         "/propose-rule-change", json=rule, headers=admin_headers
@@ -283,6 +291,8 @@ Initial enforcement mechanism.""",
         "user_story": "Test user story",
         "reason_for_change": "Testing enforcement flow.",
         "references": "Test reference.",
+        "scope_level": "project",
+        "project": "test-project",
     }
 
     # Propose and approve initial version
@@ -360,6 +370,8 @@ def test_rule_enforcement_combinations(
         "user_story": "Test user story",
         "reason_for_change": "Testing enforcement flow.",
         "references": "Test reference.",
+        "scope_level": "project",
+        "project": "test-project",
     }
 
     # Ensure Authorization header is present for all requests
@@ -432,4 +444,6 @@ def test_rule_enforcement_combinations(
         "user_story": "Test user story",
         "reason_for_change": "Testing enforcement flow.",
         "references": "Test reference.",
+        "scope_level": "project",
+        "project": "test-project",
     }

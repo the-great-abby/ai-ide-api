@@ -1,4 +1,0 @@
-docker-compose -f docker-compose.test.yml exec test-api alembic upgrade head
-DEBUG: Entering run_migrations_online, using URL: postgresql://postgres:postgres@test-db:5432/rulesdb
-DEBUG: Engine created
-DEBUG: Connection established

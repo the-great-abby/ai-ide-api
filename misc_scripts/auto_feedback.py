@@ -32,6 +32,8 @@ def get_pending_proposals():
 
 
 def rule_based_feedback(proposal):
+    if not isinstance(proposal, dict):
+        return None, None
     desc = proposal.get("description", "").lower()
     # Example: auto-accept if description contains 'format' or 'typo'
     if "format" in desc:
@@ -112,6 +114,8 @@ def main():
         print("No pending proposals found.")
         return
     for proposal in proposals:
+        if not isinstance(proposal, dict):
+            continue
         feedback_type, comments = rule_based_feedback(proposal)
         if not feedback_type:
             feedback_type, comments = llm_feedback(proposal)

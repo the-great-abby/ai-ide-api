@@ -89,6 +89,11 @@ services:
       - OLLAMA_URL=http://host.docker.internal:11434/api/generate
       - OLLAMA_MODEL=llama3.1:8b-instruct-q6_K
     command: tail -f /dev/null
+    healthcheck:
+      test: ["CMD", "python", "/scripts/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     profiles: ["dev"]
 
   ollama-functions:

@@ -3,7 +3,7 @@ import uuid
 from fastapi.testclient import TestClient
 from rule_api_server import app  # Updated import to match project structure
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def client():
     with TestClient(app) as c:
         yield c

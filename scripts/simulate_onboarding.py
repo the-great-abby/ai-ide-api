@@ -2,7 +2,8 @@ import requests
 import sys
 import os
 
-API_URL = os.environ.get("ONBOARDING_API_URL", "http://api:8000")
+# Default to test-api for test network compatibility
+API_URL = os.environ.get("ONBOARDING_API_URL", "http://test-api:8000")
 
 
 def simulate_onboarding(project_name, path):
@@ -14,15 +15,15 @@ def simulate_onboarding(project_name, path):
     # 2. Fetch progress
     resp = requests.get(f"{API_URL}/onboarding/progress/{project_name}?path={path}")
     print("Progress:", resp.status_code)
-    progress = resp.json()
+    progress = resp.json()["steps"]
     for step in progress:
-        print(f"  - Step: {step['step']}, Completed: {step['completed']}")
+        print(f"  - Step: {step['instruction']}, Completed: {step['completed']}")
 
     # 3. (Optional) Mark first step as complete
     if progress:
         step_id = progress[0]["id"]
         resp = requests.patch(f"{API_URL}/onboarding/progress/{step_id}", json={"completed": True})
-        print(f"Mark complete for step '{progress[0]['step']}':", resp.status_code, resp.json())
+        print(f"Mark complete for step '{progress[0]['instruction']}':", resp.status_code, resp.json())
 
     # 4. Fetch onboarding docs
     resp = requests.get(f"{API_URL}/onboarding-docs")

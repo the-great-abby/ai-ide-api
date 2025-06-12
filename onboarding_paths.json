@@ -2,31 +2,38 @@
   "paths": [
     {
       "name": "test_path",
+      "display_name": "Test Path",
       "buddy": "Doc Testwell",
       "steps": [
         {"instruction": "Run 'make -f Makefile.ai ai-test' to start the test suite.", "doc_link": "ONBOARDING.md#testing-workflow-guidelines"},
         {"instruction": "Check the test results in 'last-test.log'.", "doc_link": "ONBOARDING.md#troubleshooting"},
-        {"instruction": "If a test fails, review the error and rerun with 'make -f Makefile.ai ai-test PYTEST_ARGS=\"-x\"'."}
+        {"instruction": "If a test fails, review the error and rerun with 'make -f Makefile.ai ai-test PYTEST_ARGS=\"-x\"'.", "doc_link": null}
       ]
     },
     {
       "name": "internal_dev",
+      "display_name": "Internal Developer Onboarding",
       "buddy": "Captain Abby",
       "steps": [
         {"instruction": "Clone the repository and install dependencies.", "doc_link": "ONBOARDING_INTERNAL.md#setup"},
         {"instruction": "Start the dev environment with 'make dev-up'.", "doc_link": "ONBOARDING_INTERNAL.md#dev-environment"},
-        {"instruction": "Run 'make lint' to check code style."}
+        {"instruction": "Run 'make lint' to check code style.", "doc_link": null}
       ]
     },
     {
       "name": "external_project",
+      "display_name": "External Project Onboarding",
       "buddy": "Maple Cartwright",
       "steps": [
         {"instruction": "Access the API documentation at the provided URL (e.g., http://localhost:9103/docs or your production API endpoint). If you are unsure of the correct URL, check your onboarding email or ask your project admin.", "doc_link": "ONBOARDING_EXTERNAL.md#api-access"},
         {"instruction": "Generate your API token by sending a POST request to /admin/generate-token. For the first user token, no authentication is required. After the first token, an admin token is required to generate additional tokens.", "doc_link": "ONBOARDING_EXTERNAL.md#api-token-generation"},
-        {"instruction": "Sample curl command to generate a user token (replace <api_url> as needed):\n\n  curl -X POST <api_url>/admin/generate-token \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"description\": \"My first user token\", \"role\": \"user\"}'\n\nThe response will include your new token. Save it securely!\n\nAfter the first token is created, you must include an admin token in the Authorization header to generate more tokens.", "doc_link": "ONBOARDING_EXTERNAL.md#api-token-generation"},
+        {"instruction": "Sample curl command to generate a user token (replace <api_url> as needed):", "doc_link": "ONBOARDING_EXTERNAL.md#api-token-generation"},
+        {"instruction": "curl -X POST <api_url>/admin/generate-token \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"description\": \"My first user token\", \"role\": \"user\"}'", "doc_link": null},
+        {"instruction": "The response will include your new token. Save it securely! After the first token is created, you must include an admin token in the Authorization header to generate more tokens.", "doc_link": null},
         {"instruction": "Once you have your token, add 'Authorization: Bearer <your_token>' to your API request headers. Your token will look like a long string of letters and numbers.", "doc_link": "ONBOARDING_EXTERNAL.md#authentication"},
-        {"instruction": "Try making your first API call! For example, to add a memory node, use the following command (replace <your_token> and <api_url> as needed):\n\n  curl -X POST <api_url>/memory/nodes \\\n    -H 'Authorization: Bearer <your_token>' \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"namespace\": \"external\", \"content\": \"Hello from the outside!\", \"meta\": \"{\\\"tags\\\":[\\\"external\\\"]}\"}'\n\nA successful response will return your new memory node as JSON. If you get a 401 error, check your token. If you get a 404, check the endpoint URL.", "doc_link": "ONBOARDING_EXTERNAL.md#first-api-call"},
+        {"instruction": "Try making your first API call! For example, to add a memory node, use the following command (replace <your_token> and <api_url> as needed):", "doc_link": "ONBOARDING_EXTERNAL.md#first-api-call"},
+        {"instruction": "curl -X POST <api_url>/memory/nodes \\\n  -H 'Authorization: Bearer <your_token>' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"namespace\": \"external\", \"content\": \"Hello from the outside!\", \"meta\": \"{\\\"tags\\\":[\\\"external\\\"]}\"}'", "doc_link": null},
+        {"instruction": "A successful response will return your new memory node as JSON. If you get a 401 error, check your token. If you get a 404, check the endpoint URL.", "doc_link": null},
         {"instruction": "If you run into trouble, check the troubleshooting section in the docs or use the support resources linked there.", "doc_link": "ONBOARDING_EXTERNAL.md#troubleshooting"}
       ]
     }

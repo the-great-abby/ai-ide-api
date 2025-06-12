@@ -44,6 +44,8 @@ def test_rule_filtering_by_category(client, clean_db, admin_headers, override_ge
             "reason_for_change": "Testing filtering flow.",
             "references": "Test reference.",
             "project": "test-project-1",
+            "scope_level": "project",
+            "project": "test-project-1",
         },
         {
             "rule_type": "test_category_2",
@@ -60,6 +62,8 @@ def test_rule_filtering_by_category(client, clean_db, admin_headers, override_ge
             "references": "Test reference 2.",
             "current_rule": "Current rule text 2.",
             "project": "test-project-2",
+            "scope_level": "project",
+            "project": "test-project-2",
         },
         {
             "rule_type": "test_category_3",
@@ -75,6 +79,8 @@ def test_rule_filtering_by_category(client, clean_db, admin_headers, override_ge
             "reason_for_change": "Testing filtering flow 3.",
             "references": "Test reference 3.",
             "current_rule": "Current rule text 3.",
+            "project": "test-project-3",
+            "scope_level": "project",
             "project": "test-project-3",
         },
     ]
@@ -128,6 +134,8 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
             "reason_for_change": "Testing filtering flow 4.",
             "references": "Test reference 4.",
             "project": "test-project-4",
+            "scope_level": "project",
+            "project": "test-project-4",
         },
         {
             "rule_type": "test_tag_2",
@@ -143,6 +151,8 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
             "reason_for_change": "Testing filtering flow 5.",
             "references": "Test reference 5.",
             "project": "test-project-5",
+            "scope_level": "project",
+            "project": "test-project-5",
         },
         {
             "rule_type": "test_tag_3",
@@ -157,6 +167,8 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
             "user_story": "Test user story 6",
             "reason_for_change": "Testing filtering flow 6.",
             "references": "Test reference 6.",
+            "project": "test-project-6",
+            "scope_level": "project",
             "project": "test-project-6",
         },
     ]
@@ -200,6 +212,8 @@ def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_
             "user_story": "Test user story 7",
             "reason_for_change": "Testing filtering flow 7.",
             "references": "Test reference 7.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         {
             "rule_type": "test_scope_2",
@@ -216,6 +230,8 @@ def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_
             "user_story": "Test user story 8",
             "reason_for_change": "Testing filtering flow 8.",
             "references": "Test reference 8.",
+            "scope_level": "team",
+            "team": "test-team",
         },
         {
             "rule_type": "test_scope_3",
@@ -231,6 +247,7 @@ def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_
             "user_story": "Test user story 9",
             "reason_for_change": "Testing filtering flow 9.",
             "references": "Test reference 9.",
+            "scope_level": "global",
         },
     ]
 
@@ -282,6 +299,8 @@ def test_rule_filtering_combinations(client, admin_headers, test_project_uuid, t
             "user_story": "Test user story 10",
             "reason_for_change": "Testing filtering flow 10.",
             "references": "Test reference 10.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         {
             "rule_type": "test_comb_2",
@@ -298,6 +317,8 @@ def test_rule_filtering_combinations(client, admin_headers, test_project_uuid, t
             "user_story": "Test user story 11",
             "reason_for_change": "Testing filtering flow 11.",
             "references": "Test reference 11.",
+            "scope_level": "team",
+            "team": "test-team",
         },
         {
             "rule_type": "test_comb_3",
@@ -313,6 +334,7 @@ def test_rule_filtering_combinations(client, admin_headers, test_project_uuid, t
             "user_story": "Test user story 12",
             "reason_for_change": "Testing filtering flow 12.",
             "references": "Test reference 12.",
+            "scope_level": "global",
         },
     ]
 
@@ -357,6 +379,8 @@ def test_rule_search(client, clean_db, admin_headers, override_get_db):
             "user_story": "Test user story 13",
             "reason_for_change": "Testing filtering flow 13.",
             "references": "Test reference 13.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         {
             "rule_type": "test_search_2",
@@ -371,6 +395,8 @@ def test_rule_search(client, clean_db, admin_headers, override_get_db):
             "user_story": "Test user story 14",
             "reason_for_change": "Testing filtering flow 14.",
             "references": "Test reference 14.",
+            "scope_level": "project",
+            "project": "test-project",
         },
         {
             "rule_type": "test_search_3",
@@ -385,6 +411,8 @@ def test_rule_search(client, clean_db, admin_headers, override_get_db):
             "user_story": "Test user story 15",
             "reason_for_change": "Testing filtering flow 15.",
             "references": "Test reference 15.",
+            "scope_level": "project",
+            "project": "test-project",
         },
     ]
 

@@ -8,7 +8,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import or_, and_, cast, String, func
+from sqlalchemy import or_, and_, cast, String, func, Column
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql import select, literal_column, lateral
 
@@ -279,7 +279,7 @@ async def update_rule(
     logger.debug(f"[UPDATE-DEBUG] DB query for rule_id={rule_id} returned: {rule}")
     if not rule:
         logger.error(f"[UPDATE-DEBUG] Rule not found: {rule_id}")
-        raise HTTPException(status_code=404, detail="Rule not found")
+        raise HTTPException(status_code=404, detail=f"Rule not found: {rule_id}. Did you approve the proposal first?")
     # Log the raw incoming payload for debugging
     try:
         raw_payload = await request.json() if request and hasattr(request, 'json') and callable(request.json) else None
@@ -391,7 +391,7 @@ async def promote_rule(
     logger.debug(f"[PROMOTE-DEBUG] DB query for rule_id={rule_id} returned: {rule}")
     if not rule:
         logger.error(f"[PROMOTE-DEBUG] Rule not found: {rule_id}")
-        raise HTTPException(status_code=404, detail="Rule not found")
+        raise HTTPException(status_code=404, detail=f"Rule not found: {rule_id}. Did you approve the proposal first?")
     data = await request.json()
     logger.debug(f"[PROMOTE-DEBUG] Incoming request data: {data}")
     scope_level = data.get("scope_level") or data.get("target_scope")
@@ -419,19 +419,42 @@ async def promote_rule(
     logger.debug(f"[PROMOTE-DEBUG] All checks passed for rule {rule_id}")
     # All checks passed, perform promotion
     try:
-        # Actually update the rule's scope_level and scope_id
-        logger.info(f"[PROMOTE-DEBUG] Promoting rule {rule_id} from {rule.scope_level}/{rule.scope_id} to {scope_level}/{scope_id}")
-        rule.scope_level = scope_level
-        rule.scope_id = scope_id if scope_level != "global" else None
-        for field in ['categories', 'tags', 'examples', 'applies_to']:
-            if hasattr(rule, field):
-                setattr(rule, field, ensure_list(getattr(rule, field)))
+        # Create a new promoted rule (clone with new scope)
+        promoted_rule = Rule(
+            id=str(uuid.uuid4()),
+            rule_type=rule.rule_type,
+            description=rule.description,
+            diff=rule.diff,
+            status="promoted",
+            submitted_by=rule.submitted_by,
+            added_by=rule.added_by,
+            project=rule.project,
+            timestamp=datetime.utcnow(),
+            version=(rule.version or 1) + 1,
+            categories=rule.categories,
+            tags=rule.tags,
+            examples=rule.examples,
+            applies_to=rule.applies_to,
+            applies_to_rationale=rule.applies_to_rationale,
+            user_story=rule.user_story,
+            scope_level=scope_level,
+            scope_id=scope_id if scope_level != "global" else None,
+            parent_rule_id=rule.parent_rule_id,
+            superseded_by=None,
+        )
+        db.add(promoted_rule)
+        db.flush()
+        # Mark the old rule as superseded and point to the new rule
+        rule.status = "superseded"
+        rule.superseded_by = promoted_rule.id
         db.commit()
-        db.refresh(rule)
-        data = serialize_uuids(rule.__dict__.copy())
+        db.refresh(promoted_rule)
+        data = serialize_uuids(promoted_rule.__dict__.copy())
         data = normalize_rule_fields(data)
         if isinstance(data.get("timestamp"), datetime):
             data["timestamp"] = data["timestamp"].isoformat()
+        # Always return status as 'promoted' after promotion
+        data["status"] = "promoted"
         logger.info(f"[PROMOTE-DEBUG] Promotion successful for rule {rule_id} to {scope_level}/{scope_id}")
         return data
     except Exception as e:
@@ -457,3 +480,7 @@ def rules_mdc(
     rules = query.order_by(Rule.timestamp.asc()).all()
     mdc = "\n\n".join(r.diff for r in rules if r.diff)
     return Response(content=mdc, media_type="text/markdown")
+
+# Add 'superseded_by' to Rule model if not present
+if not hasattr(Rule, 'superseded_by'):
+    Rule.superseded_by = Column(String, nullable=True)

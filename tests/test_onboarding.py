@@ -62,10 +62,13 @@ def test_internal_project_onboarding(
         progress_response.status_code == 200
     ), f"Failed to fetch progress: {progress_response.text}"
     initial_progress = progress_response.json()
-    assert isinstance(initial_progress, list), "Progress should be a list of steps"
-    assert len(initial_progress) > 0, "Should have at least one onboarding step"
+    assert isinstance(initial_progress, dict), "Progress response should be a dict"
+    assert "steps" in initial_progress, "Progress response should have a 'steps' key"
+    steps = initial_progress["steps"]
+    assert isinstance(steps, list), "'steps' should be a list of steps"
+    assert len(steps) > 0, "Should have at least one onboarding step"
     # 3. Mark each step as complete
-    for step in initial_progress:
+    for step in steps:
         step_id = step["id"]
         complete_response = requests.patch(
             f"{API_URL}/onboarding/progress/{step_id}",
@@ -84,11 +87,12 @@ def test_internal_project_onboarding(
         final_progress_response.status_code == 200
     ), f"Failed to fetch final progress: {final_progress_response.text}"
     final_progress = final_progress_response.json()
-    # Check that all steps are marked as complete
-    for step in final_progress:
+    assert isinstance(final_progress, dict), "Final progress should be a dict"
+    assert "steps" in final_progress, "Final progress should have a 'steps' key"
+    final_steps = final_progress["steps"]
+    for step in final_steps:
         assert step["completed"] is True, f"Step {step['id']} is not marked as complete"
-    # 5. Verify the onboarding path is correct
-    for step in final_progress:
+    for step in final_steps:
         assert step["path"] == onboarding_path, f"Step {step['id']} has incorrect path"
 
 

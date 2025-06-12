@@ -208,6 +208,19 @@ def normalize_proposal_fields(data):
     return data
 
 
+def validate_mdc_diff_format(diff: str):
+    """Ensure the diff follows MDC format: starts with '# Rule:', contains '## Description' and '## Enforcement'."""
+    if not isinstance(diff, str) or not diff.strip():
+        return False, "'diff' must be a non-empty string."
+    if not diff.startswith("# Rule:"):
+        return False, "'diff' should start with '# Rule:' (MDC format)."
+    if "## Description" not in diff:
+        return False, "'diff' should contain '## Description' section (MDC format)."
+    if "## Enforcement" not in diff:
+        return False, "'diff' should contain '## Enforcement' section (MDC format)."
+    return True, None
+
+
 @router.post("/propose-rule-change", response_model=ProposalOut)
 async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     try:
@@ -310,6 +323,11 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
             status_code=422,
             detail="A pending proposal with the same type, diff, and scope already exists (conflict). Please wait for review or modify your proposal. This is a proposal conflict.",
         )
+
+    # Validate MDC format for 'diff'
+    is_valid, error_msg = validate_mdc_diff_format(payload.get("diff", ""))
+    if not is_valid:
+        raise HTTPException(status_code=422, detail=error_msg)
 
     # Resolve scope_id if needed
     if payload.get("scope_level") == "project" and payload.get("scope_id"):
@@ -484,7 +502,8 @@ def approve_rule_change(
         proposal.parent_rule_id = rule.id
     else:
         # Create new rule
-        rule_id = str(uuid.uuid4())
+        # Use the proposal's ID as the rule's ID so downstream endpoints/tests can find it
+        rule_id = proposal.id
         # Patch: Always resolve project to UUID if set
         project_uuid = None
         if proposal.project:
@@ -544,6 +563,7 @@ def approve_rule_change(
         proposal.parent_rule_id = rule.id
 
     # Update proposal status
+    # Set to 'approved' after approval; only promotion sets 'promoted'
     proposal.status = "approved"
     db.commit()
 
@@ -556,6 +576,8 @@ def approve_rule_change(
     logger.debug(f"[approve_rule_change] normalized: {data}")
     # Always include 'rule_id' in the response, set to None if no rule
     data["rule_id"] = str(rule.id) if rule and getattr(rule, "id", None) else None
+    # Always return status as 'approved' after approval
+    data["status"] = "approved"
     return data
 
 
@@ -690,3 +712,40 @@ def _is_valid_uuid(val):
         return True
     except Exception:
         return False
+
+
+# Alias: GET /proposals (list all proposals)
+@router.get("/proposals", response_model=List[ProposalOut])
+def list_proposals_alias(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    token: dict = Depends(require_api_token),
+):
+    return list_rule_changes(status=status, db=db, token=token)
+
+# Alias: GET /proposals/{proposal_id} (get proposal by ID)
+@router.get("/proposals/{proposal_id}", response_model=ProposalOut)
+def get_proposal_alias(
+    proposal_id: str,
+    db: Session = Depends(get_db),
+    token: dict = Depends(require_api_token),
+):
+    return get_rule_change(change_id=proposal_id, db=db, token=token)
+
+# Alias: POST /proposals/{proposal_id}/approve
+@router.post("/proposals/{proposal_id}/approve", response_model=ProposalOut)
+def approve_proposal_alias(
+    proposal_id: str,
+    db: Session = Depends(get_db),
+    token: dict = Depends(require_role("admin")),
+):
+    return approve_rule_change(change_id=proposal_id, db=db, token=token)
+
+# Alias: POST /proposals/{proposal_id}/reject
+@router.post("/proposals/{proposal_id}/reject", response_model=ProposalOut)
+def reject_proposal_alias(
+    proposal_id: str,
+    db: Session = Depends(get_db),
+    token: dict = Depends(require_role("admin")),
+):
+    return reject_rule_change(change_id=proposal_id, db=db, token=token)
