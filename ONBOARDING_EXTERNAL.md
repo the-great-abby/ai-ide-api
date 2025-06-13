@@ -35,4 +35,18 @@ Welcome, external collaborator or partner! This guide will help you get started 
 
 ---
 
-**See also:** [Universal Onboarding](ONBOARDING.md) | [Internal Onboarding](ONBOARDING_INTERNAL.md) 
+**See also:** [Universal Onboarding](ONBOARDING.md) | [Internal Onboarding](ONBOARDING_INTERNAL.md)
+
+## External Project Memory API Onboarding
+
+If you want to use the AI IDE API as a hosted memory (vector) server for your own project (with no Docker or DB access required), follow this onboarding path:
+
+- [External Project Memory API Onboarding →](docs/external/memory_api_onboarding.md)
+
+This guide covers:
+- How to get an API key
+- How to create a namespace
+- How to store and search memory via the API
+- Example scripts and troubleshooting
+
+For most external integrations, this is the recommended starting point. 

@@ -107,17 +107,45 @@ test-down-ollama-functions:
 test-test:
 	docker compose -f docker-compose.test.yml run --rm -e SKIP_TOKEN_POLLUTION_GUARD=1 -e ENVIRONMENT=test -e PYTHONPATH=/app test pytest tests/ --disable-warnings --tb=short $(PYTEST_ARGS)
 
+# Compose file override (default to test)
+COMPOSE_FILE ?= docker-compose.test.yml
+
 # --- Quickstart: Full nuke, migrate, and test cycle for new contributors ---
+quickstart:
+	@echo "[quickstart] Nuking environment..."
+	@if [ "$(COMPOSE_FILE)" = "docker-compose.test.yml" ]; then \
+	  docker compose -f docker-compose.yml down -v --remove-orphans; \
+	else \
+	  docker compose -f docker-compose.test.yml down -v --remove-orphans; \
+	fi
+	docker compose -f $(COMPOSE_FILE) down -v --remove-orphans
+	@echo "[quickstart] Bringing up core services..."
+	docker compose -f $(COMPOSE_FILE) up -d test-db test-api || docker compose -f $(COMPOSE_FILE) up -d db api
+	@echo "[quickstart] Running migrations..."
+	@if [ "$(COMPOSE_FILE)" = "docker-compose.test.yml" ]; then \
+	  $(MAKE) -f Makefile.ai-test test-db-migrate; \
+	else \
+	  $(MAKE) -f Makefile.ai-db db-migrate; \
+	fi
+	@echo "[quickstart] Running test suite or health check..."
+	@if [ "$(COMPOSE_FILE)" = "docker-compose.test.yml" ]; then \
+	  $(MAKE) -f Makefile.ai-test test-test; \
+	else \
+	  curl -s http://localhost:9103/docs || echo 'Dev API docs not available, check containers.'; \
+	fi
+	@echo "[quickstart] All done! Review the output above for results."
+
+# Legacy test quickstart for compatibility
+# Usage: make -f Makefile.ai-test test-quickstart
+# (now just calls quickstart with test compose file)
 test-quickstart:
-	@echo "[test-quickstart] Nuking test environment..."
-	docker compose -f docker-compose.test.yml down -v
-	@echo "[test-quickstart] Bringing up test-db and test-api..."
-	docker compose -f docker-compose.test.yml up -d test-db test-api
-	@echo "[test-quickstart] Running migrations..."
-	$(MAKE) -f Makefile.ai-test test-db-migrate
-	@echo "[test-quickstart] Running test suite..."
-	$(MAKE) -f Makefile.ai-test test-test
-	@echo "[test-quickstart] All done! Review the output above for results."
+	$(MAKE) -f Makefile.ai-test quickstart COMPOSE_FILE=docker-compose.test.yml
+
+# Dev quickstart for local development
+# Usage: make -f Makefile.ai-test dev-quickstart
+# (uses docker-compose.yml and dev services)
+dev-quickstart:
+	$(MAKE) -f Makefile.ai-test quickstart COMPOSE_FILE=docker-compose.yml
 
 # --- Dynamic Test DB Volume Management ---
 # Usage: TEST_DB_VOLUME=custom_volume make -f Makefile.ai-test test-db-nuke

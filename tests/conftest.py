@@ -36,6 +36,18 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 logger = logging.getLogger("test_token_bootstrap")
 logger.setLevel(logging.DEBUG)
 
+logger_pytest = logging.getLogger("pytest-session")
+
+# Utility to log rules table columns
+def log_rules_table_columns(context):
+    return;
+    #inspector = inspect(engine)
+    #try:
+        #columns = inspector.get_columns('rules')
+        # logger_pytest.info(f"[{context}] rules table columns: {[col['name'] for col in columns]}")
+    #except Exception as e:
+        #logger_pytest.warning(f"[{context}] error inspecting rules table: {e}")
+
 
 @pytest.fixture(scope="session")
 def client():
@@ -84,7 +96,7 @@ def clean_tokens():
 
 @pytest.fixture(scope="function")
 def test_project(client):
-    """Create a test project and token using the onboarding/init endpoint."""
+    log_rules_table_columns('fixture:test_project:before')
     project_name = f"test-project-{uuid.uuid4().hex[:8]}"
     resp = client.post(
         "/onboarding/init",
@@ -97,6 +109,7 @@ def test_project(client):
     print(f"[TEST DEBUG] Created test project: project_id={project_id}, token={token}")
     assert project_id, f"No project_id in onboarding response: {data}"
     assert token, f"No token in onboarding response: {data}"
+    log_rules_table_columns('fixture:test_project:after')
     return {"project_id": project_id, "token": token, "project_name": project_name}
 
 
@@ -129,6 +142,7 @@ def memory_node():
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    log_rules_table_columns('fixture:clean_db:before')
     with next(get_db()) as db:
         inspector = inspect(engine)
         for model in [
@@ -143,7 +157,9 @@ def clean_db():
             if model.__tablename__ in inspector.get_table_names():
                 db.query(model).delete()
         db.commit()
+    log_rules_table_columns('fixture:clean_db:after')
     yield
+    log_rules_table_columns('fixture:clean_db:yielded')
 
 
 @pytest.fixture
@@ -237,12 +253,12 @@ def ensure_token_bootstrap(client):
 # ARR! Pirate UUID guard: fail any test that passes a uuid.UUID object to a query!
 def pytest_sessionstart(session):
     import os
-
-    print("[DEBUG] pytest_sessionstart: DB ENV SETTINGS:")
-    print("  POSTGRES_HOST=", os.environ.get("POSTGRES_HOST"))
-    print("  POSTGRES_PORT=", os.environ.get("POSTGRES_PORT"))
-    print("  POSTGRES_DB=", os.environ.get("POSTGRES_DB"))
-    print("  POSTGRES_USER=", os.environ.get("POSTGRES_USER"))
+    logger.info("pytest_sessionstart: DB ENV SETTINGS:")
+    logger.info(f"  POSTGRES_HOST={os.environ.get('POSTGRES_HOST')}")
+    logger.info(f"  POSTGRES_PORT={os.environ.get('POSTGRES_PORT')}")
+    logger.info(f"  POSTGRES_DB={os.environ.get('POSTGRES_DB')}")
+    logger.info(f"  POSTGRES_USER={os.environ.get('POSTGRES_USER')}")
+    log_rules_table_columns('sessionstart')
     orig_filter = Query.filter
 
     def filter_guard(self, *args, **kwargs):
@@ -262,3 +278,10 @@ def pytest_sessionfinish(session, exitstatus):
     patcher = getattr(session, "_uuid_guard_patcher", None)
     if patcher:
         patcher.stop()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_protocol(item, nextitem):
+    log_rules_table_columns(f"test_start: {item.name}")
+    outcome = yield
+    log_rules_table_columns(f"test_end: {item.name}")

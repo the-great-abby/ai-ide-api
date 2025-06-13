@@ -32,7 +32,8 @@ def get_onboarding_path(path_name: str):
                 buddy=path["buddy"],
                 steps=[OnboardingStep(**step) for step in path["steps"]]
             )
-    raise HTTPException(status_code=404, detail=f"Onboarding path '{path_name}' not found.")
+    valid_journeys = [p["name"] for p in data.get("paths", [])]
+    raise HTTPException(status_code=404, detail=f"Onboarding journey '{path_name}' not found. Valid options are: {', '.join(valid_journeys)}.")
 
 @router.get("/scripts/onboard_external.py", response_class=PlainTextResponse)
 def get_onboard_external_py():

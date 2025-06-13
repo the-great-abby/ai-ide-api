@@ -20,6 +20,7 @@ import requests
 import secrets
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import RequestValidationError as FastAPIRequestValidationError
+from fastapi.staticfiles import StaticFiles
 
 import scripts.suggest_rules as suggest_rules
 from db import BugReport as DBBugReport
@@ -59,6 +60,9 @@ app = FastAPI(
 See these user stories for step-by-step onboarding, automation, and best practices for all client types.
 """
 )
+
+# Mount user stories as static files for direct access
+app.mount("/docs/user_stories", StaticFiles(directory="docs/user_stories"), name="user_stories")
 
 # --- Router includes (ensure all are present and correct) ---
 app.include_router(onboarding_router)  # prefix='/onboarding' in onboarding.py

@@ -52,6 +52,41 @@
         {"instruction": "(Optional) Explore more: Try adding an edge, searching, or traversing the memory graph (see the Memory System Guide for examples).", "doc_link": "/onboarding/user_story/memory_onboarding#optional-explore-more"},
         {"instruction": "Celebrate your achievement: Add an entry to the Pirate's Log (PIRATES_LOG.md) sharing your success!", "doc_link": "/onboarding/user_story/memory_onboarding#how-to-celebrate"}
       ]
+    },
+    {
+      "name": "external_project_memory",
+      "title": "External Project Memory API Onboarding",
+      "description": "Set up your project to use the AI IDE API as a hosted memory (vector) server.",
+      "steps": [
+        {
+          "title": "Get Your API Key",
+          "description": "Contact your admin or use the /onboarding/init endpoint to obtain an API key."
+        },
+        {
+          "title": "Create a Namespace",
+          "description": "Decide on a unique namespace for your project (e.g., your-project-name)."
+        },
+        {
+          "title": "Store and Search Memory",
+          "description": "Use the /memory/nodes and /memory/search endpoints to store and retrieve memory vectors. See the downloadable quickstart script for examples."
+        },
+        {
+          "title": "Review API Docs",
+          "description": "Visit /docs for the full API reference and example requests."
+        }
+      ],
+      "resources": [
+        {
+          "type": "script",
+          "label": "Python Quickstart Script",
+          "url": "/onboarding/scripts/memory_quickstart.py"
+        },
+        {
+          "type": "postman",
+          "label": "Postman Collection",
+          "url": "/onboarding/scripts/memory_api.postman_collection.json"
+        }
+      ]
     }
   ]
 } 

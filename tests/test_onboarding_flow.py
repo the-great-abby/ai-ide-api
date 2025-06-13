@@ -14,16 +14,16 @@ def test_project_name():
     return f"test_project_{uuid.uuid4().hex[:8]}"
 
 @pytest.fixture
-def onboarding_path():
-    return "test_path"
+def onboarding_journey():
+    return "test_journey"
 
-def test_internal_project_onboarding(admin_headers_fixture, test_project_name, onboarding_path, override_get_db):
+def test_internal_project_onboarding(admin_headers_fixture, test_project_name, onboarding_journey, override_get_db):
     headers = admin_headers_fixture
-    print(f"[TEST DEBUG] project_name={test_project_name}, path={onboarding_path}, headers={headers}")
+    print(f"[TEST DEBUG] project_name={test_project_name}, journey={onboarding_journey}, headers={headers}")
     # 1. Initialize onboarding
     init_response = requests.post(
         f"{API_URL}/onboarding/init",
-        json={"project_name": test_project_name, "path": onboarding_path},
+        json={"project_name": test_project_name, "journey": onboarding_journey},
         headers=headers,
     )
     if init_response.status_code != 200:
@@ -33,7 +33,7 @@ def test_internal_project_onboarding(admin_headers_fixture, test_project_name, o
     ), f"Failed to initialize onboarding: {init_response.text}"
     # Use project_name for progress calls
     progress_response = requests.get(
-        f"{API_URL}/onboarding/progress/{test_project_name}?path={onboarding_path}",
+        f"{API_URL}/onboarding/progress/{test_project_name}?journey={onboarding_journey}",
         headers=headers,
     )
     assert (
@@ -55,7 +55,7 @@ def test_internal_project_onboarding(admin_headers_fixture, test_project_name, o
         ), f"Failed to mark step {step_id} as complete: {complete_response.text}"
     # 4. Verify all steps are complete
     final_progress_response = requests.get(
-        f"{API_URL}/onboarding/progress/{test_project_name}?path={onboarding_path}",
+        f"{API_URL}/onboarding/progress/{test_project_name}?journey={onboarding_journey}",
         headers=headers,
     )
     assert (

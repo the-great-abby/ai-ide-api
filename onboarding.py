@@ -220,21 +220,22 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
 
     project_name = data.get("project_name")
     team_name = data.get("team_name")
-    path = data.get("path")
+    # Accept 'journey' as preferred, fallback to 'path' for backward compatibility
+    journey = data.get("journey") or data.get("path")
     pirate_mode = data.get("pirate_mode", False)
-    # Strictly require non-empty project_name and path
+    # Strictly require non-empty project_name and journey
     if (
         not isinstance(project_name, str)
         or not project_name.strip()
-        or not isinstance(path, str)
-        or not path.strip()
+        or not isinstance(journey, str)
+        or not journey.strip()
     ):
         raise HTTPException(
             status_code=400,
-            detail="Missing project_name or path (must be non-empty strings)",
+            detail="Missing project_name or journey (must be non-empty strings)",
         )
     project_name = project_name.strip()
-    path = path.strip()
+    journey = journey.strip()
     # Always create or get project/team by name, providing sensible defaults
     default_namespace = f"{project_name}/private"
     namespace_prefix = project_name
@@ -253,13 +254,15 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
             onboarding_paths = json.load(f)
         # Support new structure: onboarding_paths['paths'] is a list of dicts with 'name' and 'steps'
         path_entry = None
+        valid_journeys = []
         if isinstance(onboarding_paths, dict) and "paths" in onboarding_paths:
             for entry in onboarding_paths["paths"]:
-                if entry.get("name") == path:
+                valid_journeys.append(entry.get("name"))
+                if entry.get("name") == journey:
                     path_entry = entry
                     break
         if not path_entry or "steps" not in path_entry:
-            raise HTTPException(status_code=400, detail="Invalid onboarding path")
+            raise HTTPException(status_code=400, detail=f"Invalid onboarding journey. Valid options are: {', '.join(valid_journeys)}.")
         buddy = path_entry.get("buddy")
         # Define buddy intros (can be moved to a config file if needed)
         buddy_intros = {
@@ -301,7 +304,7 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
             existing = (
                 db.query(ProjectOnboardingProgress)
                 .filter_by(
-                    project_id=project_name, path=path, step=instruction, version=1
+                    project_id=project_name, path=journey, step=instruction, version=1
                 )
                 .first()
             )
@@ -309,7 +312,7 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
                 created_steps.append(
                     {
                         "id": str(existing.id),
-                        "path": path,
+                        "path": journey,
                         "instruction": instruction,
                         "doc_link": doc_link,
                         "completed": existing.completed,
@@ -319,7 +322,7 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
                 continue
             progress = ProjectOnboardingProgress(
                 project_id=project_name,
-                path=path,
+                path=journey,
                 step=instruction,
                 completed=False,
                 status="not_started",
@@ -329,7 +332,7 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
             created_steps.append(
                 {
                     "id": str(progress.id),
-                    "path": path,
+                    "path": journey,
                     "instruction": instruction,
                     "doc_link": doc_link,
                     "completed": False,
@@ -346,7 +349,7 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
             "steps": created_steps,
             "team_id": str(team.id) if team else None,
         }
-        if path == "test_path":
+        if journey == "test_path":
             # Label project as test-run and always create a token
             from db import ApiAccessToken
             new_token = secrets.token_urlsafe(32)

@@ -34,3 +34,17 @@ Provide new contributors and existing developers with a one-command workflow to 
 - Run this workflow before submitting pull requests to ensure a clean, passing test suite.
 - If you encounter environment or migration issues, use test-quickstart to reset and verify your setup.
 - Document any additional manual steps required for new services or dependencies.
+
+## Additional Onboarding Paths & Resources
+
+After you have set up your project and verified your local environment, you may want to explore other ways to use the AI IDE API:
+
+- **External Project Memory API Onboarding:**
+  Use the AI IDE API as a hosted memory (vector) server for your own project, with no Docker or DB access required.
+  [See External Project Memory API Onboarding →](../external/memory_api_onboarding.md)
+
+- **Full API Reference:**
+  Explore all endpoints and try them interactively at `/docs` on your API host.
+
+- **Internal Developer Onboarding:**
+  [See this quickstart (current doc)](test_quickstart.md) for local development and testing.
