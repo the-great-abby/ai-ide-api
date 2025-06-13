@@ -84,6 +84,8 @@ class ProposalOut(ProposalModel):
 class FeedbackIn(BaseModel):
     feedback_type: str  # Must be one of ALLOWED_FEEDBACK_TYPES
     comments: str = ""
+    scope_level: Optional[str] = None
+    project: Optional[str] = None
 
     @validator("feedback_type")
     def validate_feedback_type(cls, v):
@@ -280,10 +282,12 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     # Now check for required scope_id
     if scope_level in ("project", "team") and not payload.get("scope_id"):
         logger.error(f"[SCOPE-RESOLVE-FAIL] scope_id missing for scope_level={scope_level}, payload: {payload}")
+        logger.error(f"[422-RAISE] Missing scope_id for scope_level={scope_level}, payload={payload}")
         raise HTTPException(status_code=422, detail="scope_id (team_or_project_assoc_id) is required for team or project scope. This is a scope conflict.")
     try:
         uuid.UUID(str(scope_id))
     except Exception:
+        logger.error(f"[422-RAISE] scope_id is not a valid UUID after resolution: {scope_id}, payload={payload}")
         raise HTTPException(status_code=422, detail="scope_id must be a valid UUID after resolution.")
     # Debug logging for conflict checks
     logger.warning(f"[CONFLICT-DEBUG] Checking for conflicts: rule_type={payload.get('rule_type')}, diff={payload.get('diff')}, scope_level={scope_level}, scope_id={scope_id}")
@@ -300,7 +304,7 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
         .first()
     )
     if existing_rule:
-        logger.warning(f"[CONFLICT-DEBUG] Approved rule conflict found: id={existing_rule.id}, scope_id={existing_rule.scope_id}")
+        logger.error(f"[422-RAISE] Approved rule conflict: id={existing_rule.id}, scope_id={existing_rule.scope_id}, payload={payload}")
         raise HTTPException(
             status_code=422,
             detail="A rule with the same type, diff, and scope already exists (conflict). Please modify your rule or scope. This is a rule conflict.",
@@ -318,7 +322,7 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
         .first()
     )
     if existing_proposal:
-        logger.warning(f"[CONFLICT-DEBUG] Pending proposal conflict found: id={existing_proposal.id}, scope_id={existing_proposal.scope_id}")
+        logger.error(f"[422-RAISE] Pending proposal conflict: id={existing_proposal.id}, scope_id={existing_proposal.scope_id}, payload={payload}")
         raise HTTPException(
             status_code=422,
             detail="A pending proposal with the same type, diff, and scope already exists (conflict). Please wait for review or modify your proposal. This is a proposal conflict.",
@@ -326,7 +330,9 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
 
     # Validate MDC format for 'diff'
     is_valid, error_msg = validate_mdc_diff_format(payload.get("diff", ""))
+    logger.warning(f"[MDC-VALIDATION] is_valid={is_valid}, error_msg={error_msg}, diff={payload.get('diff')}")
     if not is_valid:
+        logger.error(f"[422-RAISE] MDC diff format invalid: {error_msg}, payload={payload}")
         raise HTTPException(status_code=422, detail=error_msg)
 
     # Resolve scope_id if needed
@@ -374,6 +380,7 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_proposal)
     except ValidationError as ve:
+        logger.error(f"[422-RAISE] Pydantic ValidationError: {ve.errors()}, payload={payload}")
         raise HTTPException(status_code=422, detail=f"Validation error: {ve.errors()}")
     except Exception as e:
         logger.error(f"[ERROR] Exception in /propose-rule-change: {e}\n{traceback.format_exc()}")

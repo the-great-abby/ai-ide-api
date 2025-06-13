@@ -83,48 +83,27 @@ def clean_tokens():
 
 
 @pytest.fixture(scope="function")
-def admin_token(client, override_get_db):
-    logger.debug("[admin_token] Creating user token...")
-    user_response = client.post(
-        "/admin/generate-token", json={"description": "Test user token", "role": "user"}
+def test_project(client):
+    """Create a test project and token using the onboarding/init endpoint."""
+    project_name = f"test-project-{uuid.uuid4().hex[:8]}"
+    resp = client.post(
+        "/onboarding/init",
+        json={"project_name": project_name, "path": "test_path"}
     )
-    logger.debug(
-        f"[admin_token] User token response: {user_response.status_code}, {user_response.text}"
-    )
-    assert (
-        user_response.status_code == 200
-    ), f"Failed to create user token: {user_response.text}"
-    user_token = user_response.json()["token"]
-    logger.debug(f"[admin_token] User token: {user_token}")
-    logger.debug("[admin_token] Creating admin token...")
-    admin_response = client.post(
-        "/admin/generate-token",
-        json={"description": "Test admin token", "role": "admin"},
-        headers={"Authorization": f"Bearer {user_token}"},
-    )
-    logger.debug(
-        f"[admin_token] Admin token response: {admin_response.status_code}, {admin_response.text}"
-    )
-    assert (
-        admin_response.status_code == 200
-    ), f"Failed to create admin token: {admin_response.text}"
-    admin_token = admin_response.json()["token"]
-    logger.debug(f"[admin_token] Admin token: {admin_token}")
-    # Confirm token is present and active in the shared DB session
-    from db import ApiAccessToken
+    assert resp.status_code == 200, f"Failed to init onboarding: {resp.text}"
+    data = resp.json()
+    project_id = data.get("project_id") or data.get("project", {}).get("id")
+    token = data.get("token") or data.get("api_token")
+    print(f"[TEST DEBUG] Created test project: project_id={project_id}, token={token}")
+    assert project_id, f"No project_id in onboarding response: {data}"
+    assert token, f"No token in onboarding response: {data}"
+    return {"project_id": project_id, "token": token, "project_name": project_name}
 
-    db = TestingSessionLocal()
-    try:
-        token_obj = (
-            db.query(ApiAccessToken).filter_by(token=admin_token, active=True).first()
-        )
-        logger.debug(f"[admin_token] DB lookup for admin token: {token_obj}")
-        assert (
-            token_obj is not None
-        ), "Admin token not present or not active in DB after creation."
-    finally:
-        db.close()
-    return admin_token
+
+@pytest.fixture(scope="function")
+def admin_token(client, override_get_db, test_project):
+    # Use the admin token created by onboarding/init for test_path
+    return test_project["token"]
 
 
 @pytest.fixture(scope="function")

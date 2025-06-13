@@ -12,7 +12,7 @@ def test_rule_versioning_flow(admin_headers, client, override_get_db):
     initial_rule = {
         "rule_type": "test_versioning",
         "description": "Initial version",
-        "diff": "Initial diff",
+        "diff": "# Rule: Initial diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning"],
@@ -46,7 +46,7 @@ def test_rule_versioning_flow(admin_headers, client, override_get_db):
     updated_rule = {
         "rule_type": "test_versioning",
         "description": "Updated version",
-        "diff": "Updated diff",
+        "diff": "# Rule: Updated diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning", "updated"],
@@ -118,7 +118,7 @@ def test_multiple_rule_updates(admin_headers, client, override_get_db):
     initial_rule = {
         "rule_type": "test_multiple_updates",
         "description": "Version 1",
-        "diff": "Diff 1",
+        "diff": "# Rule: Diff 1\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning"],
@@ -152,7 +152,7 @@ def test_multiple_rule_updates(admin_headers, client, override_get_db):
         {
             "rule_type": "test_multiple_updates",
             "description": f"Version {i+2}",
-            "diff": f"Diff {i+2}",
+            "diff": f"Diff {i+2}\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["versioning", f"v{i+2}"],
@@ -196,7 +196,7 @@ def test_multiple_rule_updates(admin_headers, client, override_get_db):
     ]
     for i, version in enumerate(history):
         assert version["description"] == f"Version {4-i}"
-        assert version["diff"] == f"Diff {4-i}"
+        assert version["diff"] == f"Diff {4-i}\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing."
         assert set(version["tags"]) == set(expected_tags[i])
 
 
@@ -206,7 +206,7 @@ def test_rule_version_metadata(admin_headers, client, override_get_db):
     initial_rule = {
         "rule_type": "test_metadata",
         "description": "Initial version",
-        "diff": "Initial diff",
+        "diff": "# Rule: Initial diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning"],
@@ -240,7 +240,7 @@ def test_rule_version_metadata(admin_headers, client, override_get_db):
     updated_rule = {
         "rule_type": "test_metadata",
         "description": "Updated version",
-        "diff": "Updated diff",
+        "diff": "# Rule: Updated diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["versioning", "updated"],

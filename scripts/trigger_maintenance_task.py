@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-import sys, json, pika, os
+import sys, json, os, asyncio
+from utils.message_broker import RealRabbitMQClient, MessageBrokerBase
 
 RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST", "rabbitmq")
 QUEUE_NAME = os.environ.get("MAINTENANCE_QUEUE", "maintenance")
 
-def publish_task(task, args=None):
-    connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_HOST))
-    channel = connection.channel()
-    channel.queue_declare(queue=QUEUE_NAME)
-    body = json.dumps({"task": task, "args": args or {}})
-    channel.basic_publish(exchange='', routing_key=QUEUE_NAME, body=body)
+async def publish_task(task, args=None, broker: MessageBrokerBase = None):
+    if broker is None:
+        broker = RealRabbitMQClient(f"amqp://user:password@{RABBITMQ_HOST}:5672/")
+    body = {"task": task, "args": args or {}}
+    await broker.publish(QUEUE_NAME, body)
     print(f"[PUBLISHED] task={task} args={args}")
-    connection.close()
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -19,4 +18,4 @@ if __name__ == "__main__":
         sys.exit(1)
     task = sys.argv[1]
     args = dict(arg.split("=", 1) for arg in sys.argv[2:])
-    publish_task(task, args) 
+    asyncio.run(publish_task(task, args)) 

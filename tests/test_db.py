@@ -30,7 +30,7 @@ def test_rule_model_creation(session):
         id=str(uuid.uuid4()),
         rule_type="test_type",
         description="A test rule",
-        diff="diff",
+        diff="# Rule: diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         status="approved",
         submitted_by="tester",
         project=str(uuid.uuid4()),

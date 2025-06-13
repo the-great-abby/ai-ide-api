@@ -3,7 +3,7 @@ def test_non_uuid_string_rejected(client, admin_headers, override_get_db):
     payload = {
         "rule_type": "bad_uuid",
         "description": "Should succeed",
-        "diff": "diff",
+        "diff": "# Rule: diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["test"],

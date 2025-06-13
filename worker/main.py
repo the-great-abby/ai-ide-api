@@ -1,8 +1,8 @@
 import json
 import os
 import time
-
-import pika
+import asyncio
+from utils.message_broker import RealRabbitMQClient, MessageBrokerBase
 import requests
 
 RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://user:password@rabbitmq:5672/")
@@ -11,8 +11,7 @@ OLLAMA_FUNCTIONS_URL = os.environ.get(
     "OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000"
 )
 
-
-def process_job(body):
+async def process_job(body):
     print("Processing job:", body)
     diff = body.get("diff")
     if not diff:
@@ -30,25 +29,19 @@ def process_job(body):
     except Exception as e:
         print("Error calling Ollama Functions API:", e)
 
-
-def main():
-    params = pika.URLParameters(RABBITMQ_URL)
-    connection = pika.BlockingConnection(params)
-    channel = connection.channel()
-    channel.queue_declare(queue=QUEUE_NAME, durable=True)
-
+async def main(broker: MessageBrokerBase = None):
+    if broker is None:
+        broker = RealRabbitMQClient(RABBITMQ_URL)
     print("Worker started, polling for jobs...")
     while True:
-        method_frame, header_frame, body = channel.basic_get(QUEUE_NAME)
-        if method_frame:
+        body = await broker.consume(QUEUE_NAME)
+        if body:
             try:
-                process_job(json.loads(body))
-                channel.basic_ack(method_frame.delivery_tag)
+                await process_job(body)
             except Exception as e:
                 print("Error processing job:", e)
         else:
-            time.sleep(1)
-
+            await asyncio.sleep(1)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

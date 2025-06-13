@@ -1,8 +1,8 @@
-"""Merge heads
+"""create test_table
 
-Revision ID: c0f38afa30e4
-Revises: 7e2b1a4c5f01, ab12cd34ef56
-Create Date: 2025-05-14 02:53:08.837393
+Revision ID: d7f1630c88dc
+Revises: 23b59ec9a17b
+Create Date: 2025-06-13 01:07:51.266363
 
 """
 from typing import Sequence, Union
@@ -12,17 +12,20 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'c0f38afa30e4'
-down_revision: Union[str, None] = ('7e2b1a4c5f01', 'ab12cd34ef56')
+revision: str = 'd7f1630c88dc'
+down_revision: Union[str, None] = '23b59ec9a17b'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
     """Upgrade schema."""
-    pass
+    op.create_table(
+        'test_table',
+        sa.Column('id', sa.String(), primary_key=True)
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    pass
+    op.drop_table('test_table')

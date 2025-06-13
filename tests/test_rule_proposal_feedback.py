@@ -11,7 +11,7 @@ def test_submit_and_list_feedback(admin_headers, client, override_get_db):
     proposal = {
         "rule_type": "feedback_test",
         "description": "Feedback test rule",
-        "diff": "# Rule: Feedback Test\n## Description\nFeedback test rule\n## Enforcement\nTesting feedback.",
+        "diff": "# Rule: Test diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["feedback"],
@@ -69,7 +69,7 @@ def test_multiple_feedback_entries(admin_headers, client, override_get_db):
     proposal = {
         "rule_type": "test_multiple_feedback",
         "description": "Test multiple feedback entries",
-        "diff": "Test diff",
+        "diff": "# Rule: Test diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["feedback"],
@@ -139,7 +139,7 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
     proposal = {
         "rule_type": "test_invalid_feedback",
         "description": "Test invalid feedback type",
-        "diff": "Test diff",
+        "diff": "# Rule: Test diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["feedback"],
@@ -197,7 +197,7 @@ def test_feedback_type_enforcement(admin_headers, client, feedback_type, expecte
     proposal = {
         "rule_type": "test_feedback_type_enforcement",
         "description": "Test feedback type enforcement",
-        "diff": "Test diff",
+        "diff": "# Rule: Test diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["feedback"],

@@ -10,6 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from db import Vector
 
 revision = "20250611_move_memory_vectors_from_main"
 down_revision = None
@@ -24,7 +25,7 @@ def upgrade() -> None:
         sa.Column("id", sa.String(), primary_key=True),
         sa.Column("namespace", sa.String(), nullable=False),
         sa.Column("content", sa.String(), nullable=False),
-        sa.Column("embedding", postgresql.ARRAY(sa.Float()), nullable=True),
+        sa.Column("embedding", Vector(), nullable=True),
         sa.Column("meta", sa.String(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("project_id", sa.String(), nullable=False),

@@ -80,6 +80,7 @@ class Rule(Base):
     scope_level = Column(String, index=True, nullable=False, default="global")
     scope_id = Column(String, index=True, nullable=True)
     parent_rule_id = Column(String, nullable=True)
+    superseded_by = Column(String, nullable=True)  # New: points to the rule that supersedes this one
 
 
 # Proposal model

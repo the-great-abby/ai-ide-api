@@ -11,7 +11,7 @@ def test_rule_promotion_flow(admin_headers, client, override_get_db):
     project_rule = {
         "rule_type": "promotion_test",
         "description": "Promotion test rule",
-        "diff": "# Rule: Promotion Test\n## Description\nPromotion test rule\n## Enforcement\nTesting promotion.",
+        "diff": "# Rule: Test diff\n## Description\nPromotion test rule\n## Enforcement\nTesting promotion.",
         "submitted_by": "tester",
         "scope_level": "project",
         "project": "test-project",
@@ -71,7 +71,7 @@ def test_invalid_promotion(admin_headers, client, override_get_db):
     team_rule = {
         "rule_type": "test_invalid_promotion",
         "description": "Test invalid promotion",
-        "diff": "Test diff",
+        "diff": "# Rule: Test diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "scope_level": "team",
         "scope_id": team_scope_id,
@@ -130,7 +130,7 @@ def test_promotion_with_missing_scope_id(admin_headers, client, override_get_db)
     project_rule = {
         "rule_type": "test_missing_scope",
         "description": "Test missing scope ID",
-        "diff": "Test diff",
+        "diff": "# Rule: Test diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "scope_level": "project",
         "scope_id": project_scope_id,
