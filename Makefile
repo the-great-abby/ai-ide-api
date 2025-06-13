@@ -90,7 +90,7 @@ setup-memory-hook:
 		echo "" >> .git/hooks/pre-commit; \
 		echo "# Run memory scanning script" >> .git/hooks/pre-commit; \
 		echo "echo \"Scanning for memory node opportunities...\"" >> .git/hooks/pre-commit; \
-		echo "docker compose exec -e MEMORY_API_URL=\"http://api:8000/memory/nodes\" -e OLLAMA_URL=\"http://ollama-functions:8000/api/generate\" misc-scripts python /code/scripts/scan_for_memory_node_opportunities.py" >> .git/hooks/pre-commit; \
+		echo "docker compose exec -e MEMORY_API_URL=\"http://api:8000/memory/nodes\" -e OLLAMA_URL=\"http://host.docker.internal:11434/api/generate\" misc-scripts python /code/scripts/scan_for_memory_node_opportunities.py" >> .git/hooks/pre-commit; \
 		echo "" >> .git/hooks/pre-commit; \
 		echo "# Continue with commit" >> .git/hooks/pre-commit; \
 		echo "exit 0" >> .git/hooks/pre-commit; \

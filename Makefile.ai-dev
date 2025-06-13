@@ -1,6 +1,10 @@
 # --- Production/Dev Environment Lifecycle Targets ---
 ai-up:
-	docker-compose up -d api frontend misc-scripts ollama-functions worker
+#	docker-compose up -d api frontend misc-scripts ollama-functions worker
+
+	docker compose up -d db api frontend misc-scripts ollama-functions worker
+	@echo "[test-up] Test environment is up!"
+
 	@echo "[ai-up] Production/dev environment is up!"
 
 ai-down:

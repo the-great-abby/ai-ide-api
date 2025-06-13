@@ -22,7 +22,7 @@ services:
       - PYTHONPATH=/app
       - POSTGRES_DB=rulesdb
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/rulesdb
-      - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
+      - OLLAMA_FUNCTIONS_URL=http://ollama-functions:11434
       - CORS_ORIGINS=*  # Allow all origins for debugging; restrict in production!
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
     depends_on:
@@ -119,7 +119,7 @@ services:
       - rabbitmq
       - ollama-functions
     env_file:
-      - change-this-env.llm-worker.example
+      - .env.llm-worker
     profiles: ["llm"]
 
   valkey:

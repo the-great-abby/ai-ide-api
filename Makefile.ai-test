@@ -119,9 +119,44 @@ test-quickstart:
 	$(MAKE) -f Makefile.ai-test test-test
 	@echo "[test-quickstart] All done! Review the output above for results."
 
+# --- Dynamic Test DB Volume Management ---
+# Usage: TEST_DB_VOLUME=custom_volume make -f Makefile.ai-test test-db-nuke
+# If TEST_DB_VOLUME is not set, a new unique volume name will be generated each time.
+
+# Helper to get date and timestamp
+DATE := $(shell date +%Y%m%d)
+TIME := $(shell date +%H%M%S)
+VOLUME_FILE := .last_test_db_volume
+
+# If TEST_DB_VOLUME is not set, generate a new one with date and time
+ifndef TEST_DB_VOLUME
+TEST_DB_VOLUME := rules_postgres_data_test_fresh_$(DATE)_$(TIME)
+endif
+
+# Save the new volume name for future cleanup
+$(shell echo $(TEST_DB_VOLUME) > $(VOLUME_FILE))
+
+# Read the previous volume name (if any)
+PREV_VOLUME := $(shell cat $(VOLUME_FILE) 2>/dev/null)
+
+# Nuke target: remove previous volume, create new one, spin up test-db
+# Ignores errors if the previous volume does not exist or cannot be removed
+# Always uses the current TEST_DB_VOLUME
+
 test-db-nuke:
+	@if [ -n "$(PREV_VOLUME)" ] && [ "$(PREV_VOLUME)" != "$(TEST_DB_VOLUME)" ]; then \
+	  echo "[test-db-nuke] Removing previous volume: $(PREV_VOLUME)"; \
+	  docker volume rm $(PREV_VOLUME) || true; \
+	else \
+	  echo "[test-db-nuke] No previous volume to remove or using same volume name."; \
+	fi
+	@echo "[test-db-nuke] Using volume: $(TEST_DB_VOLUME)"
 	docker compose -f docker-compose.test.yml down -v
 	docker compose -f docker-compose.test.yml build --no-cache test-db
 	docker compose -f docker-compose.test.yml up -d test-db
+
+# In docker-compose.test.yml, replace the volume name with $${TEST_DB_VOLUME:-rules_postgres_data_test_fresh}
+# Example:
+#   - $${TEST_DB_VOLUME:-rules_postgres_data_test_fresh}:/var/lib/postgresql/data
 
 .PHONY: test-up test-down test-json test-one test-unit test-integration test-network test-cli test-coverage test-rebuild test-rebuild-with-setup test-db-migrate test-db-revision test-db-heads test-db-history test-db-stamp-head test-memorydb-revision test-api-logs test-db-logs test-ollama-functions-up test-ollama-functions-down test-ollama-functions-logs test-db-current test-pg-query test-up-ollama-functions test-down-ollama-functions test-test test-quickstart test-db-nuke 

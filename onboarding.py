@@ -67,26 +67,24 @@ Welcome to the API! This guide will help you get started.
 @router.get("/user_story/{path}", response_class=Response)
 def get_onboarding_user_story(path: str):
     """Get user story documentation for a specific path."""
-    content = f"""
-# User Story: {path}
-
-This is a placeholder for the user story documentation for {path}.
-
-## Overview
-
-[Add overview here]
-
-## Steps
-
-1. [Step 1]
-2. [Step 2]
-3. [Step 3]
-
-## Expected Outcome
-
-[Add expected outcome here]
-"""
-    return Response(content=markdown.markdown(content), media_type="text/html")
+    # Map onboarding path names to markdown files
+    path_map = {
+        "internal_dev": "ONBOARDING_INTERNAL.md",
+        "external_project": "ONBOARDING_EXTERNAL.md",
+        "memory_onboarding": "FIRST_MEMORY_ONBOARDING.md",
+        "test_path": "ONBOARDING.md",
+    }
+    filename = path_map.get(path)
+    if not filename or not os.path.exists(filename):
+        return Response(
+            f"<h1>Not Found</h1><p>No onboarding documentation found for path: {path}</p>",
+            status_code=404,
+            media_type="text/html",
+        )
+    with open(filename, "r", encoding="utf-8") as f:
+        md_content = f.read()
+    html_content = markdown.markdown(md_content, extensions=["fenced_code", "tables"])
+    return Response(html_content, media_type="text/html")
 
 
 @router.get("/progress/{project_name}")
@@ -97,7 +95,9 @@ async def onboarding_progress(
         f"Fetching onboarding progress for project_id={project_name}, path={path or 'internal_dev'}"
     )
     # Load onboarding_paths to get doc_links
-    onboarding_paths_path = os.path.join(os.path.dirname(__file__), "onboarding_paths.json")
+    onboarding_paths_path = os.path.join(
+        os.path.dirname(__file__), "onboarding_paths.json"
+    )
     with open(onboarding_paths_path, "r") as f:
         onboarding_paths = json.load(f)
     path_entry = None
@@ -109,7 +109,11 @@ async def onboarding_progress(
     doc_links = {}
     if path_entry and "steps" in path_entry:
         for step in path_entry["steps"]:
-            instruction = step["instruction"] if isinstance(step, dict) and "instruction" in step else step
+            instruction = (
+                step["instruction"]
+                if isinstance(step, dict) and "instruction" in step
+                else step
+            )
             doc_link = step.get("doc_link") if isinstance(step, dict) else None
             doc_links[instruction] = doc_link
     progress = (
@@ -146,7 +150,9 @@ async def onboarding_progress(
     all_completed = all(s.get("status") == "completed" for s in steps_out)
     response = {"steps": steps_out}
     if all_completed and steps_out:
-        response["congratulations"] = "Congratulations! All onboarding steps are complete. Welcome aboard!"
+        response[
+            "congratulations"
+        ] = "Congratulations! All onboarding steps are complete. Welcome aboard!"
     return response
 
 
@@ -162,7 +168,13 @@ async def patch_onboarding_progress(
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
     data = await request.json()
-    allowed_statuses = ["not_started", "in_progress", "completed", "skipped", "needs_help"]
+    allowed_statuses = [
+        "not_started",
+        "in_progress",
+        "completed",
+        "skipped",
+        "needs_help",
+    ]
     if "completed" in data:
         step.completed = data["completed"]
         if data["completed"]:
@@ -171,7 +183,10 @@ async def patch_onboarding_progress(
         step.details = data["details"]
     if "status" in data:
         if data["status"] not in allowed_statuses:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {data['status']}. Allowed: {allowed_statuses}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status: {data['status']}. Allowed: {allowed_statuses}",
+            )
         step.status = data["status"]
     db.commit()
     db.refresh(step)
@@ -192,14 +207,23 @@ async def patch_onboarding_progress(
 @router.post("/init")
 async def onboarding_init(request: Request, db: Session = Depends(get_db)):
     import traceback
+
     data = await request.json()
     project_name = data.get("project_name")
     team_name = data.get("team_name")
     path = data.get("path")
     pirate_mode = data.get("pirate_mode", False)
     # Strictly require non-empty project_name and path
-    if not isinstance(project_name, str) or not project_name.strip() or not isinstance(path, str) or not path.strip():
-        raise HTTPException(status_code=400, detail="Missing project_name or path (must be non-empty strings)")
+    if (
+        not isinstance(project_name, str)
+        or not project_name.strip()
+        or not isinstance(path, str)
+        or not path.strip()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Missing project_name or path (must be non-empty strings)",
+        )
     project_name = project_name.strip()
     path = path.strip()
     # Always create or get project/team by name, providing sensible defaults
@@ -212,7 +236,9 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
         namespace_prefix=namespace_prefix,
     )
     team = get_or_create_team_by_name(db, team_name) if team_name else None
-    onboarding_paths_path = os.path.join(os.path.dirname(__file__), "onboarding_paths.json")
+    onboarding_paths_path = os.path.join(
+        os.path.dirname(__file__), "onboarding_paths.json"
+    )
     try:
         with open(onboarding_paths_path, "r") as f:
             onboarding_paths = json.load(f)
@@ -246,41 +272,61 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
         buddy_intro = None
         if buddy:
             if pirate_mode:
-                buddy_intro = pirate_buddy_intros.get(buddy, f"Arrr! {buddy} be yer guide on this voyage.")
+                buddy_intro = pirate_buddy_intros.get(
+                    buddy, f"Arrr! {buddy} be yer guide on this voyage."
+                )
             else:
-                buddy_intro = buddy_intros.get(buddy, f"Welcome! {buddy} will guide you on this path.")
+                buddy_intro = buddy_intros.get(
+                    buddy, f"Welcome! {buddy} will guide you on this path."
+                )
         steps = path_entry["steps"]
         created_steps = []
         for step in steps:
-            instruction = step["instruction"] if isinstance(step, dict) and "instruction" in step else step
+            instruction = (
+                step["instruction"]
+                if isinstance(step, dict) and "instruction" in step
+                else step
+            )
             doc_link = step.get("doc_link") if isinstance(step, dict) else None
             # Use project_name (string) as project_id in onboarding progress
-            existing = db.query(ProjectOnboardingProgress).filter_by(
-                project_id=project_name, path=path, step=instruction, version=1
-            ).first()
+            existing = (
+                db.query(ProjectOnboardingProgress)
+                .filter_by(
+                    project_id=project_name, path=path, step=instruction, version=1
+                )
+                .first()
+            )
             if existing:
-                created_steps.append({
-                    "id": str(existing.id),
-                    "path": path,
-                    "instruction": instruction,
-                    "doc_link": doc_link,
-                    "completed": existing.completed,
-                    "status": getattr(existing, "status", "not_started"),
-                })
+                created_steps.append(
+                    {
+                        "id": str(existing.id),
+                        "path": path,
+                        "instruction": instruction,
+                        "doc_link": doc_link,
+                        "completed": existing.completed,
+                        "status": getattr(existing, "status", "not_started"),
+                    }
+                )
                 continue
             progress = ProjectOnboardingProgress(
-                project_id=project_name, path=path, step=instruction, completed=False, status="not_started"
+                project_id=project_name,
+                path=path,
+                step=instruction,
+                completed=False,
+                status="not_started",
             )
             db.add(progress)
             db.flush()
-            created_steps.append({
-                "id": str(progress.id),
-                "path": path,
-                "instruction": instruction,
-                "doc_link": doc_link,
-                "completed": False,
-                "status": "not_started",
-            })
+            created_steps.append(
+                {
+                    "id": str(progress.id),
+                    "path": path,
+                    "instruction": instruction,
+                    "doc_link": doc_link,
+                    "completed": False,
+                    "status": "not_started",
+                }
+            )
         db.commit()
         return {
             "project_name": project_name,
@@ -288,11 +334,13 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
             "buddy": buddy,
             "buddy_intro": buddy_intro,
             "steps": created_steps,
-            "team_id": str(team.id) if team else None
+            "team_id": str(team.id) if team else None,
         }
     except HTTPException:
         raise
     except Exception as e:
         tb = traceback.format_exc()
         logger.error(f"Onboarding init failed: {e}\n{tb}")
-        raise HTTPException(status_code=500, detail=f"Onboarding init failed: {e}\n{tb}")
+        raise HTTPException(
+            status_code=500, detail=f"Onboarding init failed: {e}\n{tb}"
+        )
