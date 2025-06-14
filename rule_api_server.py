@@ -778,7 +778,7 @@ def get_project_onboarding_progress(db: Session, project_name: str, path: str):
 app.add_exception_handler(RequestValidationError, pirate_validation_exception_handler)
 
 @app.post("/rules/{rule_id}/promote", response_class=JSONResponse)
-def promote_rule(rule_id: str, db: Session = Depends(get_db)):
+async def promote_rule(rule_id: str, request: Request, db: Session = Depends(get_db)):
     # Try to find the rule by ID (approved or pending)
     rule = db.query(DBRule).filter(DBRule.id == rule_id, DBRule.status.in_(["pending", "approved"])) .first()
     # If not found, try to resolve from proposal (by proposal ID)
@@ -788,34 +788,86 @@ def promote_rule(rule_id: str, db: Session = Depends(get_db)):
             rule = db.query(DBRule).filter(DBRule.id == proposal.parent_rule_id, DBRule.status.in_(["pending", "approved"])) .first()
     if not rule:
         raise HTTPException(status_code=404, detail="No rule found to promote.")
-    # Create a new RuleVersion for the promotion
-    version = RuleVersion(
-        rule_id=rule.id,
-        version=rule.version,
-        rule_type=rule.rule_type,
-        description=rule.description,
-        diff=rule.diff,
-        status=rule.status,
-        submitted_by=rule.submitted_by,
-        added_by=rule.added_by,
-        project=rule.project,
-        timestamp=rule.timestamp,
-        categories=rule.categories,
-        tags=rule.tags,
-        examples=rule.examples,
-        applies_to=rule.applies_to,
-        applies_to_rationale=rule.applies_to_rationale,
-        user_story=rule.user_story,
-        scope_level=rule.scope_level,
-        scope_id=rule.scope_id,
-        parent_rule_id=rule.parent_rule_id,
-    )
-    db.add(version)
+    # Parse promotion request
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    # Determine current and target scope
+    current_scope = rule.scope_level or "project"
+    target_scope = payload.get("scope_level")
+    if not target_scope:
+        raise HTTPException(status_code=422, detail="scope_level is required for promotion.")
+    valid_scopes = ["project", "team", "global"]
+    if target_scope not in valid_scopes:
+        raise HTTPException(status_code=400, detail="Invalid scope_level. Allowed: project, team, global.")
+    # Only allow promotion to a higher scope
+    scope_order = {"project": 1, "team": 2, "global": 3}
+    if scope_order.get(target_scope, 0) <= scope_order.get(current_scope, 0):
+        raise HTTPException(status_code=400, detail="Can only promote to a higher scope.")
+    # --- Scope ID resolution logic ---
+    scope_id = None
+    if target_scope == "team":
+        team = payload.get("team")
+        if not team:
+            raise HTTPException(status_code=422, detail="team name is required for team scope.")
+        try:
+            scope_id = resolve_team_id(db, team)
+        except Exception:
+            raise HTTPException(status_code=422, detail="Could not resolve team name to UUID.")
+    elif target_scope == "project":
+        project = payload.get("project")
+        if not project:
+            raise HTTPException(status_code=422, detail="project name is required for project scope.")
+        try:
+            scope_id = resolve_project_id(db, project, **project_defaults_from_name(project))
+        except Exception:
+            raise HTTPException(status_code=422, detail="Could not resolve project name to UUID.")
+    # For global, scope_id is None
+    # Check for conflicts in the target scope
+    conflicts = db.query(DBRule).filter(
+        DBRule.id != rule.id,
+        DBRule.scope_level == target_scope,
+        DBRule.scope_id == scope_id,
+        DBRule.status.in_(["promoted", "approved"]),
+    ).all()
+    if conflicts:
+        conflict_ids = [str(c.id) for c in conflicts]
+        raise HTTPException(
+            status_code=409,
+            detail=f"Conflict: Another rule is already promoted/active in this scope (IDs: {conflict_ids}). Only one promoted/active rule is allowed per scope."
+        )
+    # Promote: update rule's scope and status
+    rule.scope_level = target_scope
+    rule.scope_id = scope_id
     rule.status = "promoted"
     rule.version = (rule.version or 1) + 1
     db.commit()
-    # Return the expected test payload
-    return JSONResponse(content={"status": "promoted", "id": str(rule.id)}, status_code=200)
+    # Return the full promoted rule object (match test expectations)
+    rule_dict = {
+        "id": str(rule.id),
+        "rule_type": rule.rule_type,
+        "description": rule.description,
+        "diff": rule.diff,
+        "submitted_by": rule.submitted_by,
+        "categories": rule.categories,
+        "tags": rule.tags,
+        "examples": rule.examples,
+        "applies_to": rule.applies_to,
+        "applies_to_rationale": rule.applies_to_rationale,
+        "user_story": rule.user_story,
+        "scope_level": rule.scope_level,
+        "scope_id": rule.scope_id,
+        "parent_rule_id": rule.parent_rule_id,
+        "reason_for_change": getattr(rule, "reason_for_change", None),
+        "references": getattr(rule, "references", None),
+        "status": rule.status,
+        "version": rule.version,
+        "timestamp": rule.timestamp.isoformat() if hasattr(rule.timestamp, "isoformat") else str(rule.timestamp),
+        "added_by": getattr(rule, "added_by", None),
+        "project": getattr(rule, "project", None),
+    }
+    return JSONResponse(content=rule_dict, status_code=200)
 
 class MarkdownResponse(Response):
     media_type = "text/markdown"

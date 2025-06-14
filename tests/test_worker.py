@@ -1,4 +1,5 @@
 from unittest.mock import patch
+import asyncio
 
 import pytest
 
@@ -21,25 +22,42 @@ def test_process_job_valid(monkeypatch):
 
     monkeypatch.setattr(worker_module.requests, "post", lambda *a, **k: MockResponse())
     body = {"diff": "diff --git ...", "concise": False}
-    worker_module.process_job(body)  # Should print summary
+    asyncio.run(worker_module.process_job(body))  # Should print summary
 
 
-def test_process_job_missing_diff(capfd):
+def test_process_job_missing_diff():
+    import logging
+    from io import StringIO
     body = {"concise": True}
-    worker_module.process_job(body)
-    out, err = capfd.readouterr()
-    assert "No 'diff' field found in job" in out
+    log_stream = StringIO()
+    handler = logging.StreamHandler(log_stream)
+    logger = worker_module.logger
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    asyncio.run(worker_module.process_job(body))
+    handler.flush()
+    log_contents = log_stream.getvalue()
+    assert "No 'diff' field found in job" in log_contents
+    logger.removeHandler(handler)
 
 
-def test_process_job_api_error(monkeypatch, capfd):
+def test_process_job_api_error(monkeypatch):
+    import logging
+    from io import StringIO
     def raise_error(*a, **k):
         raise Exception("API down")
-
     monkeypatch.setattr(worker_module.requests, "post", raise_error)
     body = {"diff": "diff --git ..."}
-    worker_module.process_job(body)
-    out, err = capfd.readouterr()
-    assert "Error calling Ollama Functions API" in out
+    log_stream = StringIO()
+    handler = logging.StreamHandler(log_stream)
+    logger = worker_module.logger
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    asyncio.run(worker_module.process_job(body))
+    handler.flush()
+    log_contents = log_stream.getvalue()
+    assert "Error calling Ollama Functions API" in log_contents
+    logger.removeHandler(handler)
 
 
 def test_rabbitmq_job_publishing_and_worker_processing():

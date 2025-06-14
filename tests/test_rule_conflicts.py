@@ -22,7 +22,7 @@ def test_rule_conflict_detection(client, admin_headers, override_get_db):
     rule1 = {
         "rule_type": "conflict_test",
         "description": "Test rule 1",
-        "diff": "Pattern: def test_function():\nMessage: Test message 1\nSeverity: warning",
+        "diff": "# Rule: conflict_test_1\n## Description\nTest message 1\n## Enforcement\nPattern: def test_function():\nSeverity: warning",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -37,7 +37,7 @@ def test_rule_conflict_detection(client, admin_headers, override_get_db):
     rule2 = {
         "rule_type": "conflict_test",
         "description": "Test rule 2",
-        "diff": "Pattern: def another_function():\nMessage: Test message 2\nSeverity: error",
+        "diff": "# Rule: conflict_test_2\n## Description\nTest message 2\n## Enforcement\nPattern: def another_function():\nSeverity: error",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -313,7 +313,7 @@ def test_rule_conflicts(client, admin_headers, override_get_db):
     rule1 = {
         "rule_type": "conflict_test",
         "description": "Test rule 1",
-        "diff": "Pattern: def test_function():\nMessage: Test message 1\nSeverity: warning",
+        "diff": "# Rule: conflict_test_1\n## Description\nTest message 1\n## Enforcement\nPattern: def test_function():\nSeverity: warning",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -328,7 +328,7 @@ def test_rule_conflicts(client, admin_headers, override_get_db):
     rule2 = {
         "rule_type": "conflict_test",
         "description": "Test rule 2",
-        "diff": "Pattern: def test_function():\nMessage: Test message 2\nSeverity: error",
+        "diff": "# Rule: conflict_test_2\n## Description\nTest message 2\n## Enforcement\nPattern: def test_function():\nSeverity: error",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -366,7 +366,7 @@ def test_rule_conflicts_different_patterns(client, admin_headers, override_get_d
     rule1 = {
         "rule_type": "conflict_test",
         "description": "Test rule 1",
-        "diff": "Pattern: def test_function():\nMessage: Test message 1\nSeverity: warning",
+        "diff": "# Rule: conflict_test_1\n## Description\nTest message 1\n## Enforcement\nPattern: def test_function():\nSeverity: warning",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -381,7 +381,7 @@ def test_rule_conflicts_different_patterns(client, admin_headers, override_get_d
     rule2 = {
         "rule_type": "conflict_test",
         "description": "Test rule 2",
-        "diff": "Pattern: def another_function():\nMessage: Test message 2\nSeverity: error",
+        "diff": "# Rule: conflict_test_2\n## Description\nTest message 2\n## Enforcement\nPattern: def another_function():\nSeverity: error",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -421,7 +421,7 @@ def test_rule_conflicts_same_name(client, admin_headers, override_get_db):
     rule1 = {
         "rule_type": "conflict_test",
         "description": "Test rule 1",
-        "diff": "Pattern: def test_function():\nMessage: Test message 1\nSeverity: warning",
+        "diff": "# Rule: conflict_test_1\n## Description\nTest message 1\n## Enforcement\nPattern: def test_function():\nSeverity: warning",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -436,7 +436,7 @@ def test_rule_conflicts_same_name(client, admin_headers, override_get_db):
     rule2 = {
         "rule_type": "conflict_test",
         "description": "Test rule 2",
-        "diff": "Pattern: def another_function():\nMessage: Test message 2\nSeverity: error",
+        "diff": "# Rule: conflict_test_2\n## Description\nTest message 2\n## Enforcement\nPattern: def another_function():\nSeverity: error",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -474,7 +474,7 @@ def test_rule_conflicts_update(client, admin_headers, override_get_db):
     rule = {
         "rule_type": "conflict_test",
         "description": "Test rule",
-        "diff": "Pattern: def test_function():\nMessage: Test message\nSeverity: warning",
+        "diff": "# Rule: conflict_test_update\n## Description\nTest message\n## Enforcement\nPattern: def test_function():\nSeverity: warning",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],
@@ -529,7 +529,7 @@ def test_rule_conflicts_delete(client, admin_headers, override_get_db):
     rule = {
         "rule_type": "conflict_test",
         "description": "Test rule",
-        "diff": "Pattern: def test_function():\nMessage: Test message\nSeverity: warning",
+        "diff": "# Rule: conflict_test_delete\n## Description\nTest message\n## Enforcement\nPattern: def test_function():\nSeverity: warning",
         "submitted_by": "tester",
         "categories": ["test"],
         "tags": ["conflict"],

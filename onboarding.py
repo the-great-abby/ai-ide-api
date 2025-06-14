@@ -138,6 +138,7 @@ async def onboarding_progress(
         {
             "id": str(step.id),
             "path": step.path,
+            "journey": step.path,
             "instruction": step.step,
             "doc_link": doc_links.get(step.step),
             "completed": step.completed,
@@ -313,6 +314,7 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
                     {
                         "id": str(existing.id),
                         "path": journey,
+                        "journey": journey,
                         "instruction": instruction,
                         "doc_link": doc_link,
                         "completed": existing.completed,
@@ -333,6 +335,7 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
                 {
                     "id": str(progress.id),
                     "path": journey,
+                    "journey": journey,
                     "instruction": instruction,
                     "doc_link": doc_link,
                     "completed": False,

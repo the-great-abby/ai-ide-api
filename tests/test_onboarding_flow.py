@@ -15,7 +15,7 @@ def test_project_name():
 
 @pytest.fixture
 def onboarding_journey():
-    return "test_journey"
+    return "test_path"
 
 def test_internal_project_onboarding(admin_headers_fixture, test_project_name, onboarding_journey, override_get_db):
     headers = admin_headers_fixture
@@ -40,10 +40,12 @@ def test_internal_project_onboarding(admin_headers_fixture, test_project_name, o
         progress_response.status_code == 200
     ), f"Failed to fetch progress: {progress_response.text}"
     initial_progress = progress_response.json()
-    assert isinstance(initial_progress, list), "Progress should be a list of steps"
-    assert len(initial_progress) > 0, "Should have at least one onboarding step"
+    assert isinstance(initial_progress, dict), "Progress should be a dict with 'steps' key"
+    assert "steps" in initial_progress, "Progress should have a 'steps' key"
+    steps = initial_progress["steps"]
+    assert len(steps) > 0, "Should have at least one onboarding step"
     # 3. Mark each step as complete
-    for step in initial_progress:
+    for step in steps:
         step_id = step["id"]
         complete_response = requests.patch(
             f"{API_URL}/onboarding/progress/{step_id}",
@@ -62,5 +64,7 @@ def test_internal_project_onboarding(admin_headers_fixture, test_project_name, o
         final_progress_response.status_code == 200
     ), f"Failed to fetch final progress: {final_progress_response.text}"
     final_progress = final_progress_response.json()
-    assert isinstance(final_progress, list), "Final progress should be a list of steps"
-    assert all(step.get("completed") for step in final_progress), "All steps should be marked as complete" 
+    assert isinstance(final_progress, dict), "Final progress should be a dict with 'steps' key"
+    assert "steps" in final_progress, "Final progress should have a 'steps' key"
+    final_steps = final_progress["steps"]
+    assert all(step.get("completed") for step in final_steps), "All steps should be marked as complete" 

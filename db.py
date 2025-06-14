@@ -9,7 +9,7 @@ from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import Float, ForeignKey, Integer, String, Text, Boolean, create_engine, text
-from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID, JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
@@ -70,10 +70,10 @@ class Rule(Base):
     project = Column(UUID(as_uuid=True), index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     version = Column(Integer, default=1)
-    categories = Column(JSON, nullable=True)
-    tags = Column(JSON, nullable=True)
-    examples = Column(JSON, nullable=True)
-    applies_to = Column(JSON, nullable=True)
+    categories = Column(JSONB, nullable=True)
+    tags = Column(JSONB, nullable=True)
+    examples = Column(JSONB, nullable=True)
+    applies_to = Column(JSONB, nullable=True)
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
     # Hierarchical scope fields
@@ -96,10 +96,10 @@ class Proposal(Base):
     project = Column(UUID(as_uuid=True), index=True, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     version = Column(Integer, default=1)
-    categories = Column(JSON, nullable=True)
-    tags = Column(JSON, nullable=True)
-    examples = Column(JSON, nullable=True)
-    applies_to = Column(JSON, nullable=True)
+    categories = Column(JSONB, nullable=True)
+    tags = Column(JSONB, nullable=True)
+    examples = Column(JSONB, nullable=True)
+    applies_to = Column(JSONB, nullable=True)
     applies_to_rationale = Column(Text, nullable=True, default=None)
     reason_for_change = Column(Text, nullable=True, default=None)
     references = Column(Text, nullable=True, default=None)
@@ -137,10 +137,10 @@ class RuleVersion(Base):
     added_by = Column(String, nullable=True)
     project = Column(UUID(as_uuid=True), nullable=True)
     timestamp = Column(DateTime)
-    categories = Column(JSON, nullable=True)
-    tags = Column(JSON, nullable=True)
-    examples = Column(JSON, nullable=True)
-    applies_to = Column(JSON, nullable=True)
+    categories = Column(JSONB, nullable=True)
+    tags = Column(JSONB, nullable=True)
+    examples = Column(JSONB, nullable=True)
+    applies_to = Column(JSONB, nullable=True)
     applies_to_rationale = Column(Text, nullable=True, default=None)
     user_story = Column(Text, nullable=True, default=None)
     # Hierarchical scope fields

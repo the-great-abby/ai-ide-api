@@ -34,6 +34,16 @@ Provide new contributors and existing developers with a one-command workflow to 
 - Run this workflow before submitting pull requests to ensure a clean, passing test suite.
 - If you encounter environment or migration issues, use test-quickstart to reset and verify your setup.
 - Document any additional manual steps required for new services or dependencies.
+- Save output for further analysis:
+  ```bash
+  make -f Makefile.ai-test test-quickstart > quickstart_output.txt
+  ```
+
+## Troubleshooting
+- **Containers fail to start:** Check the output for errors and ensure Docker is running.
+- **Migration errors:** Review the logs for missing tables, permission issues, or failed scripts.
+- **Test failures:** Inspect the test output for stack traces and error messages.
+- **Onboarding issues:** Ensure all prerequisites (Docker, Compose, etc.) are installed and the repo is at the project root.
 
 ## Additional Onboarding Paths & Resources
 

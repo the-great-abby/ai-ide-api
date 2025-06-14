@@ -74,16 +74,29 @@ print("Onboarding docs:", resp.status_code, resp.text[:200], "...")
 ---
 
 ## Best Practices
-- Use a dedicated test project ID for simulation.
-- Optionally, add a flag or metadata to onboarding records to indicate simulation.
-- Clean up test data after the demo/test if needed.
-- Reference the `future_steps` array in `onboarding_paths.json` for steps that are not currently relevant to onboarding but may be added later.
+- Use the simulated onboarding demo to test onboarding flows without affecting production data.
+- Validate all steps and outputs before using the workflow in a real environment.
+- Document any deviations or issues encountered during simulation.
+- Save simulation output for further analysis:
+  ```bash
+  make simulated-onboard > simulated_onboard_output.txt
+  ```
+
+## Troubleshooting
+- **Simulation errors:** Review the output for error messages and ensure all dependencies are available.
+- **Unexpected results:** Compare simulation output to expected onboarding steps and outcomes.
+- **Environment not isolated:** Confirm the simulation is running in a test or sandbox environment.
+
+### Workflow Diagram
+```mermaid
+flowchart TD
+    A["Start simulated onboarding"] --> B["Run onboarding steps in sandbox"]
+    B --> C["Validate each step/output"]
+    C --> D["Document issues or deviations"]
+    D --> E["Simulation complete"]
+```
 
 ---
 
 ## References
 - `/onboarding/init`
-- `/onboarding/progress/{project_id}?path=external_project`
-- `/onboarding-docs`
-- `/onboarding/user_story/external_project`
-- `onboarding_paths.json` (see `future_steps` for deferred steps) 

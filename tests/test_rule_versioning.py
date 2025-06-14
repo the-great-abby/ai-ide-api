@@ -152,7 +152,7 @@ def test_multiple_rule_updates(admin_headers, client, override_get_db):
         {
             "rule_type": "test_multiple_updates",
             "description": f"Version {i+2}",
-            "diff": f"Diff {i+2}\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
+            "diff": f"# Rule: Diff {i+2}\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["versioning", f"v{i+2}"],
@@ -196,7 +196,7 @@ def test_multiple_rule_updates(admin_headers, client, override_get_db):
     ]
     for i, version in enumerate(history):
         assert version["description"] == f"Version {4-i}"
-        assert version["diff"] == f"Diff {4-i}\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing."
+        assert version["diff"] == f"# Rule: Diff {4-i}\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing."
         assert set(version["tags"]) == set(expected_tags[i])
 
 

@@ -1,44 +1,56 @@
 # User Story: onboard
 
 ## Motivation
-To ensure new users and contributors can quickly become productive, the system provides a structured onboarding workflow. This process introduces essential tools, workflows, and best practices, reducing ramp-up time and minimizing common pitfalls.
+Onboarding new developers and contributors efficiently is critical for project velocity and team cohesion. The onboard workflow ensures that all prerequisites are met, the environment is set up, and the user is ready to contribute.
 
 ## Actors
-- New developers and contributors
-- Project maintainers
-- AI onboarding assistants (e.g., Quartermaster "Patch" McDebug and other crew members)
-- System administrators
+- New Developers: Follow onboarding steps to get started.
+- Project Maintainers: Maintain and update onboarding documentation.
+- Automation Systems: Validate onboarding steps and environment setup.
 
 ## Preconditions
-- The user has access to the project repository and documentation.
-- Required software (Docker, Python, Makefile, etc.) is installed.
-- Onboarding materials and scripts are up to date.
+- Access to the project repository.
+- Required tools (Docker, Docker Compose, Python, etc.) are installed.
+- Onboarding documentation is up to date.
 
 ## Step-by-Step Actions
-1. Receive onboarding invitation or instructions from a maintainer or the system.
-2. Follow the onboarding guide or run the onboarding script:
+1. Clone the project repository.
+2. Review the onboarding documentation (`ONBOARDING.md` or equivalent).
+3. Set up environment variables and configuration files as instructed.
+4. Run the onboarding script or Makefile target:
    ```bash
-   ./onboard.sh
-   # or access onboarding via the web interface or API
+   make onboard
    ```
-3. Complete each onboarding step, which may include:
-   - Setting up the development environment
-   - Running initial tests
-   - Reviewing project rules and best practices
-   - Exploring example workflows and user stories
-   - Meeting the AI onboarding crew (variety of guides)
-4. Confirm successful onboarding by running a verification script or test.
-5. Reach out to maintainers or AI assistants for any questions or troubleshooting.
+5. Follow prompts to complete environment setup and verification.
+6. Run initial tests to confirm setup.
+
+### Workflow Diagram
+```mermaid
+flowchart TD
+    A["Clone repository"] --> B["Review onboarding docs"]
+    B --> C["Set up environment/config"]
+    C --> D["Run onboarding script/target"]
+    D --> E["Complete setup prompts"]
+    E --> F["Run initial tests"]
+    F --> G["Ready to contribute"]
+```
 
 ## Expected Outcomes
-- New users are able to set up their environment and run the project locally.
-- Contributors understand key workflows, rules, and best practices.
-- Onboarding is consistent, repeatable, and welcoming.
-- Fewer onboarding-related support requests and errors.
+- Developer environment is set up and verified.
+- All prerequisites are installed and configured.
+- New contributors are ready to begin development.
 
 ## Best Practices
-- Keep onboarding materials up to date with system changes.
-- Use a variety of AI crew members as guides to keep the experience engaging.
-- Reference user stories and rules throughout onboarding steps.
-- Encourage feedback from new users to improve the onboarding process.
-- Automate verification of onboarding completion where possible.
+- Keep onboarding documentation up to date with project changes.
+- Automate as much of the setup as possible.
+- Validate environment setup with initial test runs.
+- Save onboarding output for further analysis:
+  ```bash
+  make onboard > onboard_output.txt
+  ```
+
+## Troubleshooting
+- **Missing dependencies:** Ensure all required tools are installed and available in PATH.
+- **Environment variable errors:** Double-check configuration files and variable names.
+- **Setup script failures:** Review the output for error messages and follow suggested fixes.
+- **Test failures after onboarding:** Confirm that all services are running and configuration matches the documentation.

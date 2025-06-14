@@ -33,7 +33,7 @@ def test_rule_filtering_by_category(client, clean_db, admin_headers, override_ge
         {
             "rule_type": "test_category_1",
             "description": "Rule for category 1",
-            "diff": "Test diff 1",
+            "diff": "# Rule: Test diff 1\n## Description: Test diff 1\n## Enforcement: For Python code",
             "submitted_by": "tester",
             "categories": ["category1"],
             "tags": ["test"],
@@ -50,7 +50,7 @@ def test_rule_filtering_by_category(client, clean_db, admin_headers, override_ge
         {
             "rule_type": "test_category_2",
             "description": "Rule for category 2",
-            "diff": "Test diff 2",
+            "diff": "# Rule: Test diff 2\n## Description: Test diff 2\n## Enforcement: For JavaScript code",
             "submitted_by": "tester",
             "categories": ["category2"],
             "tags": ["test"],
@@ -68,7 +68,7 @@ def test_rule_filtering_by_category(client, clean_db, admin_headers, override_ge
         {
             "rule_type": "test_category_3",
             "description": "Rule for multiple categories",
-            "diff": "Test diff 3",
+            "diff": "# Rule: Test diff 3\n## Description: Test diff 3\n## Enforcement: For Python and JavaScript code",
             "submitted_by": "tester",
             "categories": ["category1", "category2"],
             "tags": ["test"],
@@ -123,7 +123,7 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
         {
             "rule_type": "test_tag_1",
             "description": "Rule with tag 1",
-            "diff": "Test diff 1",
+            "diff": "# Rule: Test diff 1\n## Description: Test diff 1\n## Enforcement: For Python code",
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["tag1"],
@@ -140,7 +140,7 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
         {
             "rule_type": "test_tag_2",
             "description": "Rule with tag 2",
-            "diff": "Test diff 2",
+            "diff": "# Rule: Test diff 2\n## Description: Test diff 2\n## Enforcement: For JavaScript code",
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["tag2"],
@@ -157,7 +157,7 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
         {
             "rule_type": "test_tag_3",
             "description": "Rule with multiple tags",
-            "diff": "Test diff 3",
+            "diff": "# Rule: Test diff 3\n## Description: Test diff 3\n## Enforcement: For Python and JavaScript code",
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["tag1", "tag2"],
@@ -200,7 +200,7 @@ def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_
         {
             "rule_type": "test_scope_1",
             "description": "Project scope rule",
-            "diff": "Test diff 1",
+            "diff": "# Rule: Test diff 1\n## Description: Test diff 1\n## Enforcement: For Python code",
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["test"],
@@ -218,7 +218,7 @@ def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_
         {
             "rule_type": "test_scope_2",
             "description": "Team scope rule",
-            "diff": "Test diff 2",
+            "diff": "# Rule: Test diff 2\n## Description: Test diff 2\n## Enforcement: For JavaScript code",
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["test"],
@@ -236,7 +236,7 @@ def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_
         {
             "rule_type": "test_scope_3",
             "description": "Global scope rule",
-            "diff": "Test diff 3",
+            "diff": "# Rule: Test diff 3\n## Description: Test diff 3\n## Enforcement: For Python and JavaScript code",
             "submitted_by": "tester",
             "categories": ["test"],
             "tags": ["test"],
@@ -287,7 +287,7 @@ def test_rule_filtering_combinations(client, admin_headers, test_project_uuid, t
         {
             "rule_type": "test_comb_1",
             "description": "Rule 1",
-            "diff": "Test diff 1",
+            "diff": "# Rule: Test diff 1\n## Description: Test diff 1\n## Enforcement: For Python code",
             "submitted_by": "tester",
             "categories": ["cat1"],
             "tags": ["tag1"],
@@ -305,7 +305,7 @@ def test_rule_filtering_combinations(client, admin_headers, test_project_uuid, t
         {
             "rule_type": "test_comb_2",
             "description": "Rule 2",
-            "diff": "Test diff 2",
+            "diff": "# Rule: Test diff 2\n## Description: Test diff 2\n## Enforcement: For JavaScript code",
             "submitted_by": "tester",
             "categories": ["cat1", "cat2"],
             "tags": ["tag1", "tag2"],
@@ -323,7 +323,7 @@ def test_rule_filtering_combinations(client, admin_headers, test_project_uuid, t
         {
             "rule_type": "test_comb_3",
             "description": "Rule 3",
-            "diff": "Test diff 3",
+            "diff": "# Rule: Test diff 3\n## Description: Test diff 3\n## Enforcement: For Python and JavaScript code",
             "submitted_by": "tester",
             "categories": ["cat2"],
             "tags": ["tag2"],
@@ -369,7 +369,7 @@ def test_rule_search(client, clean_db, admin_headers, override_get_db):
         {
             "rule_type": "test_search_1",
             "description": "Python code style rule",
-            "diff": "Enforce PEP 8 style guide",
+            "diff": "# Rule: Enforce PEP 8 style guide\n## Description: Python code style rule\n## Enforcement: Enforce PEP 8 style guide",
             "submitted_by": "tester",
             "categories": ["style"],
             "tags": ["python"],
@@ -385,7 +385,7 @@ def test_rule_search(client, clean_db, admin_headers, override_get_db):
         {
             "rule_type": "test_search_2",
             "description": "JavaScript code style rule",
-            "diff": "Enforce ESLint rules",
+            "diff": "# Rule: Enforce ESLint rules\n## Description: JavaScript code style rule\n## Enforcement: Enforce ESLint rules",
             "submitted_by": "tester",
             "categories": ["style"],
             "tags": ["javascript"],
@@ -401,7 +401,7 @@ def test_rule_search(client, clean_db, admin_headers, override_get_db):
         {
             "rule_type": "test_search_3",
             "description": "General code style rule",
-            "diff": "Enforce consistent code style",
+            "diff": "# Rule: Enforce consistent code style\n## Description: General code style rule\n## Enforcement: Enforce consistent code style",
             "submitted_by": "tester",
             "categories": ["style"],
             "tags": ["general"],

@@ -189,4 +189,9 @@ test-db-nuke:
 
 test: test-test
 
+# Start the test frontend service
+.PHONY: test-frontend-up
+test-frontend-up:
+	docker compose -f docker-compose.test.yml up -d test-frontend
+
 .PHONY: test-up test-down test-json test-one test-unit test-integration test-network test-cli test-coverage test-rebuild test-rebuild-with-setup test-db-migrate test-db-revision test-db-heads test-db-history test-db-stamp-head test-memorydb-revision test-api-logs test-db-logs test-ollama-functions-up test-ollama-functions-down test-ollama-functions-logs test-db-current test-pg-query test-up-ollama-functions test-down-ollama-functions test-test test-quickstart test-db-nuke 

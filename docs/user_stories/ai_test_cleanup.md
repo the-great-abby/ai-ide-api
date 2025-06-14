@@ -33,3 +33,13 @@ Ensure the test environment is completely reset between runs to prevent test fla
 - Integrate ai-test-cleanup into CI/CD pipelines to ensure clean builds.
 - Use this target whenever you encounter unexplained test failures or environment conflicts.
 - Document any additional cleanup steps needed for new services or dependencies.
+- Save cleanup output for further analysis:
+  ```bash
+  make -f Makefile.ai-test ai-test-cleanup > cleanup_output.txt
+  ```
+
+## Troubleshooting
+- **Containers not stopping:** Check the output for errors and ensure no dependent services are running.
+- **Volumes not removed:** Verify that Docker has removed all test/dev volumes.
+- **Leftover cache files:** Ensure the clean-pycache step completes successfully.
+- **Environment not clean:** Double-check for running containers or volumes with `docker ps` and `docker volume ls`.

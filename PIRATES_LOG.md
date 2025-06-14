@@ -150,4 +150,17 @@ Raise the black flag and let the cannons roar! Today, the crew did what many tho
 - Added `MAINTENANCE_AUTOMATION.md` and Makefile targets for easy management by the crew.
 - Left clear instructions and a checklist for future hands.
 
-Fair winds to the next quartermaster—keep a weather eye on the logs, and may your maintenance seas be ever calm! 
+Fair winds to the next quartermaster—keep a weather eye on the logs, and may your maintenance seas be ever calm!
+
+## [2025-06-14] Patch from the Neon Crew: Cursor MDC Rule Format & Linter Upgrade
+
+The city's codebase flickered with new light tonight. The cyberpunk crew, led by Patch and the neon-lit QA syndicate, dropped a major update:
+
+- **Cursor MDC Rule Format**: We've documented the canonical `.mdc` rule format for Cursor AI in `docs/rules/cursor_mdc_format.md`. All future rules must start with YAML frontmatter (`description`, `globs`, `alwaysApply`) and follow the structure detailed in the new doc. No more guesswork in the alleys—just clean, parseable metadata and actionable rules.
+- **Linter Overhaul**: The `misc_scripts/lint_rule.py` script now scans `.mdc` files, checks YAML frontmatter, and validates the body for proper MDC diff format. JSON rules are still supported for legacy ops, but the future is frontmatter.
+
+"In the neon haze, only the rules keep the chaos at bay. Document 'em, check 'em, and let the agents roll."
+
+— Patch, logging off from the grid
+
+See the new format: [docs/rules/cursor_mdc_format.md](docs/rules/cursor_mdc_format.md) 

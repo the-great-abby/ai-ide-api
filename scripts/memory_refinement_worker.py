@@ -26,7 +26,7 @@ logger = logging.getLogger("memory_refinement_worker")
 # Criteria
 LONG_CONTENT_THRESHOLD = 500  # Characters
 AMBIGUOUS_PHRASES = ["TBD", "unclear", "fixme", "???", "to be decided", "to be determined"]
-SIMILARITY_THRESHOLD = 0.85  # For merge suggestions
+MERGE_SIMILARITY_THRESHOLD = 0.85  # For merge suggestions
 
 
 def call_ollama(prompt):
@@ -71,7 +71,7 @@ def find_similar_nodes(nodes):
         for i, n1 in enumerate(group):
             for n2 in group[i+1:]:
                 ratio = SequenceMatcher(None, n1.content, n2.content).ratio()
-                if ratio > SIMILARITY_THRESHOLD:
+                if ratio > MERGE_SIMILARITY_THRESHOLD:
                     suggestions.append((n1, n2, ratio))
     return suggestions
 

@@ -247,7 +247,7 @@ Testing versioning edge cases.""",
     invalid_update = {
         "rule_type": "test_versioning",
         "description": "Updated version",
-        "diff": "Updated diff",
+        "diff": "# Rule: Updated diff\n## Description\nThis is an updated test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "rule_id": "nonexistent-id",
         "applies_to_rationale": "For Python code",
@@ -418,7 +418,7 @@ def test_rule_enforcement_edge_cases(admin_headers, override_get_db):
     invalid_update = {
         "rule_type": "test_versioning",
         "description": "Updated version",
-        "diff": "Updated diff",
+        "diff": "# Rule: Updated diff\n## Description\nThis is an updated test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "rule_id": "nonexistent-id",
         "applies_to_rationale": "For Python code",

@@ -165,15 +165,21 @@ def list_rules(
 
     if scope_id:
         # Accept both UUID and string for scope_id
-        # If scope_level is project or team, resolve to UUID
+        # If scope_level is project or team, resolve to UUID if needed
         if scope_level == "project":
-            try:
-                uuid.UUID(scope_id)
-                scope_id = resolve_project_id(db, scope_id)
-            except Exception:
-                scope_id = resolve_project_id(db, scope_id, **project_defaults_from_name(scope_id))
+            # If not a valid UUID, treat as project name
+            if not validate_uuid(scope_id):
+                try:
+                    scope_id = resolve_project_id(db, scope_id, **project_defaults_from_name(scope_id))
+                except Exception:
+                    raise HTTPException(status_code=422, detail=f"Could not resolve project name '{scope_id}' to UUID.")
         elif scope_level == "team":
-            scope_id = resolve_team_id(db, scope_id)
+            # If not a valid UUID, treat as team name
+            if not validate_uuid(scope_id):
+                try:
+                    scope_id = resolve_team_id(db, scope_id)
+                except Exception:
+                    raise HTTPException(status_code=422, detail=f"Could not resolve team name '{scope_id}' to UUID.")
         try:
             import uuid as uuidlib
             uuid_val = str(uuidlib.UUID(scope_id))

@@ -167,6 +167,9 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
         headers=admin_headers,
     )
     assert response.status_code == 422  # Validation error
+    data = response.json()
+    assert "allowed_types" in data, "Error response should include allowed_types"
+    assert set(data["allowed_types"]) == {"suggestion", "question", "concern"}
 
     # Create the proposal
     prop_response = client.post(
@@ -223,8 +226,6 @@ def test_feedback_type_enforcement(admin_headers, client, feedback_type, expecte
     )
     assert response.status_code == expected_status
     if expected_status == 422:
-        # Should mention allowed types in error message, or accept generic Pydantic error
-        allowed_types = ["suggestion", "question", "concern"]
-        error_ok = any(allowed in response.text for allowed in allowed_types)
-        error_ok = error_ok or ("Input should be a valid string" in response.text)
-        assert error_ok
+        data = response.json()
+        assert "allowed_types" in data, "Error response should include allowed_types"
+        assert set(data["allowed_types"]) == {"suggestion", "question", "concern"}

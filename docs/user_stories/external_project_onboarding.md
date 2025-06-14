@@ -428,11 +428,29 @@ graph TD;
 ---
 
 ## Best Practices
-- Always use the onboarding_paths.json template for consistency.
-- Automate onboarding initialization in your project setup scripts.
-- Regularly query and update onboarding progress to keep status current.
-- Review and use the `/onboarding-docs` endpoint for automation and Makefile best practices.
-- Use the `/rules/{rule_id}/promote` endpoint to manage rule scopes as your project grows.
+- Follow the onboarding documentation step by step for external project integration.
+- Validate API connectivity and permissions before proceeding with memory operations.
+- Use provided example scripts or API calls to verify setup.
+- Save onboarding output for further analysis:
+  ```bash
+  make external-onboard > external_onboard_output.txt
+  ```
+
+## Troubleshooting
+- **API connection errors:** Check endpoint URLs, network access, and authentication tokens.
+- **Permission denied:** Ensure the API key or user has the correct permissions for memory operations.
+- **Data not syncing:** Verify that the external project is correctly configured to communicate with the AI IDE API.
+- **Unexpected errors:** Review the onboarding output and logs for stack traces or error messages.
+
+### Workflow Diagram
+```mermaid
+flowchart TD
+    A["Review external onboarding docs"] --> B["Configure API credentials"]
+    B --> C["Test API connectivity"]
+    C --> D["Run onboarding script/target"]
+    D --> E["Verify memory operations"]
+    E --> F["Ready for external project integration"]
+```
 
 ---
 

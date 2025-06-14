@@ -227,70 +227,85 @@ def validate_mdc_diff_format(diff: str):
 async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     try:
         payload = await request.json()
-        logger.warning(f"[DEBUG] Incoming /propose-rule-change payload: {payload}")
+        logger.warning(f"Incoming /propose-rule-change payload: {payload}")
     except Exception as e:
-        logger.error(f"[DEBUG] Error reading payload: {e}")
+        logger.error(f"Error reading payload: {e}")
         raise
-    # --- ABSOLUTE FIRST: Payload type debug and conversion ---
-    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Incoming payload type: {type(payload)}, repr: {repr(payload)}")
+    # Payload type debug and conversion
+    logger.warning(f"Payload type: {type(payload)}, repr: {repr(payload)}")
     if not isinstance(payload, dict):
         try:
             payload = dict(payload)
-            logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Converted payload to dict via dict(payload)")
+            logger.warning(f"Converted payload to dict via dict(payload)")
         except Exception:
             try:
                 payload = payload.dict()
-                logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Converted payload to dict via payload.dict()")
+                logger.warning(f"Converted payload to dict via payload.dict()")
             except Exception as e:
-                logger.error(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Could not convert payload to dict: {e}")
+                logger.error(f"Could not convert payload to dict: {e}")
                 raise
-    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: After conversion, payload type: {type(payload)}, repr: {repr(payload)}")
-    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: payload.get('project'): {payload.get('project')}, payload.get('team'): {payload.get('team')}")
-    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: Incoming payload: {payload}")
-    logger.warning(f"[SCOPE-DEBUG] ABSOLUTE FIRST: scope_level={payload.get('scope_level')}, project={payload.get('project')}, team={payload.get('team')}, scope_id={payload.get('scope_id')}")
+    logger.warning(f"After conversion, payload: {payload}")
     scope_level = payload.get("scope_level")
-    # Always resolve project/team name to UUID before any scope_id check
-    if scope_level == "project" and payload.get("project"):
-        logger.warning(f"[SCOPE-DEBUG] Attempting to resolve project name '{payload['project']}' to UUID...")
-        try:
-            resolved_id = resolve_project_id(db, payload["project"], **project_defaults_from_name(payload["project"]))
-            logger.warning(f"[SCOPE-RESOLVE] Project '{payload['project']}' resolved to UUID: {resolved_id}")
-            if not resolved_id:
-                logger.error(f"[SCOPE-RESOLVE-FAIL] Project '{payload['project']}' resolved to None!")
-                raise HTTPException(status_code=422, detail="Could not resolve project name to UUID (None returned).")
-            scope_id = resolved_id
-            payload["scope_id"] = resolved_id
-        except Exception as e:
-            logger.warning(f"[SCOPE-RESOLVE-FAIL] Could not resolve project '{payload['project']}': {e}")
-            raise HTTPException(status_code=422, detail="Could not resolve project name to UUID.")
-    elif scope_level == "team" and payload.get("team"):
-        logger.warning(f"[SCOPE-DEBUG] Attempting to resolve team name '{payload['team']}' to UUID...")
-        try:
-            resolved_id = resolve_team_id(db, payload["team"])
-            logger.warning(f"[SCOPE-RESOLVE] Team '{payload['team']}' resolved to UUID: {resolved_id}")
-            if not resolved_id:
-                logger.error(f"[SCOPE-RESOLVE-FAIL] Team '{payload['team']}' resolved to None!")
-                raise HTTPException(status_code=422, detail="Could not resolve team name to UUID (None returned).")
-            scope_id = resolved_id
-            payload["scope_id"] = resolved_id
-        except Exception as e:
-            logger.warning(f"[SCOPE-RESOLVE-FAIL] Could not resolve team '{payload['team']}': {e}")
-            raise HTTPException(status_code=422, detail="Could not resolve team name to UUID.")
+    project = payload.get("project")
+    team = payload.get("team")
+    incoming_scope_id = payload.get("scope_id")
+    scope_id = None
+
+    # Scope resolution logic
+    if scope_level == "project":
+        if project:
+            logger.warning(f"Resolving project '{project}' to UUID...")
+            try:
+                resolved_id = resolve_project_id(db, project, **project_defaults_from_name(project))
+                logger.warning(f"Project '{project}' resolved to UUID: {resolved_id}")
+                scope_id = resolved_id
+                payload["scope_id"] = resolved_id
+            except Exception as e:
+                logger.error(f"Could not resolve project '{project}': {e}")
+                raise HTTPException(status_code=422, detail="Could not resolve project name to UUID.")
+        elif incoming_scope_id:
+            # Accept direct scope_id if provided
+            scope_id = incoming_scope_id
+            payload["scope_id"] = incoming_scope_id
+        else:
+            logger.error(f"Project scope requires 'project' field or direct 'scope_id'. Payload: {payload}")
+            raise HTTPException(status_code=422, detail="Project scope requires 'project' field or direct 'scope_id'.")
+    elif scope_level == "team":
+        if team:
+            logger.warning(f"Resolving team '{team}' to UUID...")
+            try:
+                resolved_id = resolve_team_id(db, team)
+                logger.warning(f"Team '{team}' resolved to UUID: {resolved_id}")
+                scope_id = resolved_id
+                payload["scope_id"] = resolved_id
+            except Exception as e:
+                logger.error(f"Could not resolve team '{team}': {e}")
+                raise HTTPException(status_code=422, detail="Could not resolve team name to UUID.")
+        elif incoming_scope_id:
+            # Accept direct scope_id if provided
+            scope_id = incoming_scope_id
+            payload["scope_id"] = incoming_scope_id
+        else:
+            logger.error(f"Team scope requires 'team' field or direct 'scope_id'. Payload: {payload}")
+            raise HTTPException(status_code=422, detail="Team scope requires 'team' field or direct 'scope_id'.")
     else:
-        scope_id = payload.get("scope_id")
-    logger.warning(f"[SCOPE-DEBUG] After resolution: scope_id={scope_id}, payload['scope_id']={payload.get('scope_id')}")
+        # For global or legacy/other scopes, use incoming scope_id if present
+        scope_id = incoming_scope_id
+        payload["scope_id"] = incoming_scope_id
+
+    logger.warning(f"After resolution: scope_level={scope_level}, scope_id={scope_id}, payload['scope_id']={payload.get('scope_id')}")
     # Now check for required scope_id
     if scope_level in ("project", "team") and not payload.get("scope_id"):
-        logger.error(f"[SCOPE-RESOLVE-FAIL] scope_id missing for scope_level={scope_level}, payload: {payload}")
-        logger.error(f"[422-RAISE] Missing scope_id for scope_level={scope_level}, payload={payload}")
-        raise HTTPException(status_code=422, detail="scope_id (team_or_project_assoc_id) is required for team or project scope. This is a scope conflict.")
+        logger.error(f"scope_id missing for scope_level={scope_level}, payload: {payload}")
+        raise HTTPException(status_code=422, detail="scope_id is required for team or project scope.")
     try:
-        uuid.UUID(str(scope_id))
+        if scope_id is not None:
+            uuid.UUID(str(scope_id))
     except Exception:
-        logger.error(f"[422-RAISE] scope_id is not a valid UUID after resolution: {scope_id}, payload={payload}")
+        logger.error(f"scope_id is not a valid UUID after resolution: {scope_id}, payload={payload}")
         raise HTTPException(status_code=422, detail="scope_id must be a valid UUID after resolution.")
     # Debug logging for conflict checks
-    logger.warning(f"[CONFLICT-DEBUG] Checking for conflicts: rule_type={payload.get('rule_type')}, diff={payload.get('diff')}, scope_level={scope_level}, scope_id={scope_id}")
+    logger.warning(f"Checking for conflicts: rule_type={payload.get('rule_type')}, diff={payload.get('diff')}, scope_level={scope_level}, scope_id={scope_id}")
     # Conflict check: approved rules
     existing_rule = (
         db.query(Rule)
@@ -304,10 +319,10 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
         .first()
     )
     if existing_rule:
-        logger.error(f"[422-RAISE] Approved rule conflict: id={existing_rule.id}, scope_id={existing_rule.scope_id}, payload={payload}")
+        logger.error(f"Approved rule conflict: id={existing_rule.id}, scope_id={existing_rule.scope_id}, payload={payload}")
         raise HTTPException(
             status_code=422,
-            detail="A rule with the same type, diff, and scope already exists (conflict). Please modify your rule or scope. This is a rule conflict.",
+            detail="A rule with the same type, diff, and scope already exists (conflict). Please modify your rule or scope.",
         )
     # Conflict check: pending proposals
     existing_proposal = (
@@ -322,36 +337,24 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
         .first()
     )
     if existing_proposal:
-        logger.error(f"[422-RAISE] Pending proposal conflict: id={existing_proposal.id}, scope_id={existing_proposal.scope_id}, payload={payload}")
+        logger.error(f"Pending proposal conflict: id={existing_proposal.id}, scope_id={existing_proposal.scope_id}, payload={payload}")
         raise HTTPException(
             status_code=422,
-            detail="A pending proposal with the same type, diff, and scope already exists (conflict). Please wait for review or modify your proposal. This is a proposal conflict.",
+            detail="A pending proposal with the same type, diff, and scope already exists (conflict). Please wait for review or modify your proposal.",
         )
-
     # Validate MDC format for 'diff'
     is_valid, error_msg = validate_mdc_diff_format(payload.get("diff", ""))
-    logger.warning(f"[MDC-VALIDATION] is_valid={is_valid}, error_msg={error_msg}, diff={payload.get('diff')}")
+    logger.warning(f"MDC format validation: is_valid={is_valid}, error_msg={error_msg}, diff={payload.get('diff')}")
     if not is_valid:
-        logger.error(f"[422-RAISE] MDC diff format invalid: {error_msg}, payload={payload}")
+        logger.error(f"MDC diff format invalid: {error_msg}, payload={payload}")
         raise HTTPException(status_code=422, detail=error_msg)
-
-    # Resolve scope_id if needed
-    if payload.get("scope_level") == "project" and payload.get("scope_id"):
-        try:
-            uuid.UUID(payload["scope_id"])
-            payload["scope_id"] = resolve_project_id(db, payload["scope_id"])
-        except Exception:
-            payload["scope_id"] = resolve_project_id(db, payload["scope_id"], **project_defaults_from_name(payload["scope_id"]))
-    elif payload.get("scope_level") == "team" and payload.get("scope_id"):
-        payload["scope_id"] = resolve_team_id(db, payload["scope_id"])
-    # Patch: Always resolve project to UUID if set
+    # Patch: Always resolve project to UUID if set (for legacy fields)
     if payload.get("project"):
         try:
             uuid.UUID(payload["project"])
             payload["project"] = resolve_project_id(db, payload["project"])
         except Exception:
             payload["project"] = resolve_project_id(db, payload["project"], **project_defaults_from_name(payload["project"]))
-
     try:
         proposal_id = str(uuid.uuid4())
         new_proposal = Proposal(
@@ -380,12 +383,11 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_proposal)
     except ValidationError as ve:
-        logger.error(f"[422-RAISE] Pydantic ValidationError: {ve.errors()}, payload={payload}")
+        logger.error(f"Pydantic ValidationError: {ve.errors()}, payload={payload}")
         raise HTTPException(status_code=422, detail=f"Validation error: {ve.errors()}")
     except Exception as e:
-        logger.error(f"[ERROR] Exception in /propose-rule-change: {e}\n{traceback.format_exc()}")
+        logger.error(f"Exception in /propose-rule-change: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
-
     data = serialize_proposal(new_proposal)
     data = normalize_rule_dict(data)
     logger.debug(f"[propose_rule_change] normalized: {data}")
@@ -639,7 +641,13 @@ def submit_rule_proposal_feedback(
     # Enforce allowed feedback types at API level (defense-in-depth)
     if feedback.feedback_type not in ALLOWED_FEEDBACK_TYPES:
         logger.error(f"[FEEDBACK-DEBUG] Invalid feedback_type: {feedback.feedback_type}")
-        raise HTTPException(status_code=422, detail=f"Invalid feedback_type: {feedback.feedback_type}. Allowed: {sorted(ALLOWED_FEEDBACK_TYPES)}")
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": f"Invalid feedback_type: {feedback.feedback_type}. Allowed: {sorted(ALLOWED_FEEDBACK_TYPES)}",
+                "allowed_types": sorted(ALLOWED_FEEDBACK_TYPES),
+            },
+        )
     logger.debug(f"[FEEDBACK-DEBUG] feedback_type validated: {feedback.feedback_type}")
     # All checks passed, perform feedback creation
     try:
@@ -701,15 +709,22 @@ def list_rule_proposal_feedback(
 def pirate_validation_exception_handler(request, exc):
     # Convert all error contexts to string to avoid non-serializable objects
     errors = exc.errors()
+    allowed_types = None
     for err in errors:
         if 'ctx' in err and err['ctx']:
             for k, v in err['ctx'].items():
                 if isinstance(v, Exception):
                     err['ctx'][k] = str(v)
+        # If the error is about feedback_type, add allowed_types
+        if err.get('loc', [None])[0] == 'body' and err.get('loc', [None])[-1] == 'feedback_type':
+            allowed_types = sorted(ALLOWED_FEEDBACK_TYPES)
     logger.error(f"[PIRATE-DEBUG] Feedback validation error: {errors} | body: {getattr(exc, 'body', None)}")
+    content = {"detail": errors, "body": getattr(exc, 'body', None)}
+    if allowed_types:
+        content["allowed_types"] = allowed_types
     return JSONResponse(
         status_code=422,
-        content={"detail": errors, "body": getattr(exc, 'body', None)},
+        content=content,
     )
 
 

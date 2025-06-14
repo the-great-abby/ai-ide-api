@@ -63,6 +63,16 @@ See [test-quickstart user story](test_quickstart.md) for details.
 - Use `test-quickstart` for a full reset, migrate, and test cycle
 - Clean up with `make -f Makefile.ai-test test-down` or `ai-test-cleanup` before/after major changes
 - Document any additional test targets or workflows in user stories for discoverability
+- Save test output for further analysis:
+  ```bash
+  make -f Makefile.ai-test test > test_output.txt
+  ```
+
+## Troubleshooting
+- **Test failures:** Review the output for stack traces and error messages.
+- **Old data or schema issues:** Ensure the test DB was nuked and migrations applied.
+- **Containers not starting:** Check Docker status and logs for errors.
+- **Environment drift:** Use test-quickstart to reset everything to a known state.
 
 ### Troubleshooting: Stubborn Volumes
 If you nuke the test DB but still see old tables or data, the Docker volume may not have been fully removed. As a last resort, you can manually delete the test DB volume using the Docker Desktop UI (Volumes tab) or with the CLI:
