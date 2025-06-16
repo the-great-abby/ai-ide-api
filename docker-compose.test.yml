@@ -36,7 +36,7 @@ services:
       - OLLAMA_FUNCTIONS_URL=http://test-ollama-functions:8000
       - CORS_ORIGINS=*
       - RABBITMQ_URL=amqp://user:password@test-rabbitmq:5672/
-      - ENVIRONMENT=dev
+      - ENVIRONMENT=test
     depends_on:
       test-db:
         condition: service_healthy
@@ -162,7 +162,7 @@ services:
       - OLLAMA_FUNCTIONS_URL=http://test-ollama-functions:8000
       - CORS_ORIGINS=*
       - RABBITMQ_URL=amqp://user:password@test-rabbitmq:5672/
-      - ENVIRONMENT=dev
+      - ENVIRONMENT=test
     ports:
       - "9104:8000"  # Host 9104 -> Container 8000
     depends_on:

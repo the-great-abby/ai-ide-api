@@ -31,4 +31,25 @@ Developers and testers need to run the API and supporting services in a fully is
 ## Best Practices
 - Mock interfaces must match real service interfaces exactly.
 - All mocks should be documented and easy to extend.
-- Makefile targets should be provided for both modes. 
+- Makefile targets should be provided for both modes.
+
+## Workflow Diagram
+
+The following Mermaid diagram illustrates the toggleable mock services workflow:
+
+```mermaid
+flowchart TD
+    A["Set USE_MOCK_SERVICES env var"] --> B["Start FastAPI app"]
+    B --> C{"USE_MOCK_SERVICES=true?"}
+    C -- "Yes" --> D["Wire up mock services (rulesdb, memorydb, HTTP APIs)"]
+    C -- "No" --> E["Wire up real services"]
+    D --> F["Run API/tests with mocks (isolated, fast)"]
+    E --> G["Run API/tests with real services"]
+    F --> H["Developer/CI interacts with API (mocked)"]
+    G --> I["Developer/CI interacts with API (real)"]
+```
+
+**Explanation:**
+- The developer or CI sets the `USE_MOCK_SERVICES` environment variable before starting the app.
+- On startup, the app checks the variable and wires up either mock or real services accordingly.
+- The API and tests then run in the selected mode, providing either isolated, fast mocks or full integration with real services. 

@@ -1,72 +1,46 @@
-# User Story: Ollama Gateway Support for LLM-Based Functions
+# User Story: Ollama Gateway Support
 
 ## Motivation
-To enable LLM-powered features (such as rule suggestion, code review, or AI assistants), our service must be able to communicate with an Ollama backend via a dedicated gateway service. Ensuring the Ollama gateway is available, healthy, and using the correct model is critical for reliability and developer productivity.
-
----
+As a developer or system integrator, I want to add support for the Ollama Gateway so that the system can route LLM requests through Ollama, enabling flexible model selection and local inference.
 
 ## Actors
 - Developer
+- System Integrator
 - System Administrator
-- CI/CD Pipeline
-
----
 
 ## Preconditions
-- Ollama is installed and the required model is pulled (e.g., `llama3.1:8b-instruct-q6_K`).
-- Docker and Makefile.ai are available.
-- The `ollama-functions` gateway service is defined in `docker-compose.yml` and built.
-- The main service is configured to use the Ollama gateway for LLM requests.
-
----
+- Ollama Gateway is installed and running (locally or in Docker).
+- The system is configured to recognize and route requests to the Ollama Gateway.
+- Required environment variables and configuration files are set up.
 
 ## Step-by-Step Actions
-
-### 1. Ensure the Ollama Model is Pulled
-```bash
-make -f Makefile.ai ai-ollama-pull-model
-```
-- Downloads the required model if not already present.
-
-### 2. Start the Ollama Backend (Host)
-```bash
-make -f Makefile.ai ai-ollama-serve-docker-gateway-bg
-```
-- Runs `ollama serve` in the background, accessible to Docker containers.
-
-### 3. Start the Ollama Gateway Service (Docker Compose)
-```bash
-make -f Makefile.ai ai-up-ollama-functions
-```
-- Brings up the `ollama-functions` service for API access.
-
-### 4. Check Service Health
-```bash
-make -f Makefile.ai ai-ollama-functions-health
-```
-- Should return `{ "status": "ok" }` if the gateway is running.
-
-### 5. (Optional) View Logs
-```bash
-make -f Makefile.ai ai-ollama-functions-logs
-```
-- Shows the last 100 lines of gateway logs for troubleshooting.
-
----
+1. Install and start the Ollama Gateway service.
+2. Update environment variables to point to the Ollama Gateway endpoint.
+3. Configure the system to use Ollama as a model provider (e.g., via Makefile or config files).
+4. Test the integration by sending a sample LLM request through the gateway.
+5. Monitor logs and verify that requests are routed and responses are received as expected.
 
 ## Expected Outcomes
-- The Ollama backend and gateway are running and healthy.
-- The main service can make LLM requests via the gateway.
-- Developers and CI/CD can rely on a consistent, automated setup for LLM-powered features.
-
----
+- The system can successfully route LLM requests through the Ollama Gateway.
+- Developers can select and use different models via Ollama.
+- Local inference is possible, reducing reliance on external APIs.
 
 ## Best Practices
-- Always check the health of the Ollama gateway before running LLM-dependent features or tests.
-- Automate the setup in onboarding scripts or CI/CD pipelines.
-- Document the required model and update as new models are adopted.
-- Use background targets for long-running services to avoid blocking the shell.
-- Regularly monitor logs for errors or model updates.
+- Use environment variables for endpoint configuration to allow easy switching between providers.
+- Monitor gateway logs for errors or performance issues.
+- Document supported models and configuration steps for onboarding.
+- Use Docker Compose for consistent environment setup.
+
+## Workflow Diagram
+
+```mermaid
+flowchart TD
+    A["Start Ollama Gateway"] --> B["Configure system to use Ollama endpoint"]
+    B --> C["Send LLM request to system"]
+    C --> D["System routes request to Ollama Gateway"]
+    D --> E["Ollama processes and returns response"]
+    E --> F["System receives and returns result"]
+```
 
 ---
 

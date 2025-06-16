@@ -23,72 +23,46 @@ As a developer, I want a clear, repeatable workflow for updating database models
 > **Note:** All general usage, onboarding, and code samples use `db` as the default Postgres service/container. Use `test-db` only for test/CI environments or when running tests.
 
 ## Step-by-Step Actions
-
-### 1. **Update Models**
-- Edit SQLAlchemy models (e.g., change column types, add/remove fields).
-- Example: Migrate all `id` and `project_id` columns to `UUID` type for consistency and future-proofing.
-
-### 2. **Generate Alembic Migration**
-- Ensure the database is up to date:
-  ```bash
-  make -f Makefile.ai-db ai-db-migrate
-  ```
-- Generate a new migration reflecting model changes:
-  ```bash
-  make -f Makefile.ai-db ai-db-revision MSG="Describe your schema change"
-  ```
-
-### 3. **Apply Migrations**
-- Apply all migrations to the database:
-  ```bash
-  make -f Makefile.ai-db ai-db-migrate
-  ```
-- If you encounter errors (e.g., type mismatches), resolve them in the models and migration scripts, then repeat.
-
-### 4. **Reset and Set Up the Test Database**
-- Use the `ai-test-clean` target to drop, recreate, and migrate both `rulesdb` and `memorydb`:
-  ```bash
-  make -f Makefile.ai ai-test-clean
-  ```
-- This ensures a clean slate for tests and development.
-
-### 5. **Set Up Database, Onboard Admin, and Run Tests (Preferred)**
-- Use the `ai-test-with-setup` target to:
-  - Start required services (test-db, api)
-  - Wait for the database to be ready
-  - Create the `rulesdb` database if missing
-  - Run all migrations (main and memorydb)
-  - **Run onboarding to create the admin token (via `ai-onboard-admin`)**
-  - Run the full test suite
-  
-  ```bash
-  make -f Makefile.ai ai-test-with-setup
-  ```
-- This is now the **preferred workflow** for running tests after a reset or migration change, as it ensures the database is freshly set up, all migrations are applied, and onboarding is performed before testing.
-- For verbose output, use:
-  ```bash
-  make -f Makefile.ai ai-test-with-setup-verbose
-  ```
-- For coverage:
-  ```bash
-  make -f Makefile.ai ai-test-with-setup-coverage
-  ```
+1. Update SQLAlchemy models as needed (e.g., change column types, add/remove fields).
+2. Generate a new Alembic migration reflecting model changes:
+   ```bash
+   make -f Makefile.ai-db ai-db-revision MSG="Describe your schema change"
+   ```
+3. Apply all migrations to the database:
+   ```bash
+   make -f Makefile.ai-db ai-db-migrate
+   ```
+4. Reset and set up the test database using the Makefile target:
+   ```bash
+   make -f Makefile.ai ai-test-clean
+   ```
+5. (Preferred) Set up the database, onboard admin, and run tests:
+   ```bash
+   make -f Makefile.ai ai-test-with-setup
+   ```
+6. If needed, use the provided Makefile targets to check current migration status or recover from errors.
 
 ## Expected Outcomes
-- Database schema matches the latest models.
-- All migrations are applied in order, with no errors.
-- Test database is clean and ready for use.
-- Tests pass, confirming schema and migration correctness.
+- Database schema changes are robust, testable, and easy to recover from.
+- The test database is always in sync with the latest models and migrations.
+- Developers can confidently update models and migrations without downtime.
 
 ## Best Practices
-- Always apply outstanding migrations before generating new ones.
-- Use UUIDs for primary and foreign keys for consistency.
-- Use Makefile targets for all migration and DB operations.
-- **Use `ai-test-with-setup` for a fresh, reliable test run after DB/model changes.**
-- Use `ai-test-clean` for a full DB reset before setup/testing if needed.
-- Document new workflows and targets in user stories and onboarding docs.
-- Reference this user story in code reviews and onboarding.
-- **Note:** Alembic does not handle custom types like `vector(768)` (pgvector) well. For schema changes involving these columns, use raw SQL with `op.execute` and review generated migrations carefully.
+- Always use Makefile targets for migration and DB management.
+- Run tests after applying migrations to verify schema changes.
+- Document any manual steps or custom SQL in migration scripts.
+- Onboard admin and run tests after resetting the database.
+
+## Workflow Diagram
+
+```mermaid
+flowchart TD
+    A["Update models"] --> B["Generate Alembic migration"]
+    B --> C["Apply migrations"]
+    C --> D["Reset test DB"]
+    D --> E["Onboard admin & run tests"]
+    E --> F["Verify schema & test results"]
+```
 
 ## Warnings
 - If you need to change a `vector(768)` column (pgvector), do not rely on Alembic's autogenerate. Write manual SQL in your migration, and be aware that autogenerate may not detect or handle these types correctly.

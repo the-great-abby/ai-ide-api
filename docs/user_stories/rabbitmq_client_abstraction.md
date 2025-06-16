@@ -49,6 +49,27 @@ broker = MockRabbitMQ()
 - Use dependency injection to swap clients easily.
 - Document any limitations of the mock client.
 
+## Workflow Diagram
+
+The following Mermaid diagram illustrates the RabbitMQ client abstraction workflow:
+
+```mermaid
+flowchart TD
+    A["Application code calls MessageBrokerBase"] --> B{"Environment?"}
+    B -- "Production/Integration" --> C["Use RealRabbitMQClient"]
+    B -- "Unit Test" --> D["Use MockRabbitMQ"]
+    C --> E["Publish/Consume via real RabbitMQ service"]
+    D --> F["Publish/Consume via mock implementation"]
+    E --> G["Process messages in real broker"]
+    F --> H["Process messages in mock broker"]
+```
+
+**Explanation:**
+- Application code always uses the `MessageBrokerBase` abstraction.
+- The environment determines whether the real or mock client is injected.
+- In production/integration, the real client connects to RabbitMQ and processes real messages.
+- In unit tests, the mock client simulates message operations for fast, isolated testing.
+
 ## References
 - See `utils/message_broker.py` for the abstraction and real client.
 - See `mocks/mock_rabbitmq.py` for the mock implementation. 

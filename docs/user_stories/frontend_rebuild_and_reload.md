@@ -1,46 +1,45 @@
-# User Story: Rebuilding and Reloading the Frontend via Makefile
+# User Story: Frontend Rebuild and Reload
 
 ## Motivation
-As a developer or AI agent, I want a simple, reliable way to rebuild and reload the frontend after making code changes, so that updates are reflected in the UI without manual Docker or npm commands.
+As a frontend developer, I want to quickly rebuild and reload the frontend application so I can see changes reflected immediately and iterate efficiently during development.
 
 ## Actors
-- Developer
-- AI agent (automation)
-- Docker Compose services
+- Frontend Developer
+- QA Engineer
+- New Team Member
 
 ## Preconditions
-- The codebase includes a Makefile with targets for managing the frontend container.
-- The frontend is containerized and managed via Docker Compose.
-- Code changes have been made to the frontend (e.g., React components, styles).
+- The frontend codebase and build tools are available.
+- The developer has access to the appropriate Docker containers or local environment.
+- All dependencies are installed.
 
 ## Step-by-Step Actions
-1. **Rebuild the frontend container:**
-   - Preferred Makefile target:
-     ```bash
-     make -f Makefile.ai ai-admin-frontend-restart
-     ```
-   - This will restart the frontend container without rebuilding from scratch (fastest for most changes).
-
-2. **If a full rebuild is needed (e.g., after dependency changes):**
-   - Use the no-cache rebuild target:
-     ```bash
-     make -f Makefile.ai ai-admin-frontend-nocache-restart
-     ```
-   - This will rebuild the frontend container from scratch and restart it.
-
-3. **Verify the frontend is running:**
-   - Open the frontend in your browser (default: http://localhost:3000)
-   - Confirm that your changes are visible.
+1. Make code changes in the frontend source files.
+2. Trigger a rebuild using the appropriate Makefile target or build command.
+3. Wait for the build to complete and the application to reload.
+4. Verify that changes are reflected in the running application.
+5. Repeat as needed for further development.
 
 ## Expected Outcomes
-- The frontend is rebuilt and reloaded using a single Makefile command.
-- Developers and AI agents do not need to remember raw Docker or npm commands.
-- The process is consistent and works in all environments.
+- The frontend rebuilds and reloads quickly after changes.
+- Developers can iterate efficiently with minimal downtime.
+- The workflow is documented and reproducible for all team members.
 
 ## Best Practices
-- Always use the Makefile targets for frontend management.
-- Use the restart target for most code changes; use the no-cache rebuild for dependency or base image changes.
-- Document this workflow in onboarding and developer docs.
+- Use Makefile targets or scripts to standardize the rebuild process.
+- Enable hot-reload or live-reload features if available.
+- Document any manual steps required for special cases.
+- Regularly test the rebuild workflow in a clean environment.
+
+## Workflow Diagram
+
+```mermaid
+flowchart TD
+    A["Edit frontend source files"] --> B["Trigger rebuild command"]
+    B --> C["Wait for build and reload"]
+    C --> D["Verify changes in app"]
+    D --> E["Repeat as needed"]
+```
 
 ## References
 - Makefile.ai targets: `ai-admin-frontend-restart`, `ai-admin-frontend-nocache-restart`

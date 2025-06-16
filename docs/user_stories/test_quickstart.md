@@ -14,14 +14,27 @@ Provide new contributors and existing developers with a one-command workflow to 
 - No other containers are running on conflicting ports.
 
 ## Step-by-Step Actions
-1. Run make -f Makefile.ai-test test-quickstart from the project root.
+1. Run the quickstart target:
+   ```bash
+   make -f Makefile.ai-test test-quickstart
+   ```
 2. The target executes:
-   - docker compose -f docker-compose.test.yml down -v (removes all test containers, networks, and volumes)
-   - docker compose -f docker-compose.test.yml up -d test-db test-api (starts the test database and API containers)
+   - `docker compose -f docker-compose.test.yml down -v` (removes all test containers, networks, and volumes)
+   - `docker compose -f docker-compose.test.yml up -d test-db test-api` (starts the test database and API containers)
    - Runs database migrations to ensure the schema is up to date
-   - Runs the full test suite using the test-test target
+   - Runs the full test suite using the `test` target
 3. The output of each step is displayed for review.
 4. On completion, the user can review the test results and logs.
+
+### Workflow Diagram
+```mermaid
+flowchart TD
+    A["Run test-quickstart target"] --> B["Remove all test containers, networks, volumes"]
+    B --> C["Start test-db and test-api containers"]
+    C --> D["Run database migrations"]
+    D --> E["Run full test suite"]
+    E --> F["Review results and logs"]
+```
 
 ## Expected Outcomes
 - The test environment is fully reset and rebuilt from scratch.

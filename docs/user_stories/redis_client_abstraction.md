@@ -49,6 +49,27 @@ redis = MockRedis()
 - Use dependency injection to swap clients easily.
 - Document any limitations of the mock client.
 
+## Workflow Diagram
+
+The following Mermaid diagram illustrates the Redis client abstraction workflow:
+
+```mermaid
+flowchart TD
+    A["Application code calls RedisClientBase"] --> B{"Environment?"}
+    B -- "Production/Integration" --> C["Use RealRedisClient"]
+    B -- "Unit Test" --> D["Use MockRedis"]
+    C --> E["Read/Write via real Redis service"]
+    D --> F["Read/Write via mock implementation"]
+    E --> G["Process data in real Redis"]
+    F --> H["Process data in mock Redis"]
+```
+
+**Explanation:**
+- Application code always uses the `RedisClientBase` abstraction.
+- The environment determines whether the real or mock client is injected.
+- In production/integration, the real client connects to Redis and processes real data.
+- In unit tests, the mock client simulates Redis operations for fast, isolated testing.
+
 ## References
 - See `utils/redis_client.py` for the abstraction and real client.
 - See `mocks/mock_redis.py` for the mock implementation. 

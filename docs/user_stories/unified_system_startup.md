@@ -1,77 +1,90 @@
-# User Story: Unified System & LLM Startup After Restart or Onboarding
+# User Story: Unified System Startup
 
 ## Motivation
 As a developer, maintainer, or new team member, I want a single, unified workflow to bring the entire system—including core services, Ollama LLM backend, and the Ollama gateway—online after a restart or for onboarding, so that I can reliably get all features running with minimal manual steps.
 
----
-
 ## Actors
 - Developer
+- System Operator
 - System Administrator
+- New Team Member (onboarding)
 - CI/CD Pipeline
-- New team member (onboarding)
-
----
 
 ## Preconditions
 - Docker, Docker Compose, and `Makefile.ai` are available.
 - Ollama is installed (if running on host) and the required model is available.
 - The `ollama-functions` gateway service is defined in `docker-compose.yml`.
+- All required Docker Compose files and Makefile targets are present.
+- The system is configured with the necessary environment variables (copy from `change-this-env.*.example` as needed).
 - Code, dependencies, or models may have changed, or the system is being started after a shutdown.
 
----
-
 ## Step-by-Step Actions
+1. (Optional) Back up database data:
+   ```bash
+   make -f Makefile.ai ai-db-backup-data-only
+   ```
+2. Rebuild all Docker images (if code or dependencies changed):
+   ```bash
+   make -f Makefile.ai ai-rebuild-all
+   ```
+3. Pull the required Ollama model:
+   ```bash
+   make -f Makefile.ai ai-ollama-pull-model
+   ```
+4. Start the Ollama backend (host, in background):
+   ```bash
+   make -f Makefile.ai ai-ollama-serve-docker-gateway-bg
+   ```
+5. Start all core services:
+   ```bash
+   make -f Makefile.ai ai-up
+   ```
+6. Start the Ollama gateway service:
+   ```bash
+   make -f Makefile.ai ai-up-ollama-functions
+   ```
+7. Run database migrations (if needed):
+   ```bash
+   make -f Makefile.ai ai-db-migrate
+   ```
+8. Verify all services are running and healthy:
+   ```bash
+   make -f Makefile.ai ai-status
+   ```
+9. Wait for health checks or logs to confirm all services are running.
+10. Begin development, testing, or onboarding tasks as needed.
 
-> **Note:**
-> - If you are doing a fresh start (e.g., onboarding, new environment, or you do not need to preserve existing data), you can skip the database backup step below.
-> - Only perform the backup if you want to preserve the current database state before making changes or restarting services.
+## Expected Outcomes
+- All system and LLM services are started and healthy.
+- Developers and new team members can use all features with minimal manual steps.
+- The process is consistent and documented for onboarding and recovery.
+- Reduced onboarding friction and fewer environment setup errors.
 
-### 1. (Optional) Back Up Database Data (Skip for Fresh Start)
-```bash
-make -f Makefile.ai ai-db-backup-data-only
-# Backup is saved in backups/rulesdb-data-YYYYMMDD-HHMMSS.sql
-```
+## Best Practices
+- Only start the services you need for your workflow.
+- Use the correct env file for each service/profile.
+- Never mix dev and test settings in the same env file.
+- Document new profiles/env files as you add them.
+- Always back up data before making changes to Docker Compose files.
+- Keep the unified startup command up to date as new services are added.
+- Use health checks in Docker Compose to ensure dependencies are ready.
+- Document any manual steps required before or after startup.
+- Prefer Makefile targets that wrap Docker Compose for consistency.
+- Regularly test the startup process in a clean environment.
 
-### 2. Rebuild All Docker Images (if code or dependencies changed)
-```bash
-make -f Makefile.ai ai-rebuild-all
-# Optionally, add NOCACHE=1 to force a no-cache build
-```
+## Workflow Diagram
 
-### 3. Pull the Required Ollama Model (if using LLM features)
-```bash
-make -f Makefile.ai ai-ollama-pull-model
-```
-
-### 4. Start the Ollama Backend (Host, in Background)
-```bash
-make -f Makefile.ai ai-ollama-serve-docker-gateway-bg
-```
-
-### 5. Start All Core Services (API, DB, Frontend, etc.)
-```bash
-make -f Makefile.ai ai-up
-```
-
-### 6. Start the Ollama Gateway Service (Docker Compose)
-```bash
-make -f Makefile.ai ai-up-ollama-functions
-```
-
-### 7. Run Database Migrations (if needed)
-```bash
-make -f Makefile.ai ai-db-migrate
-```
-
-### 8. Verify All Services Are Running and Healthy
-```bash
-make -f Makefile.ai ai-status
-make -f Makefile.ai ai-ollama-functions-health
-make -f Makefile.ai logs-api
-make -f Makefile.ai logs-admin-frontend
-make -f Makefile.ai logs-frontend
-make -f Makefile.ai ai-ollama-functions-logs
+```mermaid
+flowchart TD
+    A["Prepare env files and configs"] --> B["(Optional) DB backup"]
+    B --> C["Rebuild Docker images (if needed)"]
+    C --> D["Pull Ollama model"]
+    D --> E["Start Ollama backend"]
+    E --> F["Start all core containers/services"]
+    F --> G["Start Ollama gateway"]
+    G --> H["Run DB migrations (if needed)"]
+    H --> I["Verify all services (health checks/logs)"]
+    I --> J["System ready for use"]
 ```
 
 ---

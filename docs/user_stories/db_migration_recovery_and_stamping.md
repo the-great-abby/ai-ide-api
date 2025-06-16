@@ -11,7 +11,7 @@ As a developer or admin, I want to quickly recover from Alembic migration mismat
 - The database and Alembic migration history are out of sync (e.g., after a failed migration, missing file, or manual DB change).
 - You see errors like `Can't locate revision identified by ...` when running Alembic commands.
 
-## Steps (Recovery Flow)
+## Step-by-Step Actions
 1. **Stamp the database to the current Alembic head:**
    - Command:
      ```bash
@@ -35,6 +35,8 @@ As a developer or admin, I want to quickly recover from Alembic migration mismat
    - Ensure the database and migration history are now in sync.
    - Run your app/tests to confirm.
 
+5. **For test DB or memorydb, use the corresponding Makefile targets (e.g., `test-db-stamp-head`, `ai-memorydb-stamp`):**
+
 ## Expected Outcomes
 - The database is marked as up-to-date with the latest migration.
 - New migrations can be generated and applied without errors.
@@ -45,6 +47,16 @@ As a developer or admin, I want to quickly recover from Alembic migration mismat
 - Avoid manual DB changes outside of migrations.
 - Keep migration files under version control.
 - Document any manual recovery steps in the user stories or onboarding docs.
+
+## Workflow Diagram
+
+```mermaid
+flowchart TD
+    A["Migration error or mismatch"] --> B["Run ai-db-stamp-head"]
+    B --> C["Re-run migration autogeneration"]
+    C --> D["Apply new migration"]
+    D --> E["Verify DB and migration history"]
+```
 
 ## References
 - Makefile.ai targets: `ai-db-stamp-head`, `ai-db-autorevision`, `ai-db-migrate`

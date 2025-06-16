@@ -13,14 +13,26 @@ Ensure the test environment is completely reset between runs to prevent test fla
 - There may be leftover __pycache__ directories or .pyc files from previous Python runs.
 
 ## Step-by-Step Actions
-1. Run make ai-test-cleanup from the project root.
+1. Run the cleanup target:
+   ```bash
+   make -f Makefile.ai-test ai-test-cleanup
+   ```
 2. The target executes:
-   - make down (stops and removes dev containers, networks, and volumes)
-   - docker compose -f docker-compose.test.yml down (stops and removes test containers, networks, and volumes)
-   - make clean-pycache (removes all __pycache__ directories and .pyc files)
+   - `make down` (stops and removes dev containers, networks, and volumes)
+   - `docker compose -f docker-compose.test.yml down` (stops and removes test containers, networks, and volumes)
+   - `make clean-pycache` (removes all __pycache__ directories and .pyc files)
 3. All containers, networks, and volumes for both dev and test are stopped and removed.
 4. All Python cache files are deleted.
 5. The environment is now clean and ready for a fresh test or dev cycle.
+
+### Workflow Diagram
+```mermaid
+flowchart TD
+    A["Run ai-test-cleanup target"] --> B["Stop dev containers (make down)"]
+    B --> C["Stop test containers (docker compose down)"]
+    C --> D["Remove Python cache files (make clean-pycache)"]
+    D --> E["Environment clean and ready"]
+```
 
 ## Expected Outcomes
 - No running containers, networks, or volumes from previous test/dev runs.

@@ -1,3 +1,54 @@
+# User Story: Backup and Restore Workflow for Databases
+
+## Motivation
+As a developer or admin, I want a safe, repeatable workflow for backing up and restoring both rulesdb and memorydb, so that I can protect data, test destructive operations, and recover from failures with confidence.
+
+## Actors
+- Developer
+- System Administrator
+- CI/CD pipeline
+
+## Preconditions
+- Both rulesdb and memorydb are running in Docker Compose.
+- The backup/restore scripts and Makefile targets are available.
+- The user has access to the host and container environments as needed.
+
+## Step-by-Step Actions
+1. Run the test in setup mode to create data and prepare for backup:
+   ```bash
+   BACKUP_RESTORE_PHASE=setup make -f Makefile.ai ai-test-backup-restore
+   ```
+2. On the host, run the provided script to backup both databases, nuke them, bring up API/DB, run migrations, and restore both databases:
+   ```bash
+   bash scripts/backup_restore_cycle.sh
+   ```
+3. Re-run the test in verification mode to confirm all data was restored correctly:
+   ```bash
+   BACKUP_RESTORE_PHASE=verify make -f Makefile.ai ai-test-backup-restore
+   ```
+
+## Expected Outcomes
+- Both databases are safely backed up and can be restored after destructive operations.
+- Data integrity is verified after restore.
+- The workflow is modular, safe, and ready for automation.
+
+## Best Practices
+- Always pipe psql output to `cat` in automation to avoid prompt issues.
+- Keep migration histories for each DB isolated.
+- Document any manual steps or custom SQL in migration scripts.
+- Use dedicated Alembic environments for each DB.
+- Use the correct Docker service names for each environment.
+
+## Workflow Diagram
+
+```mermaid
+flowchart TD
+    A["Run setup phase (create data)"] --> B["Run backup_restore_cycle.sh on host"]
+    B --> C["Backup, nuke, migrate, restore both DBs"]
+    C --> D["Run verify phase (check data integrity)"]
+    D --> E["Workflow complete"]
+```
+
 # Backup and Restore for rulesdb and memorydb
 
 > ## Proven and Recommended Workflow (2025-05-17)

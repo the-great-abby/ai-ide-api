@@ -725,7 +725,7 @@ def test_rule_promotion_endpoint(
             "diff": "Promotion diff.",
             "submitted_by": "tester",
             "scope_level": "project",
-            "scope_id": test_project_uuid,
+            "project": "test-project",
             "reason_for_change": "Testing promotion.",
             "references": "Test reference.",
         },
@@ -751,10 +751,16 @@ def test_rule_promotion_endpoint(
     assert approve_response.status_code == 200
     rule_id = approve_response.json().get("rule_id", proposal_id)
 
+    # Fetch the rule and check submitted_by
+    rule_response = client.get(f"/rules/{rule_id}", headers=admin_headers)
+    assert rule_response.status_code == 200
+    rule_data = rule_response.json()
+    assert rule_data["submitted_by"] == "tester"
+
     # Now promote the rule
     promote_response = client.post(
         f"/rules/{rule_id}/promote",
-        json={"target_scope": "team", "target_scope_id": test_team_uuid},
+        json={"target_scope": "team", "team": "test-team"},
         headers=admin_headers,
     )
     print(f"[DEBUG] Promote response: {promote_response.status_code} {promote_response.text}")
@@ -762,10 +768,15 @@ def test_rule_promotion_endpoint(
     promote_data = promote_response.json()
     assert promote_data["status"] == "promoted"
     assert promote_data["id"] == rule_id
+    assert promote_data["submitted_by"] == "tester"
 
     # Try to promote a non-existent rule (valid UUID)
     fake_id = str(uuid.uuid4())
-    response = client.post(f"/rules/{fake_id}/promote", json={"scope_level": "team", "scope_id": "team-1"}, headers=admin_headers)
+    response = client.post(
+        f"/rules/{fake_id}/promote",
+        json={"scope_level": "team", "team": "test-team"},
+        headers=admin_headers,
+    )
     assert response.status_code == 404  # API returns 404 for non-existent rule
 
 

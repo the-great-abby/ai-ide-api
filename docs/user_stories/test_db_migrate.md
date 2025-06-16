@@ -37,3 +37,12 @@ flowchart TD
 - Review migration output for errors or warnings.
 - Keep migration scripts well-documented and versioned.
 - Document any manual migration steps required for special cases.
+- Save migration output for further analysis:
+  ```bash
+  make -f Makefile.ai-test test-db-migrate > db_migrate_output.txt
+  ```
+
+## Troubleshooting
+- **Migration failures:** Review the output for SQL errors, missing tables, or permission issues.
+- **Schema not updating:** Ensure the correct migration scripts are present and applied.
+- **Container not running:** Verify the test DB container is up and healthy before running this target.

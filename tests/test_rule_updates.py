@@ -256,3 +256,10 @@ def test_update_immutable_fields(admin_headers, client, override_get_db):
         current_rule = rule_response.json()
         for field, value in immutable_update.items():
             assert current_rule[field] != value
+
+    # Update rule_type (now allowed)
+    update_request = {"rule_type": "updated_type"}
+    response = client.patch(f"/rules/{rule_id}", json=update_request, headers=admin_headers)
+    assert response.status_code == 200
+    updated_rule = response.json()
+    assert updated_rule["rule_type"] == "updated_type"

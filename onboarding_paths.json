@@ -5,9 +5,9 @@
       "display_name": "Test Path",
       "buddy": "Doc Testwell",
       "steps": [
-        {"instruction": "Run 'make -f Makefile.ai ai-test' to start the test suite.", "doc_link": "/onboarding/user_story/test_path#testing-workflow-guidelines"},
-        {"instruction": "Check the test results in 'last-test.log'.", "doc_link": "/onboarding/user_story/test_path#troubleshooting"},
-        {"instruction": "If a test fails, review the error and rerun with 'make -f Makefile.ai ai-test PYTEST_ARGS=\"-x\"'.", "doc_link": null}
+        {"instruction": "Run 'make -f Makefile.ai-test test' to start the test suite.", "doc_link": "/onboarding/user_story/test_path#testing-workflow-guidelines"},
+        {"instruction": "Check the test results in the terminal output. (Optional: redirect output to a file with 'make -f Makefile.ai-test test > last-test.log')", "doc_link": "/onboarding/user_story/test_path#troubleshooting"},
+        {"instruction": "If a test fails, review the error and rerun with 'make -f Makefile.ai-test test PYTEST_ARGS=\"-x\"' for stop-on-failure mode.", "doc_link": null}
       ]
     },
     {

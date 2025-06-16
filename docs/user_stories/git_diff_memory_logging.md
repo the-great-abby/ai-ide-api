@@ -1,88 +1,54 @@
-# User Story: Automated Git Diff Memory Logging with LLM Summaries
+# User Story: Git Diff Memory Logging
 
 ## Motivation
-As a developer or maintainer, I want to automatically log code changes (git diffs) as memory nodes, with detailed LLM-generated summaries, so that I can:
-- Track important changes and their context over time
-- Quickly review what changed and why
-- Enable onboarding, troubleshooting, and knowledge sharing
-
----
+As a developer, I want to log and review memory changes associated with git diffs so I can track how code changes impact memory usage and debug regressions more effectively.
 
 ## Actors
 - Developer
-- Maintainer
-- CI/CD pipeline (optional)
-
----
+- Code Reviewer
+- System Administrator
 
 ## Preconditions
-- The AI IDE API and Ollama Functions services are running
-- The Makefile.ai target `ai-memory-log-git-diff` is available
-- You have local git changes (committed, staged, or unstaged)
-
----
+- Memory logging and git diff integration are implemented in the codebase.
+- The developer has access to the relevant logging and version control tools.
 
 ## Step-by-Step Actions
+1. Make code changes and commit them to the repository.
+2. Trigger the memory logging system to capture memory state before and after the changes.
+3. Generate a git diff report linked to memory log entries using the Makefile target:
+   ```bash
+   make -f Makefile.ai ai-memory-log-git-diff DIFF_RANGE=HEAD
+   ```
+   - This will generate a git diff, summarize it with the LLM, and store the summary and diff as a memory node.
+4. Review the combined report to analyze the impact of code changes on memory.
+5. Use findings to optimize code or catch regressions.
 
-### 1. Get a Diff of Your Changes
-- **All changes since last commit (work in progress):**
-  ```bash
-  git diff HEAD
-  ```
-- **Only staged changes:**
-  ```bash
-  git diff --cached
-  ```
-- **Only unstaged changes:**
-  ```bash
-  git diff
-  ```
-- **Between any two commits/branches:**
-  ```bash
-  git diff <commit1>..<commit2>
-  ```
-
-### 2. Log the Diff as a Memory Node
-- **Default (all changes since last commit):**
-  ```bash
-  make -f Makefile.ai ai-memory-log-git-diff DIFF_RANGE=HEAD
-  ```
-- **Custom range:**
-  ```bash
-  make -f Makefile.ai ai-memory-log-git-diff DIFF_RANGE=main..feature-branch
-  ```
-- **Concise summary:**
-  ```bash
-  make -f Makefile.ai ai-memory-log-git-diff DIFF_RANGE=HEAD CONCISE=1
-  ```
-- **Custom name/observation/namespace:**
-  ```bash
-  make -f Makefile.ai ai-memory-log-git-diff DIFF_RANGE=HEAD NAME="wip-20240520" OBSERVATION="WIP changes before refactor" NAMESPACE="ai-ide-api"
-  ```
-
-### 3. What Happens
-- The Makefile target:
-  1. Generates the git diff for the specified range
-  2. Calls the `/summarize-git-diff` endpoint (LLM, verbose by default)
-  3. Combines the summary, diff, and range into a meta field
-  4. Creates a memory node with all this information
-
----
+> **Quick Start Example (optional):**
+> ```bash
+> # Log the current git diff as a memory node
+> make -f Makefile.ai ai-memory-log-git-diff DIFF_RANGE=HEAD~1..HEAD
+> ```
 
 ## Expected Outcomes
-- A new memory node is created, containing:
-  - The git diff
-  - An LLM-generated summary (detailed or concise)
-  - Metadata (diff range, timestamp, etc.)
-- You can search, review, and share these memories for onboarding, retrospectives, or debugging
-
----
+- Memory logs are linked to specific git diffs.
+- Developers and reviewers can easily analyze the impact of changes on memory usage.
+- Debugging and optimization are more efficient.
 
 ## Best Practices
-- Use this workflow for major merges, releases, or refactors
-- Add meaningful names and observations for easier search
-- Use concise summaries for small changes, verbose for major ones
-- Regularly review memory nodes to build project knowledge
+- Automate memory logging on commit or PR events.
+- Store logs in a searchable, persistent location.
+- Document the workflow for linking diffs to memory logs.
+- Regularly review reports for optimization opportunities.
+
+## Workflow Diagram
+
+```mermaid
+flowchart TD
+    A["Make code changes and commit"] --> B["Trigger memory logging before/after"]
+    B --> C["Generate git diff report with memory logs"]
+    C --> D["Review and analyze impact"]
+    D --> E["Optimize or debug as needed"]
+```
 
 ---
 

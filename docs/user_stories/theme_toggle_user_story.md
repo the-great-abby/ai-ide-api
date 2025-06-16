@@ -37,6 +37,27 @@ To provide users and teams with the ability to switch between different narrativ
 - Allow for easy addition of new themes by following the established file structure.
 - Document the theme toggle system for future maintainers and designers.
 
+## Workflow Diagram
+
+The following Mermaid diagram illustrates the workflow for the theme toggle system:
+
+```mermaid
+flowchart TD
+    A["User/Admin selects theme in config/theme.json"] --> B["System reads selected theme on startup/session"]
+    B --> C["System loads theme file from themes/"]
+    C --> D["Apply theme messages to UI/onboarding/errors"]
+    D --> E["User experiences selected narrative style"]
+    E --> F{"Theme changed?"}
+    F -- "Yes" --> B
+    F -- "No" --> G["Continue with current theme"]
+```
+
+**Explanation:**
+- The user or admin selects a theme by updating the config file.
+- The system reads the selected theme on startup or session initiation.
+- The corresponding theme file is loaded and applied to all relevant messages and UI elements.
+- If the theme is changed, the system reloads the new theme; otherwise, it continues with the current theme.
+
 ---
 
 *This user story ensures the theme toggle system is robust, user-friendly, and supports a dynamic, engaging experience for all crew members—no matter the narrative style chosen.* 

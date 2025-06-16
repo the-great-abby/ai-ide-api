@@ -37,6 +37,29 @@ To immerse new users in a high-tech, cyberpunk-themed onboarding journey that ma
 - Provide clear, actionable troubleshooting in the same narrative style.
 - Allow for easy switching to other themes if the user prefers a different experience.
 
+## Workflow Diagram
+
+The following Mermaid diagram illustrates the cyberpunk onboarding workflow:
+
+```mermaid
+flowchart TD
+    A["Transmission Initiated: Welcome Message"] --> B["Mission Briefing by Handler 'Patch'"]
+    B --> C["Tool Deployment: IDE/Repo/Test Setup"]
+    C --> D["First Hack: Complete First Task"]
+    D --> E{"Black ICE Encountered?"}
+    E -- "Yes" --> F["Handler Provides Troubleshooting"]
+    F --> D
+    E -- "No" --> G["Mission Complete: Debrief & Next Steps"]
+    G --> H["Explore Further Missions"]
+```
+
+**Explanation:**
+- The onboarding begins with a transmission and welcome message.
+- Handler "Patch" briefs the Operative on objectives.
+- The Operative sets up tools and completes their first task.
+- If errors (Black ICE) are encountered, troubleshooting is provided and the Operative retries.
+- On success, the mission is completed and the Operative is encouraged to explore further features.
+
 ---
 
 *This user story ensures that the cyberpunk onboarding experience is both functional and immersive, supporting a strong team culture and smooth ramp-up for new Operatives.* 

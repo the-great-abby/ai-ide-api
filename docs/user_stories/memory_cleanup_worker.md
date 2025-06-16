@@ -21,6 +21,15 @@ To maintain a high-quality, relevant, and efficient knowledge base, the system m
 4. All actions are logged, and a summary report is generated for developer review.
 5. Optionally, the worker can run in "dry run" mode to preview changes without applying them.
 
+### Workflow Diagram
+```mermaid
+flowchart TD
+    A["Scan knowledge base entries"] --> B["Identify outdated/duplicate/unused entries"]
+    B --> C["Remove or archive flagged entries"]
+    C --> D["Log actions and generate summary report"]
+    D --> E["Developers review and restore if needed"]
+```
+
 ## Expected Outcomes
 - The knowledge base is free of outdated, duplicate, or irrelevant entries.
 - Developers can review what was cleaned up and restore entries if needed.
@@ -30,4 +39,14 @@ To maintain a high-quality, relevant, and efficient knowledge base, the system m
 - Always log removals with reasons and affected entries.
 - Allow for a "dry run" mode to preview changes before applying them.
 - Provide a mechanism to restore or audit removed entries if necessary.
-- Schedule regular cleanups and allow for manual triggering as needed. 
+- Schedule regular cleanups and allow for manual triggering as needed.
+- Save cleanup logs for further analysis:
+  ```bash
+  make -f Makefile.ai-memory memory-cleanup-worker > cleanup_worker_output.txt
+  ```
+
+## Troubleshooting
+- **Accidental removals:** Use the restore/audit mechanism to recover entries.
+- **Worker not running:** Ensure the automation system is scheduled and has access to the knowledge base.
+- **Performance issues:** Optimize scan and cleanup logic for large knowledge bases.
+- **Dry run not working:** Verify the worker is running in the correct mode and logging actions as expected. 

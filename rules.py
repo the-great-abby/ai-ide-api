@@ -54,6 +54,9 @@ class RuleUpdateModel(BaseModel):
     user_story: Optional[str] = None
     scope_level: Optional[str] = Field(None, min_length=1)
     scope_id: Optional[str] = None
+    submitted_by: Optional[str] = Field(None, min_length=1)
+    reason_for_change: Optional[str] = None
+    references: Optional[str] = None
 
 
 def parse_list_field(val):
@@ -292,9 +295,12 @@ async def update_rule(
     except Exception:
         raw_payload = None
     logger.debug(f"[UPDATE-DEBUG] Raw incoming payload: {raw_payload}")
-    # Strictly reject any unknown or forbidden fields in the payload
-    allowed_fields = set(RuleUpdateModel.__fields__.keys())
-    immutable_fields = {"rule_type", "submitted_by", "version", "id"}
+    # Allowed fields for update (now includes 'rule_type')
+    allowed_fields = {
+        "description", "diff", "categories", "tags", "examples", "applies_to", "applies_to_rationale", "user_story", "scope_level", "scope_id", "submitted_by", "reason_for_change", "references", "rule_type"
+    }
+    # Only version and id are immutable now
+    immutable_fields = {"version", "id"}
     if raw_payload:
         for key in raw_payload:
             if key not in allowed_fields:
@@ -340,7 +346,6 @@ async def update_rule(
                     detail=f"Field '{field}' cannot be None.",
                 )
     # Validate no unknown fields are present
-    allowed_fields = set(RuleUpdateModel.__fields__.keys())
     for field in update.__fields_set__:
         if field not in allowed_fields:
             logger.error(f"[UPDATE-DEBUG] Unknown field in update: {field}")
@@ -402,6 +407,8 @@ async def promote_rule(
     logger.debug(f"[PROMOTE-DEBUG] Incoming request data: {data}")
     scope_level = data.get("scope_level") or data.get("target_scope")
     scope_id = data.get("scope_id") or data.get("target_scope_id")
+    team = data.get("team")
+    project = data.get("project")
     if not scope_level:
         logger.error(f"[PROMOTE-DEBUG] scope_level missing for rule {rule_id}")
         raise HTTPException(status_code=400, detail="scope_level (or target_scope) is required")
@@ -416,12 +423,25 @@ async def promote_rule(
     if target_idx <= current_idx:
         logger.error(f"[PROMOTE-DEBUG] Cannot promote to same or lower scope: {scope_level}")
         raise HTTPException(status_code=400, detail="Can only promote to a higher scope")
-    if scope_level == "team" and not scope_id:
-        logger.error(f"[PROMOTE-DEBUG] scope_id missing for team scope promotion")
-        raise HTTPException(status_code=422, detail="scope_id (or target_scope_id) is required for team scope")
-    if scope_level == "global" and scope_id:
-        logger.error(f"[PROMOTE-DEBUG] scope_id must not be set for global scope promotion")
-        raise HTTPException(status_code=400, detail="scope_id (or target_scope_id) must not be set for global scope")
+    # Team scope promotion: resolve team name to scope_id
+    if scope_level == "team":
+        if project and not team and not scope_id:
+            logger.error(f"[PROMOTE-DEBUG] project provided instead of team for team scope promotion")
+            raise HTTPException(status_code=422, detail="team is required for team scope promotion; got project instead")
+        if not scope_id:
+            if team:
+                try:
+                    scope_id = resolve_team_id(db, team)
+                except Exception as e:
+                    logger.error(f"[PROMOTE-DEBUG] Could not resolve team '{team}' to UUID: {e}")
+                    raise HTTPException(status_code=422, detail=f"Could not resolve team '{team}' to UUID.")
+            else:
+                logger.error(f"[PROMOTE-DEBUG] team is required for team scope promotion")
+                raise HTTPException(status_code=422, detail="team is required for team scope promotion")
+    # Global scope: must not have scope_id, team, or project
+    if scope_level == "global" and (scope_id or team or project):
+        logger.error(f"[PROMOTE-DEBUG] scope_id, team, or project must not be set for global scope promotion")
+        raise HTTPException(status_code=400, detail="scope_id, team, or project must not be set for global scope")
     logger.debug(f"[PROMOTE-DEBUG] All checks passed for rule {rule_id}")
     # All checks passed, perform promotion
     try:

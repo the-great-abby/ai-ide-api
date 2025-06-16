@@ -501,7 +501,6 @@ def test_rule_conflicts_update(client, admin_headers, override_get_db):
 
     # Try to update rule with conflicting pattern
     updated_rule = {
-        "rule_type": "conflict_test",
         "description": "Updated test rule",
         "diff": "Pattern: def another_function():\nMessage: Updated test message\nSeverity: error",
         "submitted_by": "tester",

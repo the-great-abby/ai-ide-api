@@ -874,3 +874,19 @@ class MarkdownResponse(Response):
     def __init__(self, content: str, status_code: int = 200):
         super().__init__(content=content, status_code=status_code, media_type=self.media_type)
         self.headers["content-type"] = "text/markdown; charset=utf-8"
+
+@app.delete("/delete-rule/{rule_id}")
+def deactivate_rule(rule_id: str, db: Session = Depends(get_db)):
+    """
+    Soft delete (deactivate) a rule by setting its status to 'inactive'.
+    This preserves the rule for audit/history purposes.
+    """
+    rule = db.query(DBRule).filter(DBRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found.")
+    # Only deactivate if not already inactive/deleted
+    if rule.status == "inactive" or rule.status == "deleted":
+        return {"status": rule.status, "id": rule.id}
+    rule.status = "inactive"
+    db.commit()
+    return {"status": "inactive", "id": rule.id}

@@ -1,54 +1,58 @@
-# User Story: test
+# User Story: test (Full Test Suite)
 
 ## Motivation
-To ensure the reliability, correctness, and maintainability of the codebase, all contributors must be able to run automated tests efficiently and consistently. Standardized testing workflows help catch bugs early, support rapid development, and maintain high code quality across the project.
+Running the full test suite ensures that all components of the system work as intended and that new changes do not introduce regressions. The test target standardizes this process for all contributors and CI systems.
 
 ## Actors
-- Developers
-- CI/CD automation
-- AI assistants (e.g., Quartermaster "Patch" McDebug)
-- Reviewers
+- Developers: Run the full test suite locally to verify changes before merging.
+- CI/CD Systems: Execute the test suite automatically on every push or pull request.
+- QA Engineers: Validate that the application passes all automated tests in a clean environment.
 
 ## Preconditions
-- The development environment is set up according to project documentation.
-- Docker and Makefile.ai are installed and available.
-- All required services (e.g., test database, Redis) are running in the test Docker network.
-- Environment variables are configured for the test environment (see `change-this-env.*.example` files).
+- Docker and Docker Compose are installed and running.
+- The test containers are built and available (if not, they will be built automatically).
+- The workspace is at the project root.
 
 ## Step-by-Step Actions
-1. Start the test environment:
+1. Run the full test suite:
    ```bash
-   make -f Makefile.ai ai-env-up
-   # or for a full setup
-   make -f Makefile.ai test-setup
+   make -f Makefile.ai-test test
    ```
-2. Run the test suite using the Makefile.ai target:
+   Optionally, pass extra pytest arguments:
    ```bash
-   make -f Makefile.ai ai-test
-   # or for unit/integration tests:
-   make -f Makefile.ai ai-test-unit
-   make -f Makefile.ai ai-test-integration
+   make -f Makefile.ai-test test PYTEST_ARGS="-k <pattern>"
    ```
-3. (Optional) Pass additional pytest arguments via `PYTEST_ARGS`:
-   ```bash
-   make -f Makefile.ai ai-test PYTEST_ARGS="-x"
-   ```
-4. Review the test results and address any failures.
-5. Clean up the test environment when finished:
-   ```bash
-   make -f Makefile.ai ai-env-down
-   ```
+2. The target starts the required test containers (if not already running).
+3. All tests are executed in a clean, isolated Docker environment.
+4. Results are displayed in the terminal, including any failures or errors.
+
+### Workflow Diagram
+```mermaid
+flowchart TD
+    A["Run test target"] --> B["Start test containers"]
+    B --> C["Execute all tests"]
+    C --> D["Display results"]
+    D --> E["Cleanup (optional)"]
+```
 
 ## Expected Outcomes
-- All tests run in a consistent, isolated environment.
-- Failures are detected early and are easy to debug.
-- The team maintains high confidence in code quality and system stability.
-- Test results are reproducible across different machines and CI/CD pipelines.
+- All tests are executed in a clean, isolated Docker environment.
+- Results are displayed, including any failures or errors.
+- The environment remains consistent across all contributors and CI runs.
 
 ## Best Practices
-- Always use Makefile.ai targets for running tests; do not run pytest directly.
-- Use Docker service names and internal ports for all service connections in tests.
-- Keep test and development environments isolated.
-- Regularly update and review test cases to cover new features and edge cases.
-- Clean up the test environment after running tests to avoid contamination.
-- Reference user stories and documentation when adding new test workflows or targets.
+- Always nuke the test DB before running migrations and tests for a clean slate.
+- Use the `test` target via `Makefile.ai-test` for running the full suite quickly.
+- Use `PYTEST_ARGS` to filter or customize test runs as needed.
+- Clean up with `make -f Makefile.ai-test test-down` or `ai-test-cleanup` before/after major changes.
+- Document any additional test targets or workflows in user stories for discoverability.
+- Save test output for further analysis:
+  ```bash
+  make -f Makefile.ai-test test > test_output.txt
+  ```
+
+## Troubleshooting
+- **Test failures:** Review the output for stack traces and error messages.
+- **Old data or schema issues:** Ensure the test DB was nuked and migrations applied.
+- **Containers not starting:** Check Docker status and logs for errors.
+- **Environment drift:** Use test-quickstart to reset everything to a known state.

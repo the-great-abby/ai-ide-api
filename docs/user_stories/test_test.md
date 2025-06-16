@@ -68,6 +68,39 @@ See [test-quickstart user story](test_quickstart.md) for details.
   make -f Makefile.ai-test test > test_output.txt
   ```
 
+## Workflow Diagram
+
+The following Mermaid diagram illustrates the clean test cycle workflow for the Makefile test targets:
+
+```mermaid
+flowchart TD
+    A["Start: Clean Test Cycle"] --> B["Nuke Test DB"]
+    B --> C["Apply Migrations"]
+    C --> D["Run Full Test Suite"]
+    D --> E{"All Tests Pass?"}
+    E -- "Yes" --> F["Success: Clean, Consistent Results"]
+    E -- "No" --> G["Troubleshoot Failures"]
+    G --> B
+
+    %% Optional: Quickstart Path
+    A -.-> Q["All-in-One: Quickstart"]
+    Q --> F
+
+    %% Advanced: Force Fresh Volume
+    B -.-> V["Set TEST_DB_VOLUME for Unique Volume"]
+    V --> B
+
+    %% Cleanup
+    F --> H["Optional: Clean Up"]
+```
+
+**Explanation:**
+- The standard cycle begins by nuking the test DB, applying migrations, and running the full test suite.
+- If all tests pass, the process is complete; if not, troubleshooting leads back to the start.
+- The 'Quickstart' path allows all steps to be run in one command.
+- For advanced cases, setting `TEST_DB_VOLUME` ensures a truly fresh database volume.
+- Cleanup is optional but recommended after major changes or before switching tasks.
+
 ## Troubleshooting
 - **Test failures:** Review the output for stack traces and error messages.
 - **Old data or schema issues:** Ensure the test DB was nuked and migrations applied.

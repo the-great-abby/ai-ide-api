@@ -66,6 +66,14 @@ def main():
     user_story_files = list_user_story_files()
     logger.info(f"Found {len(user_story_files)} user story files.")
 
+    # Mermaid diagram check
+    for filename in user_story_files:
+        path = os.path.join(USER_STORY_DIR, filename)
+        with open(path) as f:
+            content = f.read()
+            if '```mermaid' not in content:
+                logger.warning(f"[INCOMPLETE] Mermaid diagram missing in user story: {filename}")
+
     # Check for missing user stories for targets
     missing = []
     for target in sorted(all_targets):

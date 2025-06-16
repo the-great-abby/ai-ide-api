@@ -39,7 +39,7 @@ def test_rule_promotion_flow(admin_headers, client, override_get_db):
     assert approve_response.status_code == 200
     # Always fetch the rule from /rules after approval
     rules = client.get(
-        f"/rules?scope_level=project&scope_id={project_rule['project']}", headers=admin_headers
+        f"/rules?scope_level=project&project={project_rule['project']}", headers=admin_headers
     ).json()
     rule = next(r for r in rules if r["description"] == "Promotion test rule")
     rule_id = rule["id"]
@@ -74,7 +74,7 @@ def test_invalid_promotion(admin_headers, client, override_get_db):
         "diff": "# Rule: Test diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "scope_level": "team",
-        "scope_id": team_scope_id,
+        "team": "test-team",
         "categories": ["test"],
         "tags": ["promotion"],
         "examples": ["Example 2"],
@@ -96,15 +96,15 @@ def test_invalid_promotion(admin_headers, client, override_get_db):
     )
     assert approve_response.status_code == 200
 
-    # Get the rule ID using the actual scope_id
+    # Get the rule ID using the actual team UUID
     rules = client.get(
-        f"/rules?scope_level=team&scope_id={team_scope_id}", headers=admin_headers
+        f"/rules?scope_level=team&team=test-team", headers=admin_headers
     ).json()
     rule = next(r for r in rules if r["description"] == "Test invalid promotion")
     rule_id = rule["id"]
 
     # Test invalid promotion (trying to demote to project scope)
-    invalid_promotion = {"scope_level": "project", "scope_id": "test-project-2"}
+    invalid_promotion = {"scope_level": "project", "project": "test-project-2"}
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=invalid_promotion, headers=admin_headers
     )
@@ -114,7 +114,7 @@ def test_invalid_promotion(admin_headers, client, override_get_db):
     assert "Can only promote to a higher scope" in promote_response.json()["detail"]
 
     # Test invalid scope level
-    invalid_scope = {"scope_level": "invalid_scope", "scope_id": "test-id"}
+    invalid_scope = {"scope_level": "invalid_scope", "team": "test-team"}
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=invalid_scope, headers=admin_headers
     )
@@ -133,7 +133,7 @@ def test_promotion_with_missing_scope_id(admin_headers, client, override_get_db)
         "diff": "# Rule: Test diff\n## Description\nThis is a test rule.\n## Enforcement\nThis rule is enforced for testing.",
         "submitted_by": "tester",
         "scope_level": "project",
-        "scope_id": project_scope_id,
+        "project": "test-project",
         "categories": ["test"],
         "tags": ["promotion"],
         "examples": ["Example 3"],
@@ -155,14 +155,14 @@ def test_promotion_with_missing_scope_id(admin_headers, client, override_get_db)
     )
     assert approve_response.status_code == 200
 
-    # Get the rule ID using the actual scope_id
+    # Get the rule ID using the actual project UUID
     rules = client.get(
-        f"/rules?scope_level=project&scope_id={project_scope_id}", headers=admin_headers
+        f"/rules?scope_level=project&project=test-project", headers=admin_headers
     ).json()
     rule = next(r for r in rules if r["description"] == "Test missing scope ID")
     rule_id = rule["id"]
 
-    # Test promotion to team scope without scope_id
+    # Test promotion to team scope without team name
     invalid_promotion = {"scope_level": "team"}
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=invalid_promotion, headers=admin_headers
@@ -171,4 +171,4 @@ def test_promotion_with_missing_scope_id(admin_headers, client, override_get_db)
         print("RESPONSE BODY:", promote_response.text)
     assert promote_response.status_code == 422
     detail = promote_response.json()["detail"].lower()
-    assert "scope_id" in detail and "required" in detail
+    assert "team" in detail and "required" in detail

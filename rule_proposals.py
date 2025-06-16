@@ -231,24 +231,18 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error reading payload: {e}")
         raise
-    # Payload type debug and conversion
-    logger.warning(f"Payload type: {type(payload)}, repr: {repr(payload)}")
-    if not isinstance(payload, dict):
-        try:
-            payload = dict(payload)
-            logger.warning(f"Converted payload to dict via dict(payload)")
-        except Exception:
-            try:
-                payload = payload.dict()
-                logger.warning(f"Converted payload to dict via payload.dict()")
-            except Exception as e:
-                logger.error(f"Could not convert payload to dict: {e}")
-                raise
-    logger.warning(f"After conversion, payload: {payload}")
+    # Remove any client-supplied scope_id
+    if "scope_id" in payload:
+        logger.warning("Ignoring client-supplied 'scope_id'. It will be resolved server-side.")
+        payload.pop("scope_id")
+    # Type validation for required fields
+    for field in ["rule_type", "description", "diff", "submitted_by"]:
+        if not isinstance(payload.get(field), str) or not payload.get(field).strip():
+            raise HTTPException(status_code=422, detail=f"'{field}' must be a non-empty string.")
     scope_level = payload.get("scope_level")
     project = payload.get("project")
     team = payload.get("team")
-    incoming_scope_id = payload.get("scope_id")
+    incoming_scope_id = None  # Always ignore client-supplied scope_id
     scope_id = None
 
     # Scope resolution logic
@@ -263,13 +257,9 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
             except Exception as e:
                 logger.error(f"Could not resolve project '{project}': {e}")
                 raise HTTPException(status_code=422, detail="Could not resolve project name to UUID.")
-        elif incoming_scope_id:
-            # Accept direct scope_id if provided
-            scope_id = incoming_scope_id
-            payload["scope_id"] = incoming_scope_id
         else:
-            logger.error(f"Project scope requires 'project' field or direct 'scope_id'. Payload: {payload}")
-            raise HTTPException(status_code=422, detail="Project scope requires 'project' field or direct 'scope_id'.")
+            logger.error(f"Project scope requires 'project' field. Payload: {payload}")
+            raise HTTPException(status_code=422, detail="Project scope requires 'project' field.")
     elif scope_level == "team":
         if team:
             logger.warning(f"Resolving team '{team}' to UUID...")
@@ -281,17 +271,13 @@ async def propose_rule_change(request: Request, db: Session = Depends(get_db)):
             except Exception as e:
                 logger.error(f"Could not resolve team '{team}': {e}")
                 raise HTTPException(status_code=422, detail="Could not resolve team name to UUID.")
-        elif incoming_scope_id:
-            # Accept direct scope_id if provided
-            scope_id = incoming_scope_id
-            payload["scope_id"] = incoming_scope_id
         else:
-            logger.error(f"Team scope requires 'team' field or direct 'scope_id'. Payload: {payload}")
-            raise HTTPException(status_code=422, detail="Team scope requires 'team' field or direct 'scope_id'.")
+            logger.error(f"Team scope requires 'team' field. Payload: {payload}")
+            raise HTTPException(status_code=422, detail="Team scope requires 'team' field.")
     else:
-        # For global or legacy/other scopes, use incoming scope_id if present
-        scope_id = incoming_scope_id
-        payload["scope_id"] = incoming_scope_id
+        # For global or legacy/other scopes, do not set scope_id
+        scope_id = None
+        payload["scope_id"] = None
 
     logger.warning(f"After resolution: scope_level={scope_level}, scope_id={scope_id}, payload['scope_id']={payload.get('scope_id')}")
     # Now check for required scope_id

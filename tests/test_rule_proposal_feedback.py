@@ -135,7 +135,7 @@ def test_feedback_on_nonexistent_proposal(admin_headers, client, override_get_db
 
 @pytest.mark.negative
 def test_invalid_feedback_type(admin_headers, client, override_get_db):
-    # Create a rule proposal
+    # Proposal identifying fields
     proposal = {
         "rule_type": "test_invalid_feedback",
         "description": "Test invalid feedback type",
@@ -153,11 +153,19 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
         "references": "Test reference.",
     }
 
-    prop_response = client.post(
-        "/propose-rule-change", json=proposal, headers=admin_headers
-    )
-    assert prop_response.status_code == 200
-    proposal_id = prop_response.json()["id"]
+    # Check for existing pending proposal with same identifying fields
+    list_response = client.get("/rule-changes?status=pending", headers=admin_headers)
+    assert list_response.status_code == 200
+    proposals = list_response.json()
+    matching = [p for p in proposals if p["rule_type"] == proposal["rule_type"] and p["diff"] == proposal["diff"] and p["scope_level"] == proposal["scope_level"] and (p.get("project") == proposal["project"] or p.get("scope_id") == None)]
+    if matching:
+        proposal_id = matching[0]["id"]
+    else:
+        prop_response = client.post(
+            "/propose-rule-change", json=proposal, headers=admin_headers
+        )
+        assert prop_response.status_code == 200
+        proposal_id = prop_response.json()["id"]
 
     # Submit feedback with invalid type
     invalid_feedback = {"feedback_type": "invalid_type", "comments": "Test feedback", "scope_level": "project", "project": "test-project"}
@@ -171,14 +179,7 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
     assert "allowed_types" in data, "Error response should include allowed_types"
     assert set(data["allowed_types"]) == {"suggestion", "question", "concern"}
 
-    # Create the proposal
-    prop_response = client.post(
-        "/propose-rule-change", json=proposal, headers=admin_headers
-    )
-    assert prop_response.status_code == 200
-    proposal_id = prop_response.json()["id"]
-
-    # Approve the proposal
+    # Approve the proposal to clean up for future runs
     approve_response = client.put(
         f"/rule-changes/{proposal_id}/approve", headers=admin_headers
     )
