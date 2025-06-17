@@ -23,6 +23,16 @@ fileConfig(config.config_file_name)
 # For memorydb, we do not use ORM autogenerate, only raw SQL migrations
 # target_metadata = None
 
+# Dynamically set the SQLAlchemy URL from environment variables
+user = os.environ.get("POSTGRES_USER", "postgres")
+password = os.environ.get("POSTGRES_PASSWORD", "postgres")
+host = os.environ.get("POSTGRES_HOST", "db")
+port = os.environ.get("POSTGRES_PORT", "5432")
+db = os.environ.get("MEMORY_POSTGRES_DB", "memorydb")
+
+SQLALCHEMY_URL = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+context.config.set_main_option("sqlalchemy.url", SQLALCHEMY_URL)
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode."""
     url = os.environ.get("MEMORY_DATABASE_URL") or config.get_main_option("sqlalchemy.url")

@@ -20,11 +20,17 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=rulesdb
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - MEMORY_POSTGRES_DB=memorydb
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/rulesdb
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:11434
       - CORS_ORIGINS=*  # Allow all origins for debugging; restrict in production!
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
+      - ENVIRONMENT=dev
     depends_on:
       - db
       - rabbitmq
@@ -57,7 +63,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - rules_postgres_data:/var/lib/postgresql/data
+      - ${DEV_DB_VOLUME:-rules_postgres_data}:/var/lib/postgresql/data  # Now dynamic like test
       - ./docker/initdb:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -76,6 +82,7 @@ services:
       - ./ai_ide_rules:/app/ai_ide_rules
       - .:/code
       - ./.git:/code/.git
+      - ./.apitoken:/code/.apitoken
     working_dir: /scripts
     depends_on:
       - api
@@ -85,9 +92,10 @@ services:
       - PGPASSWORD=postgres
       - PGHOST=db
       - PGPORT=5432
-      - MEMORY_API_URL=http://api:8000/memory/nodes
+      - MEMORY_API_URL=http://api:8000/memory
       - OLLAMA_URL=http://host.docker.internal:11434/api/generate
       - OLLAMA_MODEL=llama3.1:8b-instruct-q6_K
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
     command: tail -f /dev/null
     healthcheck:
       test: ["CMD", "python", "/scripts/healthcheck.py"]
@@ -115,12 +123,18 @@ services:
     environment:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
+      - MEMORY_API_URL=http://api:8000/memory
     depends_on:
       - rabbitmq
       - ollama-functions
     env_file:
       - .env.llm-worker
-    profiles: ["llm"]
+    profiles: ["llm", "dev"]
+    volumes:
+      - ./worker:/app
+      - ./utils:/app/utils
+      - ./.apitoken:/code/.apitoken
+      - ./.git:/app/.git
 
   valkey:
     image: valkey/valkey:latest

@@ -73,4 +73,14 @@ make -f Makefile.memory ai-memory-log-git-diff
 
 ---
 
-For more details, see [docs/user_stories/portable_memory_logging_onboarding.md](docs/user_stories/portable_memory_logging_onboarding.md) 
+For more details, see [docs/user_stories/portable_memory_logging_onboarding.md](docs/user_stories/portable_memory_logging_onboarding.md)
+
+## Starting the Test Environment
+
+The preferred method to start the test environment is:
+
+```bash
+make -f Makefile.ai-test test-up
+```
+
+This command brings up all test containers as defined in `docker-compose.test.yml`. Run this before running tests or migrations. 

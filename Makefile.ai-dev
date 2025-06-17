@@ -9,4 +9,21 @@ ai-up:
 
 ai-down:
 	docker-compose down
-	@echo "[ai-down] Production/dev environment stopped." 
+	@echo "[ai-down] Production/dev environment stopped."
+
+.PHONY: dev-up
+# Bring up all main dev services
+# Usage: make -f Makefile.ai-dev dev-up
+
+dev-up:
+	docker compose up -d api misc-scripts db worker
+	@echo "Dev services (api, misc-scripts, db, worker) are up."
+
+# Run the onboarding script inside misc-scripts container
+# Usage: make -f Makefile.ai-dev dev-onboard
+
+dev-onboard:
+	touch .apitoken
+	docker compose exec misc-scripts python /code/scripts/onboard_external.py
+	docker compose cp misc-scripts:/code/.apitoken .apitoken
+	@echo "Copied .apitoken from container to host." 

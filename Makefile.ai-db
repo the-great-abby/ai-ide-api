@@ -74,4 +74,40 @@ db-enable-fdw:
 	docker compose exec db psql -U postgres -d memorydb -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
 	docker compose exec db psql -U postgres -d rulesdb -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
 
+ai-memorydb-migrate:
+	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
+
+memorydb-stamp-head:
+	docker compose exec api alembic -c alembic_memorydb.ini stamp head
+
+# Helper to get date and timestamp for dev
+DEV_DATE := $(shell date +%Y%m%d)
+DEV_TIME := $(shell date +%H%M%S)
+DEV_VOLUME_FILE := .last_dev_db_volume
+
+ifndef DEV_DB_VOLUME
+DEV_DB_VOLUME := rules_postgres_data_dev_fresh_$(DEV_DATE)_$(DEV_TIME)
+endif
+
+$(shell echo $(DEV_DB_VOLUME) > $(DEV_VOLUME_FILE))
+DEV_PREV_VOLUME := $(shell cat $(DEV_VOLUME_FILE) 2>/dev/null)
+
+dev-db-nuke:
+	@if [ -n "$(DEV_PREV_VOLUME)" ] && [ "$(DEV_PREV_VOLUME)" != "$(DEV_DB_VOLUME)" ]; then \
+	  echo "[dev-db-nuke] Removing previous volume: $(DEV_PREV_VOLUME)"; \
+	  docker volume rm $(DEV_PREV_VOLUME) || true; \
+	else \
+	  echo "[dev-db-nuke] No previous volume to remove or using same volume name."; \
+	fi
+	@echo "[dev-db-nuke] Using volume: $(DEV_DB_VOLUME)"
+	docker compose down -v
+	docker compose build --no-cache db
+	docker compose up -d db
+
+migrations-cleanup:
+	find migrations/ -name '__pycache__' -type d -exec rm -rf {} +
+	find migrations/ -name '*.pyc' -delete
+	find migrations_memorydb/ -name '__pycache__' -type d -exec rm -rf {} +
+	find migrations_memorydb/ -name '*.pyc' -delete
+
 .PHONY: db-test-migrate db-test-revision db-test-heads db-test-history db-test-stamp-head db-test-memorydb-revision db-test-backup-data-only db-test-backup-all db-test-restore-data db-test-restore-all db-test-enable-fdw db-migrate db-revision db-heads db-history db-stamp-head db-backup-data-only db-backup-all db-restore-data db-restore-all db-enable-fdw 

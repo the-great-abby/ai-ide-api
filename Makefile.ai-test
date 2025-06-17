@@ -127,6 +127,7 @@ quickstart:
 	else \
 	  $(MAKE) -f Makefile.ai-db db-migrate; \
 	fi
+	$(MAKE) -f Makefile.ai ai-memorydb-migrate
 	@echo "[quickstart] Running test suite or health check..."
 	@if [ "$(COMPOSE_FILE)" = "docker-compose.test.yml" ]; then \
 	  $(MAKE) -f Makefile.ai-test test-test; \
