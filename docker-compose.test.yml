@@ -135,6 +135,11 @@ services:
       - test-ollama-functions
     env_file:
       - .env.llm-worker-test
+    volumes:
+      - ./worker:/app
+      - ./utils:/app/utils
+      - ./.apitoken:/code/.apitoken
+      - ./.git:/app/.git
     profiles: ["llm-test"]
 
   test-rabbitmq:

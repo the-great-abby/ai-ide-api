@@ -54,6 +54,16 @@ As a developer, maintainer, or new team member, I want a single, unified workflo
 9. Wait for health checks or logs to confirm all services are running.
 10. Begin development, testing, or onboarding tasks as needed.
 
+## Starting the Test Environment
+
+To start the test environment, the preferred method is:
+
+```bash
+make -f Makefile.ai-test test-up
+```
+
+This command will bring up all test containers (test-db, test-api, test, test-frontend, test-misc-scripts, test-ollama-functions, test-worker) as defined in `docker-compose.test.yml`.
+
 ## Expected Outcomes
 - All system and LLM services are started and healthy.
 - Developers and new team members can use all features with minimal manual steps.

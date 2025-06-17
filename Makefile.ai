@@ -20,4 +20,7 @@ include Makefile.ai-memory
 # test: test-test
 # lint: misc-lint
 
+memorydb-migrate:
+	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
+
 # End of captain's log.

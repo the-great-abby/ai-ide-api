@@ -1,5 +1,11 @@
 # User Story: test-quickstart
 
+> **Note:** The preferred method to start the test environment is:
+> ```bash
+> make -f Makefile.ai-test test-up
+> ```
+> This brings up all test containers as defined in `docker-compose.test.yml`.
+
 ## Motivation
 Provide new contributors and existing developers with a one-command workflow to fully reset, initialize, and test the project in a clean environment. This ensures everyone can quickly verify that the codebase builds, migrates, and passes all tests from a fresh state, reducing onboarding friction and debugging time.
 
@@ -14,7 +20,11 @@ Provide new contributors and existing developers with a one-command workflow to 
 - No other containers are running on conflicting ports.
 
 ## Step-by-Step Actions
-1. Run the quickstart target:
+1. Start the test environment (if not already running):
+   ```bash
+   make -f Makefile.ai-test test-up
+   ```
+2. Run the quickstart target:
    ```bash
    make -f Makefile.ai-test test-quickstart
    ```

@@ -223,4 +223,24 @@ misc-healthcheck:
 misc-update-project-map:
 	docker compose exec misc-scripts python /scripts/update_project_map.py
 
-.PHONY: misc-test-export-rules misc-test-lint-rules misc-test-propose-rule misc-test-list-rules misc-export-rules misc-lint-rules misc-propose-rule misc-list-rules misc-list-rules-mdc misc-review-code-files misc-review-code-snippet misc-scan-db misc-approve-all-pending misc-propose-makefile-rule misc-review-multiple-files misc-propose-rules misc-install misc-up misc-update-rules misc-generate-update-template misc-mdc-to-json misc-enrich-rules misc-build misc-update-missing-user-stories misc-restart misc-propose-portable-rule misc-bug-report misc-bug-report-test misc-suggest-enhancement misc-suggest-enhancement-test misc-enhancement-to-proposal misc-proposal-to-enhancement misc-accept-enhancement misc-complete-enhancement misc-list-enhancements misc-onboarding-health misc-import-backup misc-search-user-stories misc-fdw-setup-script misc-logs-help misc-remove-duplicate-makefile-targets misc-enhancement-lifecycle-notify misc-safe-shutdown misc-auto-feedback misc-status misc-logs misc-healthcheck misc-update-project-map 
+.PHONY: misc-test-export-rules misc-test-lint-rules misc-test-propose-rule misc-test-list-rules misc-export-rules misc-lint-rules misc-propose-rule misc-list-rules misc-list-rules-mdc misc-review-code-files misc-review-code-snippet misc-scan-db misc-approve-all-pending misc-propose-makefile-rule misc-review-multiple-files misc-propose-rules misc-install misc-up misc-update-rules misc-generate-update-template misc-mdc-to-json misc-enrich-rules misc-build misc-update-missing-user-stories misc-restart misc-propose-portable-rule misc-bug-report misc-bug-report-test misc-suggest-enhancement misc-suggest-enhancement-test misc-enhancement-to-proposal misc-proposal-to-enhancement misc-accept-enhancement misc-complete-enhancement misc-list-enhancements misc-onboarding-health misc-import-backup misc-search-user-stories misc-fdw-setup-script misc-logs-help misc-remove-duplicate-makefile-targets misc-enhancement-lifecycle-notify misc-safe-shutdown misc-auto-feedback misc-status misc-logs misc-healthcheck misc-update-project-map restart-workers trigger-progress-report misc-list-memory-nodes
+
+.PHONY: restart-workers
+restart-workers:
+	docker compose restart worker || true
+	docker compose -f docker-compose.test.yml restart test-worker || true
+	@echo "Both dev and test worker containers have been restarted."
+
+.PHONY: trigger-progress-report
+trigger-progress-report: misc-up
+	docker compose exec misc-scripts python3 /scripts/publish_progress_report_job.py
+	@echo "Progress report job triggered from misc-scripts container."
+
+.PHONY: misc-install-deps
+misc-install-deps:
+	docker compose exec misc-scripts pip install -r /scripts/requirements.txt
+	@echo "Dependencies installed in misc-scripts container."
+
+.PHONY: misc-list-memory-nodes
+misc-list-memory-nodes:
+	docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq ".[0:5]"' 
