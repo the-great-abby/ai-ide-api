@@ -1,7 +1,7 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Body, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Body, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
 from pydantic import BaseModel
@@ -27,6 +27,8 @@ from memory import (
     check_llm_access,
     check_namespace_permission,
     get_embedding_ollama,
+    call_ollama_llm,
+    vector_search_memory_nodes,
 )
 
 logger = logging.getLogger(__name__)
@@ -404,3 +406,65 @@ def set_project_llm_access(
     db.commit()
     db.refresh(project)
     return {"project_id": project.id, "has_llm_access": project.has_llm_access}
+
+# --- RAG Search Endpoint ---
+class RAGQuery(BaseModel):
+    question: str
+    namespace: Optional[str] = None
+    top_k: int = 5
+
+class RAGResponse(BaseModel):
+    answer: str
+    sources: List[dict]  # Each dict: {id, content, namespace, meta, created_at}
+
+@router.post("/rag_search", response_model=RAGResponse, status_code=status.HTTP_200_OK)
+def rag_search(
+    query: RAGQuery,
+    token: ApiAccessToken = Depends(require_api_token),
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieval-Augmented Generation (RAG) search endpoint.
+    - Embeds the user's question
+    - Performs vector search for top_k relevant memory nodes (optionally filtered by namespace)
+    - Checks read permission for each namespace
+    - Calls the LLM with the question and retrieved node contents as context
+    - Returns the LLM's answer and the supporting memory nodes
+    """
+    # 1. Embed the question
+    embedding = get_embedding_ollama(query.question)
+
+    # 2. Vector search for top_k memory nodes (optionally filter by namespace)
+    node_dicts = vector_search_memory_nodes(embedding, namespace=query.namespace, limit=query.top_k)
+
+    # 3. Check read permission for each namespace and build MemoryNode-like objects
+    filtered_nodes = []
+    for node in node_dicts:
+        try:
+            check_namespace_permission(node["namespace"], token, "read", db)
+            filtered_nodes.append(node)
+        except Exception:
+            continue  # Skip nodes the user can't access
+
+    # 4. Prepare context for LLM
+    context = "\n\n".join([n["content"] for n in filtered_nodes])
+    if not context:
+        return RAGResponse(answer="No relevant memory nodes found.", sources=[])
+
+    # 5. Call Ollama LLM with context + question
+    prompt = f"""Answer the following question using only the provided context.\n\nContext:\n{context}\n\nQuestion: {query.question}\nAnswer:"""
+    answer = call_ollama_llm(prompt)
+
+    # 6. Return answer and sources
+    sources = [
+        {
+            "id": str(n["id"]),
+            "content": n["content"],
+            "namespace": n["namespace"],
+            "meta": n["meta"],
+            "created_at": n["created_at"],
+            "confidence": n.get("confidence"),
+        }
+        for n in filtered_nodes
+    ]
+    return RAGResponse(answer=answer, sources=sources)

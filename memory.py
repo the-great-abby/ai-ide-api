@@ -23,6 +23,7 @@ from db import (
 )
 from utils.serialization import serialize_uuids
 import uuid
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -104,6 +105,29 @@ def get_embedding_ollama(text: str) -> List[float]:
     )
     response.raise_for_status()
     return response.json()["embedding"]
+
+
+# Helper to call the Ollama LLM for text generation (not just embeddings)
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
+
+def call_ollama_llm(prompt: str) -> str:
+    """
+    Call the Ollama LLM server for text generation.
+    Handles streaming JSON responses.
+    """
+    try:
+        response = requests.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt}, timeout=120, stream=True)
+        response.raise_for_status()
+        answer = ""
+        for line in response.iter_lines():
+            if line:
+                chunk = json.loads(line)
+                answer += chunk.get("response", "")
+        return answer
+    except Exception as e:
+        logger.error(f"[ERROR] Ollama LLM call failed: {e}")
+        raise
 
 
 # --- Memory Graph API Security Dependencies ---
@@ -222,3 +246,28 @@ def create_namespace_permission(permission: NamespacePermissionCreate, db: Sessi
 # return [serialize_uuids(obj.__dict__.copy()) for obj in objects]
 
 # You should apply this to all endpoints returning MemoryNodeOut, MemoryEdgeOut, NamespacePermissionOut, or any dict/SQLAlchemy object.
+
+def vector_search_memory_nodes(embedding, namespace=None, limit=5):
+    """
+    Perform a vector search in memorydb using pgvector's <=> operator.
+    Args:
+        embedding (list[float]): The query embedding.
+        namespace (str|None): Optional namespace filter.
+        limit (int): Max number of results.
+    Returns:
+        list[dict]: List of memory node dicts with distance.
+    """
+    session = MemorySessionLocal()
+    sql = "SELECT *, embedding <=> CAST(:query_vec AS vector) AS distance FROM memory_vectors"
+    params = {"query_vec": embedding, "limit": limit}
+    if namespace:
+        sql += " WHERE namespace = :namespace"
+        params["namespace"] = namespace
+    sql += " ORDER BY distance ASC LIMIT :limit"
+    results = session.execute(text(sql), params)
+    nodes = []
+    for row in results:
+        row_dict = dict(row._mapping)
+        nodes.append(row_dict)
+    session.close()
+    return nodes
