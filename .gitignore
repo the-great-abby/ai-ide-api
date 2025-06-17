@@ -7,3 +7,10 @@ backups/*
 scripts/__pycache__/*
 .ai_assistant_admin_token
 .DS_Store
+.api_admin_token
+.teamname
+.projectname
+.apitoken
+.last_dev_db_volume
+.last_test_db_volume
+.api_info_capture
