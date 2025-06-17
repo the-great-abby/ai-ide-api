@@ -24,7 +24,7 @@ dev-up:
 
 dev-onboard:
 	touch .apitoken
-	docker compose exec misc-scripts python /code/scripts/onboard_external.py
+	docker compose exec misc-scripts python /code/scripts/onboard_dev.py
 	docker compose cp misc-scripts:/code/.apitoken .apitoken
 	docker compose cp misc-scripts:/code/.api_info_capture .api_info_capture || echo ".api_info_capture not found in container."
 	docker compose cp misc-scripts:/code/.teamname .teamname || echo ".teamname not found in container."

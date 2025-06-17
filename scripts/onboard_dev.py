@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-External Onboarding Script
-This script can be downloaded from the API for easy onboarding.
+INTERNAL USE ONLY: This script is now used for internal developer onboarding.
+External users should use the new onboarding script: onboard_external_june2025.py
+(Downloadable from the API at /scripts/onboard_external.py)
 """
 import requests
 import json
