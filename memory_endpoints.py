@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Body, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
+from pydantic import BaseModel
 
 from auth import require_api_token, require_role
 from db import (
@@ -13,6 +14,7 @@ from db import (
     MemoryEdge,
     NamespacePermission,
     get_db,
+    Project,
 )
 from memory import (
     MemoryEdgeCreate,
@@ -139,9 +141,16 @@ def create_namespace_permission(
     db: Session = Depends(get_db),
 ):
     """Create a new namespace permission. Admin only."""
+    # Patch: Default project_id to token.project_id if not provided
+    project_id = permission.project_id or token.project_id
+    if not project_id:
+        raise HTTPException(status_code=400, detail="project_id must be provided or present in the admin token.")
+    # Patch: Fetch project name for response
+    project = db.query(Project).filter(Project.id == project_id).first()
+    project_name = project.name if project else None
     db_permission = NamespacePermission(
         namespace=permission.namespace,
-        project_id=permission.project_id,
+        project_id=project_id,
         allowed_project_id=permission.allowed_project_id,
         permission_type=permission.permission_type,
         created_by=token.created_by,
@@ -149,7 +158,11 @@ def create_namespace_permission(
     db.add(db_permission)
     db.commit()
     db.refresh(db_permission)
-    return db_permission
+    # Patch: Return project_name in response
+    response = db_permission.__dict__.copy()
+    response["project_name"] = project_name
+    response.pop("_sa_instance_state", None)
+    return response
 
 
 @router.post("/edges", response_model=MemoryEdgeOut)
@@ -371,3 +384,23 @@ async def search_memory_nodes(
         })
     session.close()
     return result
+
+
+class LLMAccessRequest(BaseModel):
+    project_id: str
+    has_llm_access: bool
+
+@router.post("/admin/project/llm-access")
+def set_project_llm_access(
+    req: LLMAccessRequest,
+    token: ApiAccessToken = Depends(require_role(["admin"])),
+    db: Session = Depends(get_db),
+):
+    project = db.query(Project).filter(Project.id == req.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    # Convert boolean to integer for DB
+    project.has_llm_access = 1 if req.has_llm_access else 0
+    db.commit()
+    db.refresh(project)
+    return {"project_id": project.id, "has_llm_access": project.has_llm_access}

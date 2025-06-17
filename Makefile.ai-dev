@@ -26,4 +26,16 @@ dev-onboard:
 	touch .apitoken
 	docker compose exec misc-scripts python /code/scripts/onboard_external.py
 	docker compose cp misc-scripts:/code/.apitoken .apitoken
-	@echo "Copied .apitoken from container to host." 
+	docker compose cp misc-scripts:/code/.api_info_capture .api_info_capture || echo ".api_info_capture not found in container."
+	docker compose cp misc-scripts:/code/.teamname .teamname || echo ".teamname not found in container."
+	docker compose cp misc-scripts:/code/.projectname .projectname || echo ".projectname not found in container."
+	@echo "Copied .apitoken, .api_info_capture, .teamname, and .projectname from container to host."
+
+dev-onboard-admin:
+	docker compose exec misc-scripts python /code/scripts/onboard_admin.py
+	@docker compose cp misc-scripts:/code/.api_admin_token . || true
+	@docker compose cp misc-scripts:/code/.apitoken . || true
+	@docker compose cp misc-scripts:/code/.api_info_capture . || true
+	@docker compose cp misc-scripts:/code/.projectname . || true
+	@docker compose cp misc-scripts:/code/.teamname . || true
+	@echo "[dev-onboard-admin] Admin onboarding complete. Tokens and info copied to host." 

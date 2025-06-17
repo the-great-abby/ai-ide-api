@@ -1,0 +1,21 @@
+# API URL Map Reference
+# This file provides quick reference for API base URLs in different environments.
+
+[host]
+# Use these from your local machine (Mac, Linux, Windows)
+main = http://localhost:9103
+# test = http://localhost:9104  # Uncomment if you use a separate test API port
+
+[docker]
+# Use these from inside Docker containers/services
+main = http://api:8000
+# test = http://test-api:8000  # For test containers
+
+[host-to-docker]
+# For containers to reach host API (Mac/Windows only)
+main = http://host.docker.internal:9103
+
+# Usage:
+# - Use the [host] URLs for curl/Postman/scripts on your machine
+# - Use the [docker] URLs for service-to-service calls in Docker
+# - Use [host-to-docker] if a container needs to reach a service running on your host 

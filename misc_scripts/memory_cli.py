@@ -3,7 +3,7 @@ import argparse
 import json
 import sys
 from memory_utils import (
-    add_node, add_edge, list_nodes, list_edges,
+    add_memory_node, add_edge, list_nodes, list_edges,
     traverse_single_hop, traverse_multi_hop, traverse_by_relation,
     export_dot, delete_nodes
 )
@@ -48,8 +48,13 @@ def main():
 
     try:
         if args.command == "add-node":
-            meta = json.loads(args.meta)
-            result = add_node(args.namespace, args.content, meta)
+            meta = args.meta
+            # Try to parse meta as JSON if possible
+            try:
+                meta = json.loads(meta)
+            except Exception:
+                pass
+            result = add_memory_node(args.namespace, args.content, meta)
             print(json.dumps(result, indent=2))
 
         elif args.command == "add-edge":

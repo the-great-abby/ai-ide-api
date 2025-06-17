@@ -172,14 +172,25 @@ Some features, such as LLM-powered endpoints, may require special access. Here's
 If you are an admin and need to approve LLM access for a project (after a user has requested it):
 
 > **Admin Endpoint:**
-> To update LLM access, use the following endpoint:
+> To update LLM access, use the following endpoint (as of current implementation):
 > 
-> **PUT /projects/{project_id}**
+> **POST /memory/admin/project/llm-access**
 > 
-> - Replace `{project_id}` with the actual project UUID. You can find this in the onboarding response or by listing all projects via the admin dashboard or API.
+> - Replace the payload with the actual project UUID and desired LLM access flag.
 > - You must use an **admin token** for authorization.
 
-### Step-by-Step Example
+### Example
+
+```bash
+curl -X POST http://localhost:9103/memory/admin/project/llm-access \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"project_id": "<project_id>", "has_llm_access": true}'
+```
+
+> **Note:** This endpoint is currently under the `/memory` prefix due to router configuration. The path may change in the future if the endpoint is moved to a more appropriate router (such as `/admin` or `/projects`). Always check the latest API documentation or OpenAPI schema for the current path.
+
+### Step-by-Step Example (Legacy/Alternative)
 
 1. **Find the Project ID:**
    - You can get the project ID from the onboarding response, or by listing projects:
@@ -187,7 +198,7 @@ If you are an admin and need to approve LLM access for a project (after a user h
      curl -X GET http://localhost:9103/projects \
        -H "Authorization: Bearer <admin-token>"
      ```
-2. **Update the Project to Enable LLM Access:**
+2. **Update the Project to Enable LLM Access (if using PUT /projects/{project_id}):**
    ```bash
    curl -X PUT http://localhost:9103/projects/{project_id} \
      -H "Authorization: Bearer <admin-token>" \

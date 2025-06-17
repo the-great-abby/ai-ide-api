@@ -13,6 +13,12 @@ To make onboarding smooth and easy, you can download and run our automated onboa
 3. The script will generate your API token, register your project, and guide you to the next steps.
 4. Your token will be saved in `.apitoken` for use in future API calls.
 
+If your workflow or features require the memorydb, make sure to run its migrations:
+```bash
+make -f Makefile.ai-db ai-memorydb-migrate
+```
+This ensures the memorydb schema is up to date and ready for use.
+
 This process is fully self-service and designed for a first-class external onboarding experience!
 
 ## 🚀 Advanced Feature: Flexible, Extensible Memory System

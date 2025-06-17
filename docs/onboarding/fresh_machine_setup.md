@@ -30,7 +30,16 @@ Drops, recreates, and initializes the test database and ensures all services are
 
 ---
 
-## 4. Run Backend Tests
+## 4. Run MemoryDB Migrations (if applicable)
+If your workflow or features require the memorydb, run its migrations as well:
+```bash
+make -f Makefile.ai-db ai-memorydb-migrate
+```
+This ensures the memorydb schema is up to date.
+
+---
+
+## 5. Run Backend Tests
 ```bash
 make -f Makefile.ai ai-test
 # Or, for specific test types:
@@ -40,7 +49,7 @@ make -f Makefile.ai ai-test-integration
 
 ---
 
-## 5. Run the Test Frontend (Admin)
+## 6. Run the Test Frontend (Admin)
 
 There is currently **no Makefile target** for starting the test frontend directly. To start the test frontend, use Docker Compose:
 
@@ -58,7 +67,7 @@ Once started, access the test frontend in your browser (typically at http://loca
 
 ---
 
-## 6. Miscellaneous
+## 7. Miscellaneous
 - Ensure the dev misc-scripts Docker container is running for commits/project map automation.
 - Check onboarding docs in `docs/onboarding/` or `ONBOARDING.md` for any project-specific steps or updates.
 
@@ -71,9 +80,10 @@ Once started, access the test frontend in your browser (typically at http://loca
 | 1    | Install Docker Desktop, ensure Make is available | Prerequisites |
 | 2    | `make -f Makefile.ai ai-up-test` | Start Docker test environment |
 | 3    | `make -f Makefile.ai test-setup` | Initialize/reset test DB |
-| 4    | `make -f Makefile.ai ai-test` | Run backend tests |
-| 5    | `docker compose -f docker-compose.test.yml up -d test-frontend` | Run test frontend |
-| 6    | Check docs/onboarding/ | Project-specific steps |
+| 4    | `make -f Makefile.ai-db ai-memorydb-migrate` | Migrate memorydb schema |
+| 5    | `make -f Makefile.ai ai-test` | Run backend tests |
+| 6    | `docker compose -f docker-compose.test.yml up -d test-frontend` | Run test frontend |
+| 7    | Check docs/onboarding/ | Project-specific steps |
 
 ---
 

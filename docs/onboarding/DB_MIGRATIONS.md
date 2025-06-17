@@ -84,7 +84,15 @@ sequenceDiagram
 
 ## 7. Advanced: Multiple Databases
 
-If you have more than one DB (e.g., memorydb), use the correct Alembic config and Makefile target for each. Check the Makefile.ai and migration directories for details.
+If you have more than one DB (e.g., memorydb), use the correct Alembic config and Makefile target for each. For the memorydb, the preferred target is in the DB-specific Makefile:
+
+- **Migrate memorydb:**
+  ```bash
+  make -f Makefile.ai-db ai-memorydb-migrate
+  ```
+  This runs Alembic migrations for the memorydb using the correct configuration inside the API container.
+
+Check the Makefile.ai-db and migration directories for details.
 
 ---
 
@@ -94,6 +102,8 @@ If you have more than one DB (e.g., memorydb), use the correct Alembic config an
   `make -f Makefile.ai ai-db-migration MESSAGE="add new table"`
 - **Apply migrations:**  
   `make -f Makefile.ai ai-db-migrate`
+- **Migrate memorydb:**  
+  `make -f Makefile.ai-db ai-memorydb-migrate`
 - **Check DB status:**  
   `make -f Makefile.ai ai-db-status`
 - **Reset test DB:**  

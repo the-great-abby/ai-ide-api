@@ -139,16 +139,31 @@ async def generate_token(
                         detail=f"Invalid permission type '{perm_type}' for namespace '{namespace}'. Must be 'read' or 'write'.",
                     )
 
-        # Check if project exists and has LLM access if requested
-        has_llm_access = 0
-        if request.project_id:
+        # Always define effective_project_id before use
+        effective_project_id = request.project_id or (getattr(token_obj, "project_id", None) if token_obj else None)
+        # Patch: Allow token creation with no project_id ONLY if no projects exist (onboarding/init bootstrapping)
+        project_count = db.query(Project).count()
+        if not effective_project_id:
+            if project_count == 0:
+                # Allow token creation for first project (onboarding/init)
+                resolved_project_id = None
+                project_name = None
+            else:
+                raise HTTPException(status_code=400, detail="project_id must be provided or present in the admin token.")
+        else:
+            # Patch: Fetch project name for response
+            project = db.query(Project).filter(Project.id == effective_project_id).first() if effective_project_id else None
+            project_name = project.name if project else None
             # Always resolve project_id to UUID before DB operations
             try:
-                uuid.UUID(request.project_id)
-                resolved_project_id = resolve_project_id(db, request.project_id)
+                uuid.UUID(effective_project_id)
+                resolved_project_id = resolve_project_id(db, effective_project_id)
             except Exception:
-                resolved_project_id = resolve_project_id(db, request.project_id, **project_defaults_from_name(request.project_id))
-            logger.debug(f"Checking project existence: {resolved_project_id}")
+                resolved_project_id = resolve_project_id(db, effective_project_id, **project_defaults_from_name(effective_project_id))
+
+        # Check if project exists and has LLM access if requested
+        has_llm_access = 0
+        if effective_project_id:
             project = (
                 db.query(Project)
                 .filter(Project.id == resolved_project_id, Project.active == True)
@@ -168,7 +183,7 @@ async def generate_token(
             created_by=request.created_by,
             active=True,
             role=request.role,
-            project_id=resolved_project_id if request.project_id else None,
+            project_id=resolved_project_id if effective_project_id else None,
             allowed_namespaces=request.allowed_namespaces,
             namespace_permissions=json.dumps(request.namespace_permissions)
             if request.namespace_permissions
@@ -186,7 +201,8 @@ async def generate_token(
             "token": new_token,
             "description": request.description,
             "role": request.role,
-            "project_id": request.project_id,
+            "project_id": effective_project_id,
+            "project_name": project_name,
             "allowed_namespaces": request.allowed_namespaces,
             "namespace_permissions": request.namespace_permissions,
             "has_llm_access": has_llm_access,

@@ -10,12 +10,13 @@ To ensure secure and auditable onboarding, the system requires a valid (non-admi
 ## Preconditions
 - No admin tokens exist in the system (fresh install or after a full reset)
 - User has access to the API server
+- **Team name is now required for onboarding/init**
 
 ## Step-by-Step Actions
 
 ```mermaid
 flowchart TD
-    A[Start: No admin tokens exist] --> B[User requests normal API token (role: user)]
+    A[Start: No admin tokens exist] --> B[User requests normal API token (role: user, provides project_name and team_name)]
     B --> C[API server issues normal token]
     C --> D[User requests admin token using normal token in Authorization header]
     D --> E[API server verifies normal token is valid]
@@ -44,10 +45,10 @@ flowchart TD
 ### Example: Obtain Normal and Admin Token (Host Machine)
 
 ```bash
-# Step 1: Obtain normal token
+# Step 1: Obtain normal token (now requires team_name)
 curl -X POST http://localhost:9104/onboarding-init \
   -H "Content-Type: application/json" \
-  -d '{"project_name": "bootstrap-project"}'
+  -d '{"project_name": "bootstrap-project", "team_name": "bootstrap-team"}'
 # Use the returned token for the next step
 
 # Step 2: Create a normal API token (if needed)

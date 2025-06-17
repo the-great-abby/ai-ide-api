@@ -1,6 +1,7 @@
 import json
 from typing import List, Optional
 import logging
+from fnmatch import fnmatch
 
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import or_
@@ -56,52 +57,52 @@ def check_namespace_permission(
     required_permission: str = "read",
     db: Session = Depends(get_db),
 ):
-    """Check if the token has permission to access the namespace."""
+    """Check if the token has permission to access the namespace, supporting wildcards."""
+    logger = logging.getLogger("auth.check_namespace_permission")
+    logger.setLevel(logging.DEBUG)
     # Admin role has full access
     if token.role == "admin":
+        logger.debug(f"[check_namespace_permission] Admin token, access granted for {namespace}")
         return True
 
     # Check if token is scoped to a project
     if token.project_id:
-        # Check namespace permissions
-        permission = (
-            db.query(NamespacePermission)
-            .filter(
-                NamespacePermission.namespace == namespace,
-                NamespacePermission.active == True,
-                or_(
-                    NamespacePermission.allowed_project_id == token.project_id,
-                    NamespacePermission.allowed_project_id == None,  # Public namespace
-                ),
-                NamespacePermission.permission_type == required_permission,
-            )
-            .first()
+        # Check namespace permissions (support wildcards)
+        permissions = db.query(NamespacePermission).filter(
+            NamespacePermission.active == True,
+            NamespacePermission.permission_type == required_permission,
+            NamespacePermission.project_id == token.project_id,
+        ).all()
+        logger.debug(f"[check_namespace_permission] Project token {token.project_id}, checking {len(permissions)} permissions for namespace '{namespace}' and permission '{required_permission}'")
+        for perm in permissions:
+            logger.debug(f"[check_namespace_permission] Checking pattern '{perm.namespace}' against '{namespace}'")
+            if fnmatch(namespace, perm.namespace):
+                logger.debug(f"[check_namespace_permission] MATCH: '{namespace}' matches '{perm.namespace}'")
+                return True
+        logger.warning(f"[check_namespace_permission] No matching permission for {namespace} (project {token.project_id})")
+        raise HTTPException(
+            status_code=403,
+            detail=f"No {required_permission} permission for namespace {namespace}",
         )
-        if not permission:
+
+    # Check token's allowed namespaces (support wildcards)
+    if token.allowed_namespaces:
+        if not any(fnmatch(namespace, ns) for ns in token.allowed_namespaces):
+            raise HTTPException(
+                status_code=403, detail=f"Token not authorized for namespace {namespace}"
+            )
+
+    # Check token's namespace permissions (support wildcards)
+    if token.namespace_permissions:
+        try:
+            permissions = json.loads(token.namespace_permissions)
+            for ns_pattern, perm_type in permissions.items():
+                if fnmatch(namespace, ns_pattern) and perm_type == required_permission:
+                    return True
             raise HTTPException(
                 status_code=403,
                 detail=f"No {required_permission} permission for namespace {namespace}",
             )
-        return True
-
-    # Check token's allowed namespaces
-    if token.allowed_namespaces and namespace not in token.allowed_namespaces:
-        raise HTTPException(
-            status_code=403, detail=f"Token not authorized for namespace {namespace}"
-        )
-
-    # Check token's namespace permissions
-    if token.namespace_permissions:
-        try:
-            permissions = json.loads(token.namespace_permissions)
-            if (
-                namespace not in permissions
-                or permissions[namespace] != required_permission
-            ):
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"No {required_permission} permission for namespace {namespace}",
-                )
         except json.JSONDecodeError:
             raise HTTPException(
                 status_code=500, detail="Invalid namespace permissions format"
