@@ -78,11 +78,11 @@ services:
       dockerfile: Dockerfile.misc-scripts
     volumes:
       - ./misc_scripts:/scripts
-      - ./.cursor/rules:/app/.cursor/rules
-      - ./ai_ide_rules:/app/ai_ide_rules
+#      - ./.cursor/rules:/app/.cursor/rules
+#      - ./ai_ide_rules:/app/ai_ide_rules
       - .:/code
       - ./.git:/code/.git
-      - ./.apitoken:/code/.apitoken
+#      - ./.apitoken:/code/.apitoken
     working_dir: /scripts
     depends_on:
       - api
@@ -125,6 +125,7 @@ services:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
       - MEMORY_API_URL=http://api:8000/memory
+      - MEMORY_API_TOKEN
     depends_on:
       - rabbitmq
       - ollama-functions

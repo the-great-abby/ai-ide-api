@@ -38,4 +38,33 @@ dev-onboard-admin:
 	@docker compose cp misc-scripts:/code/.api_info_capture . || true
 	@docker compose cp misc-scripts:/code/.projectname . || true
 	@docker compose cp misc-scripts:/code/.teamname . || true
-	@echo "[dev-onboard-admin] Admin onboarding complete. Tokens and info copied to host." 
+	@echo "[dev-onboard-admin] Admin onboarding complete. Tokens and info copied to host."
+
+# Cleanup onboarding state files for a fresh onboarding
+.PHONY: dev-clean-onboarding
+
+dev-clean-onboarding:
+	@echo "[dev-clean-onboarding] Removing onboarding state files..."
+	rm -f .api_info_capture .apitoken .api_admin_token .teamname .projectname
+	@echo "[dev-clean-onboarding] Onboarding state cleaned."
+
+# Bring up the worker service with the admin token from .api_admin_token
+.PHONY: dev-worker-up
+
+dev-worker-up:
+	@echo "[dev-worker-up] Starting worker with MEMORY_API_TOKEN from .api_admin_token..."
+	MEMORY_API_TOKEN=$$(cat .api_admin_token) docker compose up -d worker
+
+# Query the oldest memory node
+.PHONY: memory-oldest
+memory-oldest:
+	@echo "[memory-oldest] Querying the oldest memory node..."
+	curl -s -H "Authorization: Bearer $$(cat .api_admin_token)" \
+	  "http://localhost:9103/memory/nodes?sort=created_at&limit=1" | jq .
+
+# Query the newest memory node
+.PHONY: memory-newest
+memory-newest:
+	@echo "[memory-newest] Querying the newest memory node..."
+	curl -s -H "Authorization: Bearer $$(cat .api_admin_token)" \
+	  "http://localhost:9103/memory/nodes?sort=-created_at&limit=1" | jq . 

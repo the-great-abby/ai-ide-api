@@ -70,7 +70,7 @@ def update_last_processed_commit(commit_hash: str) -> None:
     payload = {
         "namespace": DEFAULT_NAMESPACE,
         "content": commit_hash,
-        "meta": {"type": HEAD_COMMIT_NODE_META_KEY}
+        "meta": json.dumps({"type": HEAD_COMMIT_NODE_META_KEY})
     }
     resp = requests.post(f"{MEMORY_API_URL}/nodes", json=payload, headers=headers)
     logger.debug(f"POST /nodes (last commit) response: {resp.status_code} {resp.text}")
