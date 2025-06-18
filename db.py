@@ -244,7 +244,8 @@ class MemoryVector(Base):
     meta = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
-    confidence = Column(sa.Float, nullable=True)
+    categories = Column(JSONB, nullable=True, default=list)
+    tags = Column(JSONB, nullable=True, default=list)
 
 
 # Edge/relationship model for memory graph

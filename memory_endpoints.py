@@ -60,11 +60,12 @@ def create_memory_node(
             meta=node.meta,
             project_id=token.project_id,
             confidence=node.confidence,  # Store confidence if provided
+            categories=node.categories or [],
+            tags=node.tags or [],
         )
         session.add(db_node)
         session.commit()
         session.refresh(db_node)
-        # --- Patch: ensure embedding is a list ---
         embedding = db_node.embedding
         result = {
             "id": str(db_node.id),
@@ -74,6 +75,8 @@ def create_memory_node(
             "meta": db_node.meta,
             "created_at": db_node.created_at,
             "confidence": db_node.confidence,
+            "categories": db_node.categories or [],
+            "tags": db_node.tags or [],
         }
         session.close()
         return result
@@ -88,6 +91,8 @@ def create_memory_node(
 @router.get("/nodes", response_model=List[MemoryNodeOut])
 def list_memory_nodes(
     namespace: Optional[str] = None,
+    category: Optional[str] = None,
+    tag: Optional[str] = None,
     token: ApiAccessToken = Depends(require_api_token),
     db: Session = Depends(get_db),
 ):
@@ -98,6 +103,14 @@ def list_memory_nodes(
     q = session.query(MemoryVector)
     if namespace:
         q = q.filter(MemoryVector.namespace == namespace)
+    if category:
+        categories = [c.strip() for c in category.split(",")]
+        for cat in categories:
+            q = q.filter(MemoryVector.categories.op('@>')(f'"{cat}"'))
+    if tag:
+        tags = [t.strip() for t in tag.split(",")]
+        for tg in tags:
+            q = q.filter(MemoryVector.tags.op('@>')(f'"{tg}"'))
     nodes = q.all()
     result = []
     for db_node in nodes:
@@ -110,6 +123,8 @@ def list_memory_nodes(
                 "embedding": embedding,
                 "meta": db_node.meta,
                 "created_at": db_node.created_at,
+                "categories": db_node.categories or [],
+                "tags": db_node.tags or [],
             }
         )
     session.close()
@@ -456,8 +471,9 @@ def rag_search(
     answer = call_ollama_llm(prompt)
 
     # 6. Return answer and sources
-    sources = [
-        {
+    sources = []
+    for n in filtered_nodes:
+        source = {
             "id": str(n["id"]),
             "content": n["content"],
             "namespace": n["namespace"],
@@ -465,6 +481,7 @@ def rag_search(
             "created_at": n["created_at"],
             "confidence": n.get("confidence"),
         }
-        for n in filtered_nodes
-    ]
+        if source["confidence"] is not None and source["confidence"] < 0.5:
+            source["low_confidence_reason"] = "This memory node is only weakly related to your question."
+        sources.append(source)
     return RAGResponse(answer=answer, sources=sources)

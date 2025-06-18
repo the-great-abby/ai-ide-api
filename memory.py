@@ -41,6 +41,8 @@ class MemoryNodeCreate(BaseModel):
     content: str
     meta: Optional[str] = None
     confidence: Optional[float] = None
+    categories: Optional[List[str]] = []
+    tags: Optional[List[str]] = []
 
 
 class MemoryNodeOut(BaseModel):
@@ -50,6 +52,8 @@ class MemoryNodeOut(BaseModel):
     meta: Optional[str] = None
     created_at: datetime
     confidence: Optional[float] = None
+    categories: Optional[List[str]] = []
+    tags: Optional[List[str]] = []
 
 
 class MemoryEdgeCreate(BaseModel):
@@ -255,7 +259,7 @@ def vector_search_memory_nodes(embedding, namespace=None, limit=5):
         namespace (str|None): Optional namespace filter.
         limit (int): Max number of results.
     Returns:
-        list[dict]: List of memory node dicts with distance.
+        list[dict]: List of memory node dicts with distance and confidence.
     """
     session = MemorySessionLocal()
     sql = "SELECT *, embedding <=> CAST(:query_vec AS vector) AS distance FROM memory_vectors"
@@ -268,6 +272,9 @@ def vector_search_memory_nodes(embedding, namespace=None, limit=5):
     nodes = []
     for row in results:
         row_dict = dict(row._mapping)
+        distance = row_dict.get("distance")
+        confidence = 1.0 - distance if distance is not None else None
+        row_dict["confidence"] = confidence
         nodes.append(row_dict)
     session.close()
     return nodes

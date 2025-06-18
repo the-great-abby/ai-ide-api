@@ -80,6 +80,9 @@ ai-memorydb-migrate:
 memorydb-stamp-head:
 	docker compose exec api alembic -c alembic_memorydb.ini stamp head
 
+dev-memorydb-revision:
+	docker compose exec api alembic -c alembic_memorydb.ini revision --autogenerate -m "$(MSG)"
+
 # Helper to get date and timestamp for dev
 DEV_DATE := $(shell date +%Y%m%d)
 DEV_TIME := $(shell date +%H%M%S)

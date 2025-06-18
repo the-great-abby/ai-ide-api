@@ -12,10 +12,14 @@ from utils.message_broker import RealRabbitMQClient, MessageBrokerBase
 import requests
 import logging
 from progress_report_worker import process_progress_report_job
+from scripts.memory_cleanup_worker import process_memory_cleanup_job
+from scripts.memory_enrichment_worker import process_memory_enrichment_job
 
 RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://user:password@rabbitmq:5672/")
 QUEUE_NAME = "memory.update"
 PROGRESS_QUEUE = "progress.report"
+MEMORY_CLEANUP_QUEUE = "memory.cleanup"
+MEMORY_ENRICHMENT_QUEUE = "memory.enrichment"
 OLLAMA_FUNCTIONS_URL = os.environ.get(
     "OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000"
 )
@@ -46,6 +50,8 @@ async def process_job(body):
 JOB_HANDLERS = {
     QUEUE_NAME: process_job,
     PROGRESS_QUEUE: process_progress_report_job,
+    MEMORY_CLEANUP_QUEUE: process_memory_cleanup_job,
+    MEMORY_ENRICHMENT_QUEUE: process_memory_enrichment_job,
 }
 
 async def main(broker: MessageBrokerBase = None):
