@@ -1,0 +1,91 @@
+# API-related targets extracted from Makefile.ai
+
+# --- API Endpoint Targets ---
+api-bug-report:
+	docker compose exec misc-scripts curl -s -X POST http://api:8000/bug-report \
+	  -H 'Content-Type: application/json' \
+	  -d '{"description": "$(DESCRIPTION)", "reporter": "$(REPORTER)", "page": "$(PAGE)"}'
+
+api-bug-report-test:
+	$(MAKE) -f Makefile.ai api-bug-report \
+	  DESCRIPTION='Test bug report from Makefile' \
+	  REPORTER='cli-test' \
+	  PAGE='/admin'
+
+api-suggest-enhancement:
+	docker compose exec misc-scripts curl -s -X POST http://api:8000/suggest-enhancement \
+	  -H 'Content-Type: application/json' \
+	  -d '{"description": "$(DESCRIPTION)", "suggested_by": "$(SUGGESTED_BY)", "page": "$(PAGE)", "tags": [$(TAGS)], "categories": [$(CATEGORIES)]}'
+
+api-suggest-enhancement-test:
+	$(MAKE) -f Makefile.ai api-suggest-enhancement \
+	  DESCRIPTION='Test enhancement from Makefile' \
+	  SUGGESTED_BY='cli-test' \
+	  PAGE='/admin' \
+	  TAGS='"cli","test"' \
+	  CATEGORIES='"usability"'
+
+api-enhancement-to-proposal:
+	docker compose exec misc-scripts curl -s -X POST http://api:8000/enhancement-to-proposal/$(ENHANCEMENT_ID)
+
+api-proposal-to-enhancement:
+	docker compose exec misc-scripts curl -s -X POST http://api:8000/proposal-to-enhancement/$(PROPOSAL_ID)
+
+api-accept-enhancement:
+	docker compose exec misc-scripts curl -s -X POST http://api:8000/accept-enhancement/$(ENHANCEMENT_ID)
+
+api-complete-enhancement:
+	docker compose exec misc-scripts curl -s -X POST http://api:8000/complete-enhancement/$(ENHANCEMENT_ID)
+
+# --- Enhancement Listing Targets ---
+# API host for enhancement listing (override with API_HOST=... if needed)
+API_HOST ?= api
+
+# List all enhancements via the API (pretty-printed with jq)
+# Usage: make -f Makefile.ai api-list-enhancements [API_HOST=api]
+api-list-enhancements:
+	docker compose exec misc-scripts curl http://$(API_HOST):8000/enhancements | jq
+
+# --- Rule Proposal Targets ---
+# Propose a portable rule to the API
+# Usage:
+# make -f Makefile.ai api-propose-portable-rule \
+#   RULE_TYPE=formatting \
+#   DESCRIPTION='All .mdc files must have frontmatter' \
+#   DIFF='---\ndescription: ...\nglobs: ...\n---' \
+#   SUBMITTED_BY=portable-rules-bot \
+#   CATEGORIES='"formatting","cursor","portable"' \
+#   TAGS='"formatting","cursor","portable"' \
+#   PROJECT=my-shared-rules \
+#   [API_PORT=8000]
+api-propose-portable-rule:
+	docker compose exec misc-scripts curl -s -X POST http://api:8000/propose-rule-change \
+	  -H 'Content-Type: application/json' \
+	  -d '{ \
+	    "rule_type": "$(RULE_TYPE)", \
+	    "description": "$(DESCRIPTION)", \
+	    "diff": "$(DIFF)", \
+	    "submitted_by": "$(SUBMITTED_BY)", \
+	    "categories": [$(CATEGORIES)], \
+	    "tags": [$(TAGS)], \
+	    "project": "$(PROJECT)", \
+	    "reason_for_change": "$(REASON_FOR_CHANGE)", \
+	    "references": "$(REFERENCES)", \
+	    "current_rule": "$(CURRENT_RULE)" \
+	  }'
+
+# --- API Health and Status ---
+api-wait:
+	@echo "Waiting for API to be ready..."
+	@until docker compose exec misc-scripts curl -sf http://api:8000/env > /dev/null; do sleep 2; done
+	@echo "API is up!"
+
+api-restart-wait:
+	docker compose restart api
+	$(MAKE) -f Makefile.ai api-wait
+
+# --- API Logs ---
+api-logs:
+	docker compose logs --tail=100 api | cat
+
+.PHONY: api-bug-report api-bug-report-test api-suggest-enhancement api-suggest-enhancement-test api-enhancement-to-proposal api-proposal-to-enhancement api-accept-enhancement api-complete-enhancement api-list-enhancements api-propose-portable-rule api-wait api-restart-wait api-logs 

@@ -1,0 +1,62 @@
+# Health check and monitoring targets extracted from Makefile.ai
+
+# --- Basic Onboarding Health Check ---
+health-onboarding:
+	docker compose exec misc-scripts python3 /code/scripts/onboarding_health_check.py --api-url http://api:8000
+
+# --- Proactive Onboarding Health Check ---
+# Proactive onboarding health check with detailed user information
+# Usage: make -f Makefile.ai health-proactive-onboarding [FORMAT=text|json] [VERBOSE=1]
+health-proactive-onboarding:
+	docker compose exec misc-scripts python3 /code/scripts/proactive_onboarding_health_check.py --api-url http://api:8000 --format $(FORMAT) $(if $(VERBOSE),--verbose,)
+
+# Run proactive health check in continuous monitoring mode
+# Usage: make -f Makefile.ai health-proactive-onboarding-continuous [INTERVAL=300] [VERBOSE=1]
+health-proactive-onboarding-continuous:
+	docker compose exec misc-scripts python3 /code/scripts/proactive_onboarding_health_check.py --api-url http://api:8000 --continuous --interval $(INTERVAL) $(if $(VERBOSE),--verbose,)
+
+# Run proactive health check in background (continuous mode)
+# Usage: make -f Makefile.ai health-proactive-onboarding-bg [INTERVAL=300]
+health-proactive-onboarding-bg:
+	nohup docker compose exec misc-scripts python3 /code/scripts/proactive_onboarding_health_check.py --api-url http://api:8000 --continuous --interval $(INTERVAL) > proactive_health.log 2>&1 &
+
+# View proactive health check logs
+# Usage: make -f Makefile.ai health-proactive-onboarding-logs
+health-proactive-onboarding-logs:
+	docker compose exec misc-scripts tail -n 50 onboarding_health.log
+
+# View proactive health check report
+# Usage: make -f Makefile.ai health-proactive-onboarding-report
+health-proactive-onboarding-report:
+	@docker compose exec misc-scripts sh -c 'if [ -f onboarding_health_report.json ]; then cat onboarding_health_report.json | jq "."; else echo "No health report found. Run: make -f Makefile.ai health-proactive-onboarding"; fi'
+
+# Stop background proactive health check
+# Usage: make -f Makefile.ai health-proactive-onboarding-stop
+health-proactive-onboarding-stop:
+	@echo "Stopping background proactive health check..."
+	@docker compose exec misc-scripts pkill -f "proactive_onboarding_health_check.py" || echo "No background process found"
+
+# --- System Health Checks ---
+health-onboarding-help:
+	@echo "\n==== AI-IDE Onboarding Quick Start ===="
+	@echo "1. Fetch the latest OpenAPI docs (API reference):"
+	@echo "   make -f Makefile.ai admin-docs"
+	@echo "   (or visit http://api:8000/docs in your browser)"
+	@echo "2. Start all services if needed:"
+	@echo "   make -f Makefile.ai admin-up"
+	@echo "3. For more onboarding info, see ONBOARDING_OTHER_AI_IDE.md"
+	@echo "4. All automation (tests, builds, migrations) MUST run through Makefile.ai targets."
+	@echo "5. Use Docker service names and internal ports for all connections."
+	@echo "\n==== End Onboarding Quick Start ===="
+
+# --- Health Check Aliases ---
+# Legacy aliases for backward compatibility
+ai-onboarding-health: health-onboarding
+ai-proactive-onboarding-health: health-proactive-onboarding
+ai-proactive-onboarding-health-continuous: health-proactive-onboarding-continuous
+ai-proactive-onboarding-health-bg: health-proactive-onboarding-bg
+ai-proactive-onboarding-health-logs: health-proactive-onboarding-logs
+ai-proactive-onboarding-health-report: health-proactive-onboarding-report
+ai-proactive-onboarding-health-stop: health-proactive-onboarding-stop
+
+.PHONY: health-onboarding health-proactive-onboarding health-proactive-onboarding-continuous health-proactive-onboarding-bg health-proactive-onboarding-logs health-proactive-onboarding-report health-proactive-onboarding-stop health-onboarding-help ai-onboarding-health ai-proactive-onboarding-health ai-proactive-onboarding-health-continuous ai-proactive-onboarding-health-bg ai-proactive-onboarding-health-logs ai-proactive-onboarding-health-report ai-proactive-onboarding-health-stop 

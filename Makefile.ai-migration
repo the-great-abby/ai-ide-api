@@ -1,0 +1,59 @@
+# Migration-related targets extracted from Makefile.ai
+
+# --- SQLite to Postgres Migration Targets ---
+# Migrate rules.db (SQLite) to Postgres using pgloader in Docker
+# Usage: make -f Makefile.ai migration-sqlite-to-postgres
+migration-sqlite-to-postgres:
+	docker-compose up -d rules-postgres pgloader
+	docker cp rules.db pgloader:/data/rules.db
+	docker cp pgloader.load pgloader:/data/pgloader.load
+	docker-compose exec pgloader pgloader /data/pgloader.load
+	@echo "Migration from SQLite to Postgres complete!"
+
+# Build the custom pgloader image for multi-arch (Apple Silicon) compatibility
+# Usage: make -f Makefile.ai migration-build-pgloader
+migration-build-pgloader:
+	docker build -f Dockerfile.pgloader -t local/pgloader:latest .
+
+# Migrate all tables from rules.db (SQLite) to Postgres using CSV and psql in Docker
+# Usage: make -f Makefile.ai migration-sqlite-to-postgres-csv
+migration-sqlite-to-postgres-csv:
+	mkdir -p sqlite_export
+	docker run --rm -v $(PWD):/data alpine:latest sh -c 'apk add --no-cache sqlite sqlite-libs > /dev/null && sqlite3 /data/rules.db ".tables" | tr " " "\n" | grep -v "^$$" | while read tbl; do sqlite3 /data/rules.db ".headers on" ".mode csv" ".output /data/sqlite_export/$$tbl.csv" "select * from \"$$tbl\";" ".output stdout"; done'
+	docker run --rm -v $(PWD):/data alpine:latest sh -c 'apk add --no-cache sqlite sqlite-libs > /dev/null && sqlite3 /data/rules.db ".schema" > /data/sqlite_export/schema.sql'
+	# Patch schema.sql: replace DATETIME with TIMESTAMPTZ and add DROP TABLE IF EXISTS
+	sed -i '' 's/DATETIME/TIMESTAMPTZ/g' sqlite_export/schema.sql
+	awk '/^CREATE TABLE /{print "DROP TABLE IF EXISTS " $$3 " CASCADE;"} 1' sqlite_export/schema.sql > sqlite_export/schema.patched.sql
+	chmod +x import_csvs.sh
+	docker run --rm -e PGPASSWORD=postgres -v $(PWD):/data --network ai-ide-api_default postgres:15 bash /data/import_csvs.sh
+	@echo "Migration from SQLite to Postgres via CSV complete!"
+
+# --- Database Transaction Management ---
+# Rollback any failed transaction in the Postgres database (useful for clearing migration errors)
+# Usage: make -f Makefile.ai migration-rollback
+migration-rollback:
+	docker compose exec -T db-test psql -U postgres -d rulesdb -c 'ROLLBACK;'
+
+# Reset the database migration state (for development):
+# 1. Stops all containers
+# 2. Restarts only the db-test container
+# 3. Runs migration-rollback to clear failed transactions
+# 4. Restarts all containers
+# 5. Runs db-migrate to apply migrations
+# Usage: make -f Makefile.ai migration-reset
+migration-reset:
+	docker compose down
+	docker compose up -d db-test
+	$(MAKE) -f Makefile.ai migration-rollback
+	docker compose up -d
+	$(MAKE) -f Makefile.ai db-migrate
+
+# --- Migration Aliases ---
+# Legacy aliases for backward compatibility
+ai-migrate-sqlite-to-postgres: migration-sqlite-to-postgres
+ai-build-pgloader: migration-build-pgloader
+ai-migrate-sqlite-to-postgres-csv: migration-sqlite-to-postgres-csv
+ai-db-rollback: migration-rollback
+ai-db-reset-migrations: migration-reset
+
+.PHONY: migration-sqlite-to-postgres migration-build-pgloader migration-sqlite-to-postgres-csv migration-rollback migration-reset ai-migrate-sqlite-to-postgres ai-build-pgloader ai-migrate-sqlite-to-postgres-csv ai-db-rollback ai-db-reset-migrations 

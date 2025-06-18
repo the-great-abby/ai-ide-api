@@ -15,6 +15,7 @@ from progress_report_worker import process_progress_report_job
 from scripts.memory_cleanup_worker import process_memory_cleanup_job
 from scripts.memory_enrichment_worker import process_enrichment_job
 from scripts.memory_similarity_pruning_worker import process_similarity_pruning_job
+from scripts.git_history_worker import process_git_history_analysis_job
 
 RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://user:password@rabbitmq:5672/")
 QUEUE_NAME = "memory.update"
@@ -22,6 +23,7 @@ PROGRESS_QUEUE = "progress.report"
 MEMORY_CLEANUP_QUEUE = "memory.cleanup"
 MEMORY_ENRICHMENT_QUEUE = "memory.enrichment"
 MEMORY_SIMILARITY_QUEUE = "memory.similarity"
+GIT_HISTORY_QUEUE = "git.history.analysis"
 OLLAMA_FUNCTIONS_URL = os.environ.get(
     "OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000"
 )
@@ -55,6 +57,7 @@ JOB_HANDLERS = {
     MEMORY_CLEANUP_QUEUE: process_memory_cleanup_job,
     MEMORY_ENRICHMENT_QUEUE: process_enrichment_job,
     MEMORY_SIMILARITY_QUEUE: process_similarity_pruning_job,
+    GIT_HISTORY_QUEUE: process_git_history_analysis_job,
 }
 
 async def main(broker: MessageBrokerBase = None):
