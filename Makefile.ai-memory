@@ -187,4 +187,56 @@ memory-system-recover:
 	@make -f Makefile.ai memory-requeue-failed
 	@echo "System recovery complete. Check logs for details."
 
+# --- RAG Search Targets ---
+memory-rag-search:
+	@if [ -z "$(QUERY)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai memory-rag-search QUERY=\"your search query\" [NAMESPACE=\"namespace\"] [TOP_K=5] [AUTH_TOKEN=\"override_token\"]"; \
+		exit 1; \
+	fi
+	@echo "[memory-rag-search] Searching: $(QUERY)"
+	@TOP_K_VALUE=$${TOP_K:-5}; \
+	NAMESPACE_VALUE=$${NAMESPACE:-progress_reports}; \
+	if [ -z "$(AUTH_TOKEN)" ]; then \
+		if [ -f .api_admin_token ]; then \
+			TOKEN=$$(cat .api_admin_token); \
+		elif [ -f .apitoken ]; then \
+			TOKEN=$$(cat .apitoken); \
+		else \
+			echo "[ERROR] No auth token found. Please create .api_admin_token or .apitoken, or provide AUTH_TOKEN parameter"; \
+			exit 1; \
+		fi; \
+	else \
+		TOKEN="$(AUTH_TOKEN)"; \
+	fi; \
+	curl -s -X POST http://localhost:9103/memory/rag_search \
+		-H "Content-Type: application/json" \
+		-H "Authorization: Bearer $$TOKEN" \
+		-d "{\"question\": \"$(QUERY)\", \"namespace\": \"$$NAMESPACE_VALUE\", \"top_k\": $$TOP_K_VALUE}" | jq '.'
+
+memory-rag-search-similar:
+	@if [ -z "$(NODE_ID)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai memory-rag-search-similar NODE_ID=\"node_id\" [TOP_K=5] [AUTH_TOKEN=\"override_token\"]"; \
+		exit 1; \
+	fi
+	@echo "[memory-rag-search-similar] Finding similar nodes to: $(NODE_ID)"
+	@TOP_K_VALUE=$${TOP_K:-5}; \
+	if [ -z "$(AUTH_TOKEN)" ]; then \
+		if [ -f .api_admin_token ]; then \
+			TOKEN=$$(cat .api_admin_token); \
+		elif [ -f .apitoken ]; then \
+			TOKEN=$$(cat .apitoken); \
+		else \
+			echo "[ERROR] No auth token found. Please create .api_admin_token or .apitoken, or provide AUTH_TOKEN parameter"; \
+			exit 1; \
+		fi; \
+	else \
+		TOKEN="$(AUTH_TOKEN)"; \
+	fi; \
+	curl -s -X POST http://localhost:9103/memory/nodes/similar \
+		-H "Content-Type: application/json" \
+		-H "Authorization: Bearer $$TOKEN" \
+		-d "{\"node_id\": \"$(NODE_ID)\", \"top_k\": $$TOP_K_VALUE}" | jq '.'
+
+# --- End of RAG Search Targets ---
+
 .PHONY: memory-test-utils-build memory-test-add-node memory-test-add-edge memory-test-list-nodes memory-test-list-edges memory-utils-build memory-add-node memory-add-edge memory-list-nodes memory-list-edges memory-trigger-progress memory-trigger-cleanup memory-trigger-enrichment memory-trigger-similarity memory-restart-workers memory-worker-logs memory-healthcheck memory-status-report memory-monitor-jobs memory-check-stuck-jobs memory-clear-stuck-jobs memory-requeue-failed memory-system-recover 
