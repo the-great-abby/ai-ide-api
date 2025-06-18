@@ -13,7 +13,7 @@ import requests
 import logging
 from progress_report_worker import process_progress_report_job
 from scripts.memory_cleanup_worker import process_memory_cleanup_job
-from scripts.memory_enrichment_worker import process_memory_enrichment_job
+from scripts.memory_enrichment_worker import process_enrichment_job
 from scripts.memory_similarity_pruning_worker import process_similarity_pruning_job
 
 RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://user:password@rabbitmq:5672/")
@@ -53,7 +53,7 @@ JOB_HANDLERS = {
     QUEUE_NAME: process_job,
     PROGRESS_QUEUE: process_progress_report_job,
     MEMORY_CLEANUP_QUEUE: process_memory_cleanup_job,
-    MEMORY_ENRICHMENT_QUEUE: process_memory_enrichment_job,
+    MEMORY_ENRICHMENT_QUEUE: process_enrichment_job,
     MEMORY_SIMILARITY_QUEUE: process_similarity_pruning_job,
 }
 

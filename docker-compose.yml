@@ -119,7 +119,9 @@ services:
     profiles: ["llm"]
 
   worker:
-    build: ./worker
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
     environment:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
@@ -132,7 +134,7 @@ services:
       - .env.llm-worker
     profiles: ["llm", "dev"]
     volumes:
-      - ./worker:/app
+      - ./worker:/app/worker
       - ./utils:/app/utils
       - ./.apitoken:/code/.apitoken
       - ./.git:/app/.git

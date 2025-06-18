@@ -59,7 +59,6 @@ def create_memory_node(
             embedding=embedding,
             meta=node.meta,
             project_id=token.project_id,
-            confidence=node.confidence,  # Store confidence if provided
             categories=node.categories or [],
             tags=node.tags or [],
         )
@@ -74,7 +73,6 @@ def create_memory_node(
             "embedding": embedding,
             "meta": db_node.meta,
             "created_at": db_node.created_at,
-            "confidence": db_node.confidence,
             "categories": db_node.categories or [],
             "tags": db_node.tags or [],
         }
