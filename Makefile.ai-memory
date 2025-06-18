@@ -81,4 +81,110 @@ memory-log-git-diff:
 memory-list-nodes-summary:
 	$(MAKE) -f Makefile.ai memory-list-nodes | awk 'f||/^[[]/{f=1;print}' | jq -c '.[] | select(type == "object") | {name: (.meta.name // .name // ""), project: (.meta.project // .project // ""), namespace, created_at, summary: (.meta.summary // null), content}'
 
-.PHONY: memory-test-utils-build memory-test-add-node memory-test-add-edge memory-test-list-nodes memory-test-list-edges memory-utils-build memory-add-node memory-add-edge memory-list-nodes memory-list-edges 
+# --- Memory Worker Targets ---
+
+## Progress Report Worker
+memory-trigger-progress:
+	docker compose exec misc-scripts python3 /scripts/publish_progress_report_job.py
+
+## Memory Cleanup Worker
+memory-trigger-cleanup:
+	@if [ "$(DRY_RUN)" = "true" ]; then \
+		docker compose exec misc-scripts python3 /scripts/publish_memory_cleanup_job.py --dry-run; \
+	else \
+		docker compose exec misc-scripts python3 /scripts/publish_memory_cleanup_job.py; \
+	fi
+
+## Memory Enrichment Worker
+memory-trigger-enrichment:
+	@if [ -z "$(SCOPE)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai memory-trigger-enrichment SCOPE=<all|new|namespace:xyz> [DRY_RUN=true]"; \
+		exit 1; \
+	fi
+	@if [ "$(DRY_RUN)" = "true" ]; then \
+		docker compose exec misc-scripts python3 /scripts/publish_memory_enrichment_job.py --scope $(SCOPE) --dry-run; \
+	else \
+		docker compose exec misc-scripts python3 /scripts/publish_memory_enrichment_job.py --scope $(SCOPE); \
+	fi
+
+## Memory Similarity Worker
+memory-trigger-similarity:
+	@if [ -z "$(SCOPE)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai memory-trigger-similarity SCOPE=<all|new|namespace:xyz> [DRY_RUN=true] [VECTOR_THRESHOLD=0.92] [CONTENT_THRESHOLD=0.85] [TAG_THRESHOLD=0.7]"; \
+		exit 1; \
+	fi
+	@CMD="docker compose exec misc-scripts python3 /scripts/publish_memory_similarity_job.py --scope $(SCOPE)"; \
+	if [ "$(DRY_RUN)" = "true" ]; then \
+		CMD="$$CMD --dry-run"; \
+	fi; \
+	if [ ! -z "$(VECTOR_THRESHOLD)" ]; then \
+		CMD="$$CMD --vector-threshold $(VECTOR_THRESHOLD)"; \
+	fi; \
+	if [ ! -z "$(CONTENT_THRESHOLD)" ]; then \
+		CMD="$$CMD --content-threshold $(CONTENT_THRESHOLD)"; \
+	fi; \
+	if [ ! -z "$(TAG_THRESHOLD)" ]; then \
+		CMD="$$CMD --tag-threshold $(TAG_THRESHOLD)"; \
+	fi; \
+	eval $$CMD
+
+## Worker Management
+memory-restart-workers:
+	docker compose restart worker
+	@echo "Memory workers restarted."
+
+memory-worker-logs:
+	docker compose logs --tail=50 worker
+
+## Monitoring and Health Checks
+memory-healthcheck:
+	@echo "Running memory system health checks..."
+	@docker compose ps worker | grep -q "Up" || (echo "ERROR: Worker container is down" && exit 1)
+	@docker compose exec rabbitmq rabbitmqctl list_queues | grep -v "Timeout\|Listing" || true
+	@docker compose logs --tail=20 worker | grep -i "error\|warn" || true
+	@echo "Health check complete."
+
+memory-status-report:
+	@echo "Generating memory system status report..."
+	@echo "\nWorker Status:"
+	@docker compose ps worker
+	@echo "\nQueue Status:"
+	@docker compose exec rabbitmq rabbitmqctl list_queues
+	@echo "\nRecent Errors:"
+	@docker compose logs --tail=100 worker | grep -i "error" || true
+	@echo "\nJob Statistics:"
+	@curl -s http://localhost:9103/health/jobs || echo "Job stats endpoint not available"
+
+memory-monitor-jobs:
+	@echo "Monitoring job completion times..."
+	@docker compose logs worker | grep "job completed" | tail -n 10
+
+memory-check-stuck-jobs:
+	@echo "Checking for stuck jobs..."
+	@docker compose exec rabbitmq rabbitmqctl list_queues | awk '$$2 > 0 {print $$1 " has " $$2 " messages"}'
+
+memory-clear-stuck-jobs:
+	@echo "WARNING: This will clear all stuck jobs. Are you sure? (ctrl+c to cancel)"
+	@sleep 5
+	@docker compose exec rabbitmq rabbitmqctl purge_queue memory.cleanup
+	@docker compose exec rabbitmq rabbitmqctl purge_queue memory.enrichment
+	@docker compose exec rabbitmq rabbitmqctl purge_queue memory.similarity
+	@echo "Cleared stuck jobs from all queues."
+
+memory-requeue-failed:
+	@echo "Requeuing failed jobs from dead letter queue..."
+	@docker compose exec rabbitmq rabbitmqctl list_queues | grep "dead-letter" | while read queue count; do \
+		if [ "$$count" -gt 0 ]; then \
+			echo "Moving $$count messages from $$queue"; \
+			docker compose exec rabbitmq rabbitmqctl move_messages "$$queue" "$$queue-retry"; \
+		fi \
+	done
+
+memory-system-recover:
+	@echo "Performing full system recovery..."
+	@make -f Makefile.ai memory-restart-workers
+	@make -f Makefile.ai memory-clear-stuck-jobs
+	@make -f Makefile.ai memory-requeue-failed
+	@echo "System recovery complete. Check logs for details."
+
+.PHONY: memory-test-utils-build memory-test-add-node memory-test-add-edge memory-test-list-nodes memory-test-list-edges memory-utils-build memory-add-node memory-add-edge memory-list-nodes memory-list-edges memory-trigger-progress memory-trigger-cleanup memory-trigger-enrichment memory-trigger-similarity memory-restart-workers memory-worker-logs memory-healthcheck memory-status-report memory-monitor-jobs memory-check-stuck-jobs memory-clear-stuck-jobs memory-requeue-failed memory-system-recover 
