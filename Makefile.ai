@@ -36,7 +36,7 @@ include Makefile.ai-dev
 
 # Quick start for new developers
 # Usage: make -f Makefile.ai quickstart
-quickstart: test-quickstart
+quickstart: dev-quickstart
 
 # Run all tests
 # Usage: make -f Makefile.ai test

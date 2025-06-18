@@ -120,7 +120,11 @@ quickstart:
 	fi
 	docker compose -f $(COMPOSE_FILE) down -v --remove-orphans
 	@echo "[quickstart] Bringing up core services..."
-	docker compose -f $(COMPOSE_FILE) up -d test-db test-api || docker compose -f $(COMPOSE_FILE) up -d db api
+	@if [ "$(COMPOSE_FILE)" = "docker-compose.test.yml" ]; then \
+	  docker compose -f $(COMPOSE_FILE) up -d test-db test-api; \
+	else \
+	  docker compose -f $(COMPOSE_FILE) up -d db api; \
+	fi
 	@echo "[quickstart] Running migrations..."
 	@if [ "$(COMPOSE_FILE)" = "docker-compose.test.yml" ]; then \
 	  $(MAKE) -f Makefile.ai-test test-db-migrate; \
