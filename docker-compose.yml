@@ -120,12 +120,15 @@ services:
     profiles: ["llm"]
 
   worker:
-    build: ./worker
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
     environment:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
       - MEMORY_API_URL=http://api:8000/memory
       - MEMORY_API_TOKEN
+      - PYTHONPATH=/app:/app/scripts:/code
     depends_on:
       - rabbitmq
       - ollama-functions
@@ -134,7 +137,9 @@ services:
     profiles: ["llm", "dev"]
     volumes:
       - ./worker:/app
+      - ./scripts:/app/scripts
       - ./utils:/app/utils
+      - .:/code
       - ./.apitoken:/code/.apitoken
       - ./.git:/app/.git
 

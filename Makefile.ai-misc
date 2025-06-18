@@ -223,7 +223,77 @@ misc-healthcheck:
 misc-update-project-map:
 	docker compose exec misc-scripts python /scripts/update_project_map.py
 
-.PHONY: misc-test-export-rules misc-test-lint-rules misc-test-propose-rule misc-test-list-rules misc-export-rules misc-lint-rules misc-propose-rule misc-list-rules misc-list-rules-mdc misc-review-code-files misc-review-code-snippet misc-scan-db misc-approve-all-pending misc-propose-makefile-rule misc-review-multiple-files misc-propose-rules misc-install misc-up misc-update-rules misc-generate-update-template misc-mdc-to-json misc-enrich-rules misc-build misc-update-missing-user-stories misc-restart misc-propose-portable-rule misc-bug-report misc-bug-report-test misc-suggest-enhancement misc-suggest-enhancement-test misc-enhancement-to-proposal misc-proposal-to-enhancement misc-accept-enhancement misc-complete-enhancement misc-list-enhancements misc-onboarding-health misc-import-backup misc-search-user-stories misc-fdw-setup-script misc-logs-help misc-remove-duplicate-makefile-targets misc-enhancement-lifecycle-notify misc-safe-shutdown misc-auto-feedback misc-status misc-logs misc-healthcheck misc-update-project-map restart-workers trigger-progress-report misc-list-memory-nodes
+# --- Git History Analysis Management ---
+
+## Status and Monitoring
+misc-git-history-status:
+	@echo "[misc-git-history-status] Git history analysis status..."
+	@echo "\n=== Scheduled Jobs ==="
+	@echo "Daily: 6 AM - Last 24 hours (50 commits max)"
+	@echo "Weekly: Monday 7 AM - Last week (100 commits max)"
+	@echo "Sprint: Monday 8 AM - Last 2 weeks (200 commits max)"
+	@echo "Monthly: 1st of month 9 AM - Last month (500 commits max)"
+	@echo "\n=== Worker Status ==="
+	@docker compose ps worker | grep worker || echo "Worker not running"
+	@echo "\n=== Recent Analysis Results ==="
+	@docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '\''.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .meta.namespace, commits: .meta.commits_analyzed}'\'' | jq -s '\''sort_by(.date) | .[-5:] | .[] | "\(.date) - \(.namespace): \(.commits) commits"'\'' || echo "No recent analysis found"'
+
+misc-git-history-logs:
+	@echo "[misc-git-history-logs] Recent git history analysis logs..."
+	@docker compose logs --tail=20 worker | grep -i "git.history\|git_history" || echo "No git history logs found"
+
+misc-git-history-scheduler-logs:
+	@echo "[misc-git-history-scheduler-logs] Maintenance scheduler logs..."
+	@docker compose logs --tail=20 maintenance-scheduler | grep -i "git.history\|git_history" || echo "No git history scheduler logs found"
+
+## Manual Triggers
+misc-git-history-trigger-daily:
+	@echo "[misc-git-history-trigger-daily] Triggering daily git history analysis..."
+	@make -f Makefile.ai misc-git-history-trigger SINCE='1 day ago' CREATE_MEMORY=true MEMORY_NAMESPACE=daily_analysis MEMORY_TAGS='daily automated'
+
+misc-git-history-trigger-weekly:
+	@echo "[misc-git-history-trigger-weekly] Triggering weekly git history analysis..."
+	@make -f Makefile.ai misc-git-history-trigger SINCE='1 week ago' CREATE_MEMORY=true MEMORY_NAMESPACE=weekly_analysis MEMORY_TAGS='weekly retrospective' OUTPUT_FORMAT=summary
+
+misc-git-history-trigger-sprint:
+	@echo "[misc-git-history-trigger-sprint] Triggering sprint git history analysis..."
+	@make -f Makefile.ai misc-git-history-trigger SINCE='2 weeks ago' CREATE_MEMORY=true MEMORY_NAMESPACE=sprint_analysis MEMORY_TAGS='sprint retrospective' OUTPUT_FORMAT=summary
+
+misc-git-history-trigger-monthly:
+	@echo "[misc-git-history-trigger-monthly] Triggering monthly git history analysis..."
+	@make -f Makefile.ai misc-git-history-trigger SINCE='1 month ago' CREATE_MEMORY=true MEMORY_NAMESPACE=monthly_analysis MEMORY_TAGS='monthly detailed' OUTPUT_FORMAT=json
+
+## Analysis Results
+misc-git-history-list-results:
+	@echo "[misc-git-history-list-results] Recent git history analysis results..."
+	@docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '\''.[] | select(.meta.type == "git_history_analysis") | {id: .id, date: .created_at, namespace: .meta.namespace, commits: .meta.commits_analyzed, since: .meta.since}'\'' | jq -s '\''sort_by(.date) | .[] | "\(.date) - \(.namespace) (\(.since), \(.commits) commits)"'\'' || echo "No analysis results found"'
+
+misc-git-history-view-result:
+	@if [ -z "$(ID)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai misc-git-history-view-result ID=<memory_node_id>"; \
+		exit 1; \
+	fi
+	@echo "[misc-git-history-view-result] Viewing analysis result $(ID)..."
+	@docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes/$(ID) | jq '\''.'\'''
+
+## Troubleshooting
+misc-git-history-check-health:
+	@echo "[misc-git-history-check-health] Checking git history analysis health..."
+	@echo "\n=== Service Status ==="
+	@docker compose ps worker maintenance-scheduler | grep -E "(worker|maintenance-scheduler)" || echo "Services not found"
+	@echo "\n=== Queue Status ==="
+	@docker compose exec rabbitmq rabbitmqctl list_queues | grep "git.history" || echo "No git history queue found"
+	@echo "\n=== API Health ==="
+	@curl -s http://localhost:9103/health | jq '.' || echo "API not accessible"
+	@echo "\n=== Token Status ==="
+	@docker compose exec misc-scripts bash -c 'if [ -f /code/.apitoken ]; then echo "API token exists"; else echo "API token missing"; fi'
+
+misc-git-history-restart:
+	@echo "[misc-git-history-restart] Restarting git history analysis services..."
+	@docker compose restart worker maintenance-scheduler
+	@echo "Services restarted. Check status with: make -f Makefile.ai misc-git-history-status"
+
+.PHONY: misc-test-export-rules misc-test-lint-rules misc-test-propose-rule misc-test-list-rules misc-export-rules misc-lint-rules misc-propose-rule misc-list-rules misc-list-rules-mdc misc-review-code-files misc-review-code-snippet misc-scan-db misc-approve-all-pending misc-propose-makefile-rule misc-review-multiple-files misc-propose-rules misc-install misc-up misc-update-rules misc-generate-update-template misc-mdc-to-json misc-enrich-rules misc-build misc-update-missing-user-stories misc-restart misc-propose-portable-rule misc-bug-report misc-bug-report-test misc-suggest-enhancement misc-suggest-enhancement-test misc-enhancement-to-proposal misc-proposal-to-enhancement misc-accept-enhancement misc-complete-enhancement misc-list-enhancements misc-onboarding-health misc-import-backup misc-search-user-stories misc-fdw-setup-script misc-logs-help misc-remove-duplicate-makefile-targets misc-enhancement-lifecycle-notify misc-safe-shutdown misc-auto-feedback misc-status misc-logs misc-healthcheck misc-update-project-map restart-workers trigger-progress-report misc-list-memory-nodes misc-git-history-analyze misc-git-history-quick misc-git-history-daily misc-git-history-weekly misc-git-history-trigger misc-git-history-trigger-daily misc-git-history-trigger-weekly misc-git-history-trigger-sprint misc-git-history-worker-logs misc-git-history-queue-status misc-git-history-status misc-git-history-logs misc-git-history-scheduler-logs misc-git-history-list-results misc-git-history-view-result misc-git-history-check-health misc-git-history-restart
 
 .PHONY: restart-workers
 restart-workers:
@@ -243,4 +313,99 @@ misc-install-deps:
 
 .PHONY: misc-list-memory-nodes
 misc-list-memory-nodes:
-	docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq ".[0:5]"' 
+	docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq ".[0:5]"'
+
+.PHONY: misc-git-history-analyze
+misc-git-history-analyze:
+	@if [ -z "$(SINCE)" ] && [ -z "$(UNTIL)" ] && [ -z "$(MAX_COMMITS)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai misc-git-history-analyze SINCE='2 days ago' [UNTIL='1 day ago'] [MAX_COMMITS=10] [AUTHOR='name'] [OUTPUT_FORMAT=json|text|summary] [OUTPUT_FILE=report.json] [DRY_RUN=true]"; \
+		echo "Examples:"; \
+		echo "  make -f Makefile.ai misc-git-history-analyze SINCE='1 week ago' MAX_COMMITS=20"; \
+		echo "  make -f Makefile.ai misc-git-history-analyze SINCE='2024-01-01' UNTIL='2024-01-31' AUTHOR='John Doe'"; \
+		echo "  make -f Makefile.ai misc-git-history-analyze SINCE='2 days ago' OUTPUT_FORMAT=summary OUTPUT_FILE=summary.json"; \
+		exit 1; \
+	fi
+	@CMD="docker compose exec misc-scripts python3 /scripts/git_history_analyzer.py"; \
+	if [ ! -z "$(SINCE)" ]; then \
+		CMD="$$CMD --since '$(SINCE)'"; \
+	fi; \
+	if [ ! -z "$(UNTIL)" ]; then \
+		CMD="$$CMD --until '$(UNTIL)'"; \
+	fi; \
+	if [ ! -z "$(MAX_COMMITS)" ]; then \
+		CMD="$$CMD --max-commits $(MAX_COMMITS)"; \
+	fi; \
+	if [ ! -z "$(AUTHOR)" ]; then \
+		CMD="$$CMD --author '$(AUTHOR)'"; \
+	fi; \
+	if [ ! -z "$(OUTPUT_FORMAT)" ]; then \
+		CMD="$$CMD --output-format $(OUTPUT_FORMAT)"; \
+	fi; \
+	if [ ! -z "$(OUTPUT_FILE)" ]; then \
+		CMD="$$CMD --output-file $(OUTPUT_FILE)"; \
+	fi; \
+	if [ "$(DRY_RUN)" = "true" ]; then \
+		CMD="$$CMD --dry-run"; \
+	fi; \
+	echo "[misc-git-history-analyze] Running: $$CMD"; \
+	eval $$CMD
+
+.PHONY: misc-git-history-quick
+misc-git-history-quick:
+	@echo "[misc-git-history-quick] Analyzing last 10 commits with summaries..."
+	@make -f Makefile.ai misc-git-history-analyze SINCE='1 week ago' MAX_COMMITS=10 OUTPUT_FORMAT=summary
+
+.PHONY: misc-git-history-daily
+misc-git-history-daily:
+	@echo "[misc-git-history-daily] Analyzing today's commits..."
+	@make -f Makefile.ai misc-git-history-analyze SINCE='1 day ago' OUTPUT_FORMAT=text
+
+.PHONY: misc-git-history-weekly
+misc-git-history-weekly:
+	@echo "[misc-git-history-weekly] Analyzing this week's commits..."
+	@make -f Makefile.ai misc-git-history-analyze SINCE='1 week ago' OUTPUT_FORMAT=summary OUTPUT_FILE=weekly_summary.json
+
+.PHONY: misc-git-history-trigger
+misc-git-history-trigger:
+	@if [ -z "$(SINCE)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai misc-git-history-trigger SINCE='1 week ago' [UNTIL='1 day ago'] [MAX_COMMITS=20] [AUTHOR='name'] [OUTPUT_FORMAT=json|text|summary] [CREATE_MEMORY=true] [MEMORY_NAMESPACE=git_history_analysis] [MEMORY_TAGS='tag1 tag2']"; \
+		echo "Examples:"; \
+		echo "  make -f Makefile.ai misc-git-history-trigger SINCE='1 week ago' CREATE_MEMORY=true"; \
+		echo "  make -f Makefile.ai misc-git-history-trigger SINCE='1 month ago' AUTHOR='John Doe' OUTPUT_FORMAT=summary"; \
+		echo "  make -f Makefile.ai misc-git-history-trigger SINCE='2024-01-01' UNTIL='2024-01-31' CREATE_MEMORY=true MEMORY_TAGS='sprint1 retrospective'"; \
+		exit 1; \
+	fi
+	@CMD="docker compose exec misc-scripts python3 /scripts/publish_git_history_job.py --since '$(SINCE)'"; \
+	if [ ! -z "$(UNTIL)" ]; then \
+		CMD="$$CMD --until '$(UNTIL)'"; \
+	fi; \
+	if [ ! -z "$(MAX_COMMITS)" ]; then \
+		CMD="$$CMD --max-commits $(MAX_COMMITS)"; \
+	fi; \
+	if [ ! -z "$(AUTHOR)" ]; then \
+		CMD="$$CMD --author '$(AUTHOR)'"; \
+	fi; \
+	if [ ! -z "$(OUTPUT_FORMAT)" ]; then \
+		CMD="$$CMD --output-format $(OUTPUT_FORMAT)"; \
+	fi; \
+	if [ "$(CREATE_MEMORY)" = "true" ]; then \
+		CMD="$$CMD --create-memory-node"; \
+	fi; \
+	if [ ! -z "$(MEMORY_NAMESPACE)" ]; then \
+		CMD="$$CMD --memory-namespace $(MEMORY_NAMESPACE)"; \
+	fi; \
+	if [ ! -z "$(MEMORY_TAGS)" ]; then \
+		CMD="$$CMD --memory-tags $(MEMORY_TAGS)"; \
+	fi; \
+	echo "[misc-git-history-trigger] Publishing job to RabbitMQ: $$CMD"; \
+	eval $$CMD
+
+.PHONY: misc-git-history-worker-logs
+misc-git-history-worker-logs:
+	@echo "[misc-git-history-worker-logs] Recent git history worker logs:"
+	@docker compose logs --tail=50 worker | grep -i "git.history\|git_history" || echo "No git history worker logs found"
+
+.PHONY: misc-git-history-queue-status
+misc-git-history-queue-status:
+	@echo "[misc-git-history-queue-status] Checking git history analysis queue:"
+	@docker compose exec rabbitmq rabbitmqctl list_queues | grep "git.history" || echo "No git history queue found" 
