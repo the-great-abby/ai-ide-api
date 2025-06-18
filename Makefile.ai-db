@@ -74,15 +74,6 @@ db-enable-fdw:
 	docker compose exec db psql -U postgres -d memorydb -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
 	docker compose exec db psql -U postgres -d rulesdb -c "CREATE EXTENSION IF NOT EXISTS postgres_fdw;"
 
-ai-memorydb-migrate:
-	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
-
-memorydb-stamp-head:
-	docker compose exec api alembic -c alembic_memorydb.ini stamp head
-
-dev-memorydb-revision:
-	docker compose exec api alembic -c alembic_memorydb.ini revision --autogenerate -m "$(MSG)"
-
 # Helper to get date and timestamp for dev
 DEV_DATE := $(shell date +%Y%m%d)
 DEV_TIME := $(shell date +%H%M%S)

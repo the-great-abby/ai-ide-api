@@ -1,6 +1,23 @@
 # Memory utility targets extracted from Makefile.ai-misc
 # This file contains all memory-* targets for memorydb and graph operations
 
+# --- Memory Database Migration Targets ---
+memorydb-migrate:
+	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
+
+memorydb-stamp-head:
+	docker compose exec api alembic -c alembic_memorydb.ini stamp head
+
+memorydb-revision:
+	docker compose exec api alembic -c alembic_memorydb.ini revision --autogenerate -m "$(MSG)"
+
+memorydb-backup-data-only:
+	mkdir -p backups
+	docker compose exec -T db pg_dump --data-only -U postgres -d memorydb > backups/memorydb-data-`date +"%Y%m%d-%H%M%S"`.sql
+
+memorydb-restore-data:
+	cat $(BACKUP) | docker compose exec -T db psql -U postgres -d memorydb
+
 # --- Test Environment Targets ---
 memory-test-utils-build:
 	docker compose -f docker-compose.test.yml build test-memory-utils

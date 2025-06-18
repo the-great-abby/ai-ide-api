@@ -1,26 +1,190 @@
-# 🏴‍☠️ PIRATE WARNING: This Makefile is now a skeleton!
-# Only high-level aliases and includes belong here. All real work goes in sub-Makefiles.
-# If you need to add a new domain (e.g., test, db, llm, misc, admin, memory),
-# create a Makefile.ai-<domain> and prefix all targets in that file with <domain>-*.
-# Example: test-up, db-migrate, llm-setup, misc-lint, admin-restart, memory-add-node
+# 🏴‍☠️ AI-IDE API MASTER MAKEFILE
+# 
+# This is the main Makefile that orchestrates all AI-IDE operations.
+# It includes specialized sub-makefiles for different domains and provides
+# high-level aliases for common operations.
 #
-# To run a target: make -f Makefile.ai <domain>-<target>
+# USAGE:
+#   make -f Makefile.ai <target>
 #
-# See Makefile.ai-*, Makefile.ai-test, Makefile.ai-llm, etc. for specialized targets.
+# SUB-MAKEFILES:
+#   Makefile.ai-test     - Testing and test environment management
+#   Makefile.ai-db       - Database operations and migrations
+#   Makefile.ai-llm      - LLM/Ollama integration
+#   Makefile.ai-misc     - Miscellaneous scripts and utilities
+#   Makefile.ai-admin    - Admin frontend and UI operations
+#   Makefile.ai-memory   - Memory graph and knowledge management
+#   Makefile.ai-api      - API endpoints and interactions
+#   Makefile.ai-health   - Health checks and monitoring
+#   Makefile.ai-migration - Migration utilities and tools
+#   Makefile.ai-dev      - Development-specific operations
 
+# Include all sub-makefiles
 include Makefile.ai-test
+include Makefile.ai-db
 include Makefile.ai-llm
 include Makefile.ai-misc
-include Makefile.ai-db
 include Makefile.ai-admin
 include Makefile.ai-memory
+include Makefile.ai-api
+include Makefile.ai-health
+include Makefile.ai-migration
+include Makefile.ai-dev
 
-# High-level aliases (if any) can go here:
-# Example:
-# test: test-test
-# lint: misc-lint
+# --- HIGH-LEVEL ALIASES ---
+# These provide convenient shortcuts for common operations
 
-memorydb-migrate:
-	docker compose exec api alembic -c alembic_memorydb.ini upgrade head
+# Quick start for new developers
+# Usage: make -f Makefile.ai quickstart
+quickstart: test-quickstart
 
-# End of captain's log.
+# Run all tests
+# Usage: make -f Makefile.ai test
+test: test-test
+
+# Start all services
+# Usage: make -f Makefile.ai up
+up: dev-up
+
+# Stop all services
+# Usage: make -f Makefile.ai down
+down: ai-down
+
+# Run health check
+# Usage: make -f Makefile.ai health
+health: health-onboarding
+
+# Run proactive health check
+# Usage: make -f Makefile.ai health-proactive
+health-proactive: health-proactive-onboarding
+
+# Database migration
+# Usage: make -f Makefile.ai migrate
+migrate: db-migrate
+
+# Memory database migration
+# Usage: make -f Makefile.ai memory-migrate
+memory-migrate: memorydb-migrate
+
+# View logs
+# Usage: make -f Makefile.ai logs
+logs: admin-logs
+
+# --- LEGACY ALIASES FOR BACKWARD COMPATIBILITY ---
+# These maintain compatibility with existing scripts and documentation
+
+# Test aliases
+ai-test: test-test
+ai-test-one: test-one
+ai-test-json: test-json
+ai-test-unit: test-unit
+ai-test-integration: test-integration
+ai-test-coverage: test-coverage
+
+# Database aliases
+ai-db-migrate: db-migrate
+ai-db-autorevision: db-revision
+ai-db-backup: db-backup-all
+ai-db-backup-data-only: db-backup-data-only
+ai-db-restore: db-restore-all
+ai-db-restore-data: db-restore-data
+ai-db-nuke: dev-db-nuke
+ai-db-drop-recreate: db-drop-recreate
+ai-db-drop-statusenum: db-drop-statusenum
+ai-db-merge-heads: db-merge-heads
+ai-db-heads: db-heads
+ai-db-history: db-history
+ai-db-stamp-head: db-stamp-head
+
+# API aliases
+ai-bug-report: api-bug-report
+ai-bug-report-test: api-bug-report-test
+ai-suggest-enhancement: api-suggest-enhancement
+ai-suggest-enhancement-test: api-suggest-enhancement-test
+ai-enhancement-to-proposal: api-enhancement-to-proposal
+ai-proposal-to-enhancement: api-proposal-to-enhancement
+ai-accept-enhancement: api-accept-enhancement
+ai-complete-enhancement: api-complete-enhancement
+ai-list-enhancements: api-list-enhancements
+ai-propose-portable-rule: api-propose-portable-rule
+
+# Admin aliases
+ai-up: admin-up
+ai-down: admin-down
+ai-build: admin-build
+ai-rebuild-all: admin-rebuild-all
+ai-restart: admin-restart
+ai-logs: admin-logs
+ai-logs-api: api-logs
+ai-logs-db: db-logs
+ai-logs-frontend: admin-logs-frontend
+ai-docs: admin-docs
+
+# LLM aliases
+ai-ollama-pull-model: llm-pull-model
+ai-ollama-serve-docker-gateway: llm-serve-docker-gateway
+ai-ollama-serve-docker-gateway-bg: llm-serve-docker-gateway-bg
+ai-ollama-logs: llm-logs
+ai-ollama-functions-up: llm-functions-up
+ai-ollama-functions-down: llm-functions-down
+ai-ollama-functions-health: llm-functions-health
+ai-ollama-functions-logs: llm-functions-logs
+ai-ollama-restart-docker-gateway: llm-restart-docker-gateway
+ai-ollama-kill: llm-kill
+ai-llm-setup: llm-setup
+
+# Memory aliases
+ai-memory-create: memory-create
+ai-memory-log-git-diff: memory-log-git-diff
+ai-memory-list-nodes-summary: memory-list-nodes-summary
+ai-memorydb-migrate: memorydb-migrate
+ai-memorydb-backup-data-only: memorydb-backup-data-only
+ai-memorydb-restore-data: memorydb-restore-data
+
+# Misc aliases
+ai-misc-install: misc-install
+ai-misc-up: misc-up
+ai-misc-update-rules: misc-update-rules
+ai-misc-generate-update-template: misc-generate-update-template
+ai-misc-mdc-to-json: misc-mdc-to-json
+ai-misc-enrich-rules: misc-enrich-rules
+ai-misc-update-missing-user-stories: misc-update-missing-user-stories
+ai-misc-build: misc-build
+
+# Health aliases (already defined in Makefile.ai-health)
+
+# Migration aliases (already defined in Makefile.ai-migration)
+
+# --- HELP TARGET ---
+# Usage: make -f Makefile.ai help
+help:
+	@echo "🏴‍☠️ AI-IDE API MAKEFILE HELP"
+	@echo ""
+	@echo "QUICK START:"
+	@echo "  make -f Makefile.ai quickstart    - Full setup for new developers"
+	@echo "  make -f Makefile.ai up            - Start all services"
+	@echo "  make -f Makefile.ai test          - Run all tests"
+	@echo "  make -f Makefile.ai health        - Run health check"
+	@echo ""
+	@echo "SUB-MAKEFILES:"
+	@echo "  test-*        - Testing operations (see Makefile.ai-test)"
+	@echo "  db-*          - Database operations (see Makefile.ai-db)"
+	@echo "  llm-*         - LLM operations (see Makefile.ai-llm)"
+	@echo "  admin-*       - Admin operations (see Makefile.ai-admin)"
+	@echo "  memory-*      - Memory operations (see Makefile.ai-memory)"
+	@echo "  api-*         - API operations (see Makefile.ai-api)"
+	@echo "  health-*      - Health operations (see Makefile.ai-health)"
+	@echo "  migration-*   - Migration operations (see Makefile.ai-migration)"
+	@echo "  misc-*        - Misc operations (see Makefile.ai-misc)"
+	@echo ""
+	@echo "For detailed help on any domain, see the corresponding sub-makefile."
+	@echo "Example: make -f Makefile.ai-test help"
+
+.PHONY: quickstart test up down health health-proactive migrate memory-migrate logs help
+.PHONY: ai-test ai-test-one ai-test-json ai-test-unit ai-test-integration ai-test-coverage
+.PHONY: ai-db-migrate ai-db-autorevision ai-db-backup ai-db-backup-data-only ai-db-restore ai-db-restore-data ai-db-nuke ai-db-drop-recreate ai-db-drop-statusenum ai-db-merge-heads ai-db-heads ai-db-history ai-db-stamp-head
+.PHONY: ai-bug-report ai-bug-report-test ai-suggest-enhancement ai-suggest-enhancement-test ai-enhancement-to-proposal ai-proposal-to-enhancement ai-accept-enhancement ai-complete-enhancement ai-list-enhancements ai-propose-portable-rule
+.PHONY: ai-up ai-down ai-build ai-rebuild-all ai-restart ai-logs ai-logs-api ai-logs-db ai-logs-frontend ai-docs
+.PHONY: ai-ollama-pull-model ai-ollama-serve-docker-gateway ai-ollama-serve-docker-gateway-bg ai-ollama-logs ai-ollama-functions-up ai-ollama-functions-down ai-ollama-functions-health ai-ollama-functions-logs ai-ollama-restart-docker-gateway ai-ollama-kill ai-llm-setup
+.PHONY: ai-memory-create ai-memory-log-git-diff ai-memory-list-nodes-summary ai-memorydb-migrate ai-memorydb-backup-data-only ai-memorydb-restore-data
+.PHONY: ai-misc-install ai-misc-up ai-misc-update-rules ai-misc-generate-update-template ai-misc-mdc-to-json ai-misc-enrich-rules ai-misc-update-missing-user-stories ai-misc-build
