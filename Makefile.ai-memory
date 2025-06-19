@@ -109,7 +109,7 @@ memory-list-nodes-by-namespace:
 
 memory-list-namespaces:
 	@echo "[memory-list-namespaces] Available namespaces:"
-	@curl -s -X GET "http://localhost:9103/memory/nodes" -H "Authorization: Bearer $$(cat .apitoken)" | jq '.[].namespace' | sort | uniq -c | sort -nr
+	@curl -s -X GET "http://localhost:9103/memory/nodes" -H "Authorization: Bearer $$(cat .apitoken)" | jq -r '.[] | (.namespace // .meta.namespace // "unknown")' | sort | uniq -c | sort -nr
 
 # --- Memory Worker Targets ---
 
@@ -275,46 +275,46 @@ memory-rag-search-similar:
 memory-git-history-awareness-status:
 	@echo "[memory-git-history-awareness-status] Checking git history awareness growth..."
 	@echo "\n=== Analysis Node Counts ==="
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | .meta.namespace' | sort | uniq -c || echo "No analysis nodes found"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | .namespace' | sort | uniq -c || echo "No analysis nodes found"
 	@echo "\n=== Recent Analysis Timeline ==="
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {namespace: .meta.namespace, date: .created_at, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[-10:]' || echo "No recent analysis found"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {namespace: .namespace, date: .created_at, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[-10:]' || echo "No recent analysis found"
 	@echo "\n=== Awareness Growth Summary ==="
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | .meta.namespace' | sort | uniq -c | awk '{print "  " $$2 ": " $$1 " analyses"}'
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | .namespace' | sort | uniq -c | awk '{print "  " $$2 ": " $$1 " analyses"}'
 
 memory-git-history-awareness-timeline:
 	@echo "[memory-git-history-awareness-timeline] Git history analysis timeline..."
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .meta.namespace, since: .meta.since, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[] | "\(.date) - \(.namespace) (\(.since), \(.commits) commits)"'
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .namespace, since: .meta.since, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[] | "\(.date) - \(.namespace) (\(.since), \(.commits) commits)"'
 
 memory-git-history-awareness-patterns:
 	@echo "[memory-git-history-awareness-patterns] Analyzing development patterns..."
 	@echo "\n=== Daily Patterns ==="
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.namespace == "daily_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No daily data" end'
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.namespace == "daily_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No daily data" end'
 	@echo "\n=== Weekly Patterns ==="
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.namespace == "weekly_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No weekly data" end'
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.namespace == "weekly_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No weekly data" end'
 	@echo "\n=== Sprint Patterns ==="
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.namespace == "sprint_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No sprint data" end'
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.namespace == "sprint_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No sprint data" end'
 
 memory-git-history-awareness-anomalies:
 	@echo "[memory-git-history-awareness-anomalies] Detecting development anomalies..."
 	@echo "\n=== Recent Activity Analysis ==="
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .meta.namespace, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[-5:] | .[] | "\(.date) - \(.namespace): \(.commits) commits"'
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .namespace, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[-5:] | .[] | "\(.date) - \(.namespace): \(.commits) commits"'
 
 memory-git-history-awareness-trends:
 	@echo "[memory-git-history-awareness-trends] Analyzing development trends..."
 	@echo "\n=== Monthly Trend Analysis ==="
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.namespace == "monthly_analysis") | {date: .created_at, commits: .meta.commits_analyzed, summary: .content}' | jq -s 'sort_by(.date) | .[] | "\(.date) - \(.commits) commits: \(.summary)"'
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.namespace == "monthly_analysis") | {date: .created_at, commits: .meta.commits_analyzed, summary: .content}' | jq -s 'sort_by(.date) | .[] | "\(.date) - \(.commits) commits: \(.summary)"'
 
 ## Awareness Growth Management
 memory-git-history-awareness-cleanup:
 	@echo "[memory-git-history-awareness-cleanup] Cleaning up old analysis nodes..."
 	@echo "This will remove analysis nodes older than 6 months..."
 	@read -p "Continue? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis" and (.created_at | fromdateiso8601) < (now - 180*24*60*60)) | .id' | xargs -I {} curl -X DELETE -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes/{} || echo "No old nodes to clean up"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis" and (.created_at | fromdateiso8601) < (now - 180*24*60*60)) | .id' | xargs -I {} curl -X DELETE -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes/{} || echo "No old nodes to clean up"
 
 memory-git-history-awareness-export:
 	@echo "[memory-git-history-awareness-export] Exporting awareness data..."
 	@mkdir -p exports
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis")' | jq -s > exports/git_history_awareness_$$(date +%Y%m%d_%H%M%S).json
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis")' | jq -s > exports/git_history_awareness_$$(date +%Y%m%d_%H%M%S).json
 	@echo "Exported to exports/git_history_awareness_$$(date +%Y%m%d_%H%M%S).json"
 
 memory-git-history-awareness-report:
@@ -323,10 +323,10 @@ memory-git-history-awareness-report:
 	@echo "Generated: $$(date)" >> awareness_report_$$(date +%Y%m%d).txt
 	@echo "" >> awareness_report_$$(date +%Y%m%d).txt
 	@echo "=== Analysis Coverage ===" >> awareness_report_$$(date +%Y%m%d).txt
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | .meta.namespace' | sort | uniq -c >> awareness_report_$$(date +%Y%m%d).txt
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | .namespace' | sort | uniq -c >> awareness_report_$$(date +%Y%m%d).txt
 	@echo "" >> awareness_report_$$(date +%Y%m%d).txt
 	@echo "=== Recent Activity ===" >> awareness_report_$$(date +%Y%m%d).txt
-	@curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .meta.namespace, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[-10:] | .[] | "\(.date) - \(.namespace): \(.commits) commits"' >> awareness_report_$$(date +%Y%m%d).txt
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .namespace, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[-10:] | .[] | "\(.date) - \(.namespace): \(.commits) commits"' >> awareness_report_$$(date +%Y%m%d).txt
 	@echo "Report saved to awareness_report_$$(date +%Y%m%d).txt"
 
 ## Awareness Growth Triggers
@@ -345,5 +345,41 @@ memory-git-history-awareness-trigger-custom:
 	fi
 	@echo "[memory-git-history-awareness-trigger-custom] Triggering custom awareness analysis..."
 	@make -f Makefile.ai misc-git-history-trigger SINCE='$(SINCE)' CREATE_MEMORY=true MEMORY_NAMESPACE=$(NAMESPACE) MEMORY_TAGS='$(MEMORY_TAGS) awareness custom'
+
+memory-list-git-history-analysis:
+	@echo "[memory-list-git-history-analysis] Git history analysis nodes by namespace:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | .namespace' | sort | uniq -c || echo "No analysis nodes found"
+
+memory-list-recent-git-history:
+	@echo "[memory-list-recent-git-history] Recent git history analysis:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {namespace: .namespace, date: .created_at, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[-10:]' || echo "No recent analysis found"
+
+memory-list-git-history-namespaces:
+	@echo "[memory-list-git-history-namespaces] Git history analysis by namespace:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | .namespace' | sort | uniq -c | awk '{print "  " $$2 ": " $$1 " analyses"}'
+
+memory-list-git-history-detailed:
+	@echo "[memory-list-git-history-detailed] Detailed git history analysis:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .namespace, since: .meta.since, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[] | "\(.date) - \(.namespace) (\(.since), \(.commits) commits)"'
+
+memory-stats-daily-analysis:
+	@echo "[memory-stats-daily-analysis] Daily analysis statistics:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.namespace == "daily_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No daily data" end'
+
+memory-stats-weekly-analysis:
+	@echo "[memory-stats-weekly-analysis] Weekly analysis statistics:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.namespace == "weekly_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No weekly data" end'
+
+memory-stats-sprint-analysis:
+	@echo "[memory-stats-sprint-analysis] Sprint analysis statistics:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.namespace == "sprint_analysis") | .meta.commits_analyzed' | jq -s 'if length > 0 then {avg: (add / length), min: min, max: max, count: length} else "No sprint data" end'
+
+memory-list-recent-analysis:
+	@echo "[memory-list-recent-analysis] Recent analysis by namespace:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .namespace, commits: .meta.commits_analyzed}' | jq -s 'sort_by(.date) | .[-5:] | .[] | "\(.date) - \(.namespace): \(.commits) commits"'
+
+memory-list-monthly-analysis:
+	@echo "[memory-list-monthly-analysis] Monthly analysis summaries:"
+	@curl -s -H "Authorization: Bearer $$(cat .apitoken)" http://localhost:9103/memory/nodes | jq '.[] | select(.namespace == "monthly_analysis") | {date: .created_at, commits: .meta.commits_analyzed, summary: .content}' | jq -s 'sort_by(.date) | .[] | "\(.date) - \(.commits) commits: \(.summary)"'
 
 .PHONY: memory-test-utils-build memory-test-add-node memory-test-add-edge memory-test-list-nodes memory-test-list-edges memory-utils-build memory-add-node memory-add-edge memory-list-nodes memory-list-edges memory-trigger-progress memory-trigger-cleanup memory-trigger-enrichment memory-trigger-similarity memory-restart-workers memory-worker-logs memory-healthcheck memory-status-report memory-monitor-jobs memory-check-stuck-jobs memory-clear-stuck-jobs memory-requeue-failed memory-system-recover 

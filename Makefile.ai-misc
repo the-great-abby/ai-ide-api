@@ -236,7 +236,7 @@ misc-git-history-status:
 	@echo "\n=== Worker Status ==="
 	@docker compose ps worker | grep worker || echo "Worker not running"
 	@echo "\n=== Recent Analysis Results ==="
-	@docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '\''.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .meta.namespace, commits: .meta.commits_analyzed}'\'' | jq -s '\''sort_by(.date) | .[-5:] | .[] | "\(.date) - \(.namespace): \(.commits) commits"'\'' || echo "No recent analysis found"'
+	@docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '\''.[] | select(.meta.type == "git_history_analysis") | {date: .created_at, namespace: .namespace, commits: .meta.commits_analyzed}'\'' | jq -s '\''sort_by(.date) | .[-5:] | .[] | "\(.date) - \(.namespace): \(.commits) commits"'\'' || echo "No recent analysis found"'
 
 misc-git-history-logs:
 	@echo "[misc-git-history-logs] Recent git history analysis logs..."
@@ -266,7 +266,7 @@ misc-git-history-trigger-monthly:
 ## Analysis Results
 misc-git-history-list-results:
 	@echo "[misc-git-history-list-results] Recent git history analysis results..."
-	@docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '\''.[] | select(.meta.type == "git_history_analysis") | {id: .id, date: .created_at, namespace: .meta.namespace, commits: .meta.commits_analyzed, since: .meta.since}'\'' | jq -s '\''sort_by(.date) | .[] | "\(.date) - \(.namespace) (\(.since), \(.commits) commits)"'\'' || echo "No analysis results found"'
+	@docker compose exec misc-scripts bash -c 'curl -s -H "Authorization: Bearer $$(cat /code/.apitoken)" http://api:8000/memory/nodes | jq '\''.[] | select(.meta.type == "git_history_analysis") | {id: .id, date: .created_at, namespace: .namespace, commits: .meta.commits_analyzed, since: .meta.since}'\'' | jq -s '\''sort_by(.date) | .[] | "\(.date) - \(.namespace) (\(.since), \(.commits) commits)"'\'' || echo "No analysis results found"'
 
 misc-git-history-view-result:
 	@if [ -z "$(ID)" ]; then \
