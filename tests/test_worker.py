@@ -28,6 +28,7 @@ def test_process_job_valid(monkeypatch):
 def test_process_job_missing_diff():
     import logging
     from io import StringIO
+
     body = {"concise": True}
     log_stream = StringIO()
     handler = logging.StreamHandler(log_stream)
@@ -44,8 +45,10 @@ def test_process_job_missing_diff():
 def test_process_job_api_error(monkeypatch):
     import logging
     from io import StringIO
+
     def raise_error(*a, **k):
         raise Exception("API down")
+
     monkeypatch.setattr(worker_module.requests, "post", raise_error)
     body = {"diff": "diff --git ..."}
     log_stream = StringIO()

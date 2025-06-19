@@ -3,10 +3,17 @@ import argparse
 import json
 import sys
 from memory_utils import (
-    add_memory_node, add_edge, list_nodes, list_edges,
-    traverse_single_hop, traverse_multi_hop, traverse_by_relation,
-    export_dot, delete_nodes
+    add_memory_node,
+    add_edge,
+    list_nodes,
+    list_edges,
+    traverse_single_hop,
+    traverse_multi_hop,
+    traverse_by_relation,
+    export_dot,
+    delete_nodes,
 )
+
 
 def main():
     parser = argparse.ArgumentParser(description="Memory Graph CLI")
@@ -85,7 +92,9 @@ def main():
 
         elif args.command == "delete-nodes":
             delete_nodes(args.namespace)
-            print(f"Deleted nodes{f' in namespace {args.namespace}' if args.namespace else ''}")
+            print(
+                f"Deleted nodes{f' in namespace {args.namespace}' if args.namespace else ''}"
+            )
 
         else:
             parser.print_help()
@@ -95,5 +104,6 @@ def main():
         print(f"Error: {str(e)}", file=sys.stderr)
         sys.exit(1)
 
+
 if __name__ == "__main__":
-    main() 
+    main()

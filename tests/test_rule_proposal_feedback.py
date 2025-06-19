@@ -61,7 +61,10 @@ def test_submit_and_list_feedback(admin_headers, client, override_get_db):
     feedback_list = list_response.json()
     assert len(feedback_list) == 1
     assert feedback_list[0]["feedback_type"] == "suggestion"
-    assert feedback_list[0]["comments"] == "This rule could be improved by adding more examples."
+    assert (
+        feedback_list[0]["comments"]
+        == "This rule could be improved by adding more examples."
+    )
 
 
 def test_multiple_feedback_entries(admin_headers, client, override_get_db):
@@ -91,9 +94,24 @@ def test_multiple_feedback_entries(admin_headers, client, override_get_db):
 
     # Submit multiple feedback entries
     feedback_entries = [
-        {"feedback_type": "suggestion", "comments": "First suggestion", "scope_level": "project", "project": "test-project"},
-        {"feedback_type": "question", "comments": "How will this be enforced?", "scope_level": "project", "project": "test-project"},
-        {"feedback_type": "concern", "comments": "This might be too restrictive", "scope_level": "project", "project": "test-project"},
+        {
+            "feedback_type": "suggestion",
+            "comments": "First suggestion",
+            "scope_level": "project",
+            "project": "test-project",
+        },
+        {
+            "feedback_type": "question",
+            "comments": "How will this be enforced?",
+            "scope_level": "project",
+            "project": "test-project",
+        },
+        {
+            "feedback_type": "concern",
+            "comments": "This might be too restrictive",
+            "scope_level": "project",
+            "project": "test-project",
+        },
     ]
 
     for feedback in feedback_entries:
@@ -120,7 +138,12 @@ def test_multiple_feedback_entries(admin_headers, client, override_get_db):
 @pytest.mark.negative
 def test_feedback_on_nonexistent_proposal(admin_headers, client, override_get_db):
     # Try to submit feedback for a non-existent proposal
-    feedback = {"feedback_type": "suggestion", "comments": "Test feedback", "scope_level": "project", "project": "test-project"}
+    feedback = {
+        "feedback_type": "suggestion",
+        "comments": "Test feedback",
+        "scope_level": "project",
+        "project": "test-project",
+    }
     fake_id = str(uuid.uuid4())
     response = client.post(
         f"/api/rule_proposals/{fake_id}/feedback", json=feedback, headers=admin_headers
@@ -157,7 +180,14 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
     list_response = client.get("/rule-changes?status=pending", headers=admin_headers)
     assert list_response.status_code == 200
     proposals = list_response.json()
-    matching = [p for p in proposals if p["rule_type"] == proposal["rule_type"] and p["diff"] == proposal["diff"] and p["scope_level"] == proposal["scope_level"] and (p.get("project") == proposal["project"] or p.get("scope_id") == None)]
+    matching = [
+        p
+        for p in proposals
+        if p["rule_type"] == proposal["rule_type"]
+        and p["diff"] == proposal["diff"]
+        and p["scope_level"] == proposal["scope_level"]
+        and (p.get("project") == proposal["project"] or p.get("scope_id") == None)
+    ]
     if matching:
         proposal_id = matching[0]["id"]
     else:
@@ -168,7 +198,12 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
         proposal_id = prop_response.json()["id"]
 
     # Submit feedback with invalid type
-    invalid_feedback = {"feedback_type": "invalid_type", "comments": "Test feedback", "scope_level": "project", "project": "test-project"}
+    invalid_feedback = {
+        "feedback_type": "invalid_type",
+        "comments": "Test feedback",
+        "scope_level": "project",
+        "project": "test-project",
+    }
     response = client.post(
         f"/api/rule_proposals/{proposal_id}/feedback",
         json=invalid_feedback,
@@ -186,17 +221,22 @@ def test_invalid_feedback_type(admin_headers, client, override_get_db):
     assert approve_response.status_code == 200
 
 
-@pytest.mark.parametrize("feedback_type,expected_status", [
-    ("suggestion", 200),
-    ("question", 200),
-    ("concern", 200),
-    ("invalid_type", 422),
-    ("", 422),
-    (None, 422),
-    ("ACCEPT", 422),
-    ("reject", 422),
-])
-def test_feedback_type_enforcement(admin_headers, client, feedback_type, expected_status, override_get_db):
+@pytest.mark.parametrize(
+    "feedback_type,expected_status",
+    [
+        ("suggestion", 200),
+        ("question", 200),
+        ("concern", 200),
+        ("invalid_type", 422),
+        ("", 422),
+        (None, 422),
+        ("ACCEPT", 422),
+        ("reject", 422),
+    ],
+)
+def test_feedback_type_enforcement(
+    admin_headers, client, feedback_type, expected_status, override_get_db
+):
     # Create a rule proposal
     proposal = {
         "rule_type": "test_feedback_type_enforcement",
@@ -219,7 +259,12 @@ def test_feedback_type_enforcement(admin_headers, client, feedback_type, expecte
     )
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
-    feedback = {"feedback_type": feedback_type, "comments": "Test feedback", "scope_level": "project", "project": "test-project"}
+    feedback = {
+        "feedback_type": feedback_type,
+        "comments": "Test feedback",
+        "scope_level": "project",
+        "project": "test-project",
+    }
     response = client.post(
         f"/api/rule_proposals/{proposal_id}/feedback",
         json=feedback,

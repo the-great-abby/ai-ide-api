@@ -399,7 +399,9 @@ def test_rule_conflicts_different_patterns(client, admin_headers, override_get_d
         print("RESPONSE BODY:", response1.text)
     assert response1.status_code == 200
     rule1_id = response1.json()["id"]
-    approve_response1 = client.put(f"/rule-changes/{rule1_id}/approve", headers=admin_headers)
+    approve_response1 = client.put(
+        f"/rule-changes/{rule1_id}/approve", headers=admin_headers
+    )
     if approve_response1.status_code != 200:
         print("RESPONSE BODY:", approve_response1.text)
     assert approve_response1.status_code == 200
@@ -410,7 +412,9 @@ def test_rule_conflicts_different_patterns(client, admin_headers, override_get_d
         print("RESPONSE BODY:", response2.text)
     assert response2.status_code == 200
     rule2_id = response2.json()["id"]
-    approve_response2 = client.put(f"/rule-changes/{rule2_id}/approve", headers=admin_headers)
+    approve_response2 = client.put(
+        f"/rule-changes/{rule2_id}/approve", headers=admin_headers
+    )
     if approve_response2.status_code != 200:
         print("RESPONSE BODY:", approve_response2.text)
     assert approve_response2.status_code == 200

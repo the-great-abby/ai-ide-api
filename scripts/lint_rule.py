@@ -48,7 +48,9 @@ def main():
     target = sys.argv[1]
     any_errors = False
     if os.path.isdir(target):
-        json_files = [os.path.join(target, f) for f in os.listdir(target) if f.endswith('.json')]
+        json_files = [
+            os.path.join(target, f) for f in os.listdir(target) if f.endswith(".json")
+        ]
         for path in sorted(json_files):
             errors = validate_file(path)
             if errors:
@@ -71,6 +73,7 @@ def main():
         sys.exit(1)
     else:
         print("All rules are valid.")
+
 
 if __name__ == "__main__":
     main()

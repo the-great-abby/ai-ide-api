@@ -13,4 +13,4 @@ channel.queue_declare(queue=QUEUE, durable=True)
 body = {}
 channel.basic_publish(exchange="", routing_key=QUEUE, body=json.dumps(body))
 print("Published progress report job.")
-connection.close() 
+connection.close()

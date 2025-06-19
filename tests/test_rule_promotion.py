@@ -39,7 +39,8 @@ def test_rule_promotion_flow(admin_headers, client, override_get_db):
     assert approve_response.status_code == 200
     # Always fetch the rule from /rules after approval
     rules = client.get(
-        f"/rules?scope_level=project&project={project_rule['project']}", headers=admin_headers
+        f"/rules?scope_level=project&project={project_rule['project']}",
+        headers=admin_headers,
     ).json()
     rule = next(r for r in rules if r["description"] == "Promotion test rule")
     rule_id = rule["id"]

@@ -1,10 +1,12 @@
 from typing import Any, Optional
 import asyncio
 
+
 class MessageBrokerBase:
     """
     Abstract base class for message brokers. All message brokers (real or mock) should implement this interface.
     """
+
     async def publish(self, queue: str, message: Any):
         raise NotImplementedError
 
@@ -17,16 +19,20 @@ class RealRabbitMQClient(MessageBrokerBase):
     Real RabbitMQ client using pika (blocking, wrapped for async compatibility).
     Matches the MessageBrokerBase interface.
     """
+
     def __init__(self, url: str):
         import pika
+
         self._url = url
         self._params = pika.URLParameters(url)
 
     async def publish(self, queue: str, message: Any):
         import pika
         import json
+
         print(f"[DEBUG] PUBLISH CALLED for queue: {queue}")
         print(f"[DEBUG] Message to publish: {message}")
+
         def _publish():
             print(f"[DEBUG] Inside _publish function for queue: {queue}")
             connection = pika.BlockingConnection(self._params)
@@ -46,6 +52,7 @@ class RealRabbitMQClient(MessageBrokerBase):
             print(f"[DEBUG] Message published successfully")
             connection.close()
             print(f"[DEBUG] Connection closed")
+
         await asyncio.to_thread(_publish)
         print(f"[DEBUG] Publish completed for queue: {queue}")
 
@@ -53,6 +60,7 @@ class RealRabbitMQClient(MessageBrokerBase):
         print(f"[DEBUG] CONSUME CALLED for queue: {queue}")
         import pika
         import json
+
         def _consume():
             connection = pika.BlockingConnection(self._params)
             channel = connection.channel()
@@ -71,4 +79,5 @@ class RealRabbitMQClient(MessageBrokerBase):
                 result = None
             connection.close()
             return result
-        return await asyncio.to_thread(_consume) 
+
+        return await asyncio.to_thread(_consume)

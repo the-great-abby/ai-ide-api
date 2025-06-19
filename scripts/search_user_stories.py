@@ -7,13 +7,13 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 keyword = sys.argv[1].lower()
-stories_dir = os.path.join(os.path.dirname(__file__), '../docs/user_stories')
+stories_dir = os.path.join(os.path.dirname(__file__), "../docs/user_stories")
 
 for fname in os.listdir(stories_dir):
-    if not fname.endswith('.md'):
+    if not fname.endswith(".md"):
         continue
     path = os.path.join(stories_dir, fname)
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, "r", encoding="utf-8") as f:
         lines = f.readlines()
     found = False
     # Search filename
@@ -27,4 +27,4 @@ for fname in os.listdir(stories_dir):
             found = True
             break
     if found:
-        print('-' * 60) 
+        print("-" * 60)

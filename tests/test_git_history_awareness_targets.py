@@ -21,37 +21,55 @@ class TestGitHistoryAwarenessTargets:
             ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-status"],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
     def test_awareness_timeline_target_exists(self):
         """Test that the awareness timeline target exists."""
         result = subprocess.run(
-            ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-timeline"],
+            [
+                "make",
+                "-f",
+                "Makefile.ai",
+                "-n",
+                "memory-git-history-awareness-timeline",
+            ],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
     def test_awareness_patterns_target_exists(self):
         """Test that the awareness patterns target exists."""
         result = subprocess.run(
-            ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-patterns"],
+            [
+                "make",
+                "-f",
+                "Makefile.ai",
+                "-n",
+                "memory-git-history-awareness-patterns",
+            ],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
     def test_awareness_anomalies_target_exists(self):
         """Test that the awareness anomalies target exists."""
         result = subprocess.run(
-            ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-anomalies"],
+            [
+                "make",
+                "-f",
+                "Makefile.ai",
+                "-n",
+                "memory-git-history-awareness-anomalies",
+            ],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
@@ -61,7 +79,7 @@ class TestGitHistoryAwarenessTargets:
             ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-trends"],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
@@ -71,7 +89,7 @@ class TestGitHistoryAwarenessTargets:
             ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-report"],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
@@ -81,7 +99,7 @@ class TestGitHistoryAwarenessTargets:
             ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-export"],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
@@ -91,27 +109,39 @@ class TestGitHistoryAwarenessTargets:
             ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-cleanup"],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
     def test_awareness_trigger_full_target_exists(self):
         """Test that the awareness trigger full target exists."""
         result = subprocess.run(
-            ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-trigger-full"],
+            [
+                "make",
+                "-f",
+                "Makefile.ai",
+                "-n",
+                "memory-git-history-awareness-trigger-full",
+            ],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
     def test_awareness_trigger_custom_target_exists(self):
         """Test that the awareness trigger custom target exists."""
         result = subprocess.run(
-            ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-trigger-custom"],
+            [
+                "make",
+                "-f",
+                "Makefile.ai",
+                "-n",
+                "memory-git-history-awareness-trigger-custom",
+            ],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Target should exist: {result.stderr}"
 
@@ -127,17 +157,19 @@ class TestGitHistoryAwarenessTargets:
             "ai-git-history-awareness-export",
             "ai-git-history-awareness-cleanup",
             "ai-git-history-awareness-trigger-full",
-            "ai-git-history-awareness-trigger-custom"
+            "ai-git-history-awareness-trigger-custom",
         ]
-        
+
         for alias in aliases:
             result = subprocess.run(
                 ["make", "-f", "Makefile.ai", "-n", alias],
                 capture_output=True,
                 text=True,
-                cwd=os.getcwd()
+                cwd=os.getcwd(),
             )
-            assert result.returncode == 0, f"Alias {alias} should exist: {result.stderr}"
+            assert (
+                result.returncode == 0
+            ), f"Alias {alias} should exist: {result.stderr}"
 
     def test_help_includes_awareness_targets(self):
         """Test that help output includes awareness targets."""
@@ -145,10 +177,10 @@ class TestGitHistoryAwarenessTargets:
             ["make", "-f", "Makefile.ai", "help"],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode == 0, f"Help should work: {result.stderr}"
-        
+
         help_output = result.stdout
         assert "GIT HISTORY AWARENESS:" in help_output
         assert "ai-git-history-awareness-status" in help_output
@@ -165,23 +197,37 @@ class TestGitHistoryAwarenessTargets:
         """Test that trigger custom validates required parameters."""
         # Test without required parameters
         result = subprocess.run(
-            ["make", "-f", "Makefile.ai", "memory-git-history-awareness-trigger-custom"],
+            [
+                "make",
+                "-f",
+                "Makefile.ai",
+                "memory-git-history-awareness-trigger-custom",
+            ],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
         assert result.returncode != 0, "Should fail without required parameters"
         assert "Usage:" in result.stderr or "ERROR" in result.stderr
 
         # Test with required parameters
         result = subprocess.run(
-            ["make", "-f", "Makefile.ai", "-n", "memory-git-history-awareness-trigger-custom", 
-             "SINCE='1 week ago'", "NAMESPACE=test_analysis"],
+            [
+                "make",
+                "-f",
+                "Makefile.ai",
+                "-n",
+                "memory-git-history-awareness-trigger-custom",
+                "SINCE='1 week ago'",
+                "NAMESPACE=test_analysis",
+            ],
             capture_output=True,
             text=True,
-            cwd=os.getcwd()
+            cwd=os.getcwd(),
         )
-        assert result.returncode == 0, f"Should work with required parameters: {result.stderr}"
+        assert (
+            result.returncode == 0
+        ), f"Should work with required parameters: {result.stderr}"
 
 
 class TestGitHistoryAwarenessDocumentation:
@@ -191,8 +237,8 @@ class TestGitHistoryAwarenessDocumentation:
         """Test that the awareness management user story exists."""
         story_path = "docs/user_stories/git_history_awareness_management.md"
         assert os.path.exists(story_path), f"User story should exist: {story_path}"
-        
-        with open(story_path, 'r') as f:
+
+        with open(story_path, "r") as f:
             content = f.read()
             assert "---" in content, "Should have YAML frontmatter"
             assert "title:" in content, "Should have title"
@@ -204,8 +250,8 @@ class TestGitHistoryAwarenessDocumentation:
         """Test that the quick reference guide exists."""
         ref_path = "docs/git_history_awareness_quick_reference.md"
         assert os.path.exists(ref_path), f"Quick reference should exist: {ref_path}"
-        
-        with open(ref_path, 'r') as f:
+
+        with open(ref_path, "r") as f:
             content = f.read()
             assert "Quick Start Commands" in content
             assert "make -f Makefile.ai memory-git-history-awareness-status" in content
@@ -215,9 +261,11 @@ class TestGitHistoryAwarenessDocumentation:
     def test_awareness_growth_documentation_exists(self):
         """Test that the awareness growth documentation exists."""
         growth_path = "docs/git_history_awareness_growth.md"
-        assert os.path.exists(growth_path), f"Awareness growth doc should exist: {growth_path}"
-        
-        with open(growth_path, 'r') as f:
+        assert os.path.exists(
+            growth_path
+        ), f"Awareness growth doc should exist: {growth_path}"
+
+        with open(growth_path, "r") as f:
             content = f.read()
             assert "Awareness Growth Mechanisms" in content
             assert "Scheduled Execution" in content
@@ -225,4 +273,4 @@ class TestGitHistoryAwarenessDocumentation:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__]) 
+    pytest.main([__file__])

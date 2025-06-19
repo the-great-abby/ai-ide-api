@@ -10,8 +10,20 @@ import re
 import enum
 from sqlalchemy import create_engine
 
-from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Path,
-                     UploadFile, Request, Header, status, APIRouter)
+from fastapi import (
+    Body,
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Path,
+    UploadFile,
+    Request,
+    Header,
+    status,
+    APIRouter,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, PlainTextResponse
 from pydantic import BaseModel, Field, Extra
@@ -19,7 +31,9 @@ from sqlalchemy.orm import Session
 import requests
 import secrets
 from fastapi.exceptions import RequestValidationError
-from fastapi.exception_handlers import RequestValidationError as FastAPIRequestValidationError
+from fastapi.exception_handlers import (
+    RequestValidationError as FastAPIRequestValidationError,
+)
 from fastapi.staticfiles import StaticFiles
 
 import scripts.suggest_rules as suggest_rules
@@ -40,8 +54,17 @@ from onboarding import router as onboarding_router
 from api.onboarding_endpoints import router as api_onboarding_router
 from rules import router as rules_router
 from tokens import router as tokens_router
-from rule_proposals import router as rule_proposals_router, pirate_validation_exception_handler
-from utils.normalization import clean_examples_field, clean_list_field, normalize_rule_dict, str_to_list, is_valid_uuid
+from rule_proposals import (
+    router as rule_proposals_router,
+    pirate_validation_exception_handler,
+)
+from utils.normalization import (
+    clean_examples_field,
+    clean_list_field,
+    normalize_rule_dict,
+    str_to_list,
+    is_valid_uuid,
+)
 from misc_endpoints import router as misc_router
 from memory_endpoints import router as memory_router
 from db import RuleVersion
@@ -104,11 +127,16 @@ See these user stories for step-by-step onboarding, automation, and best practic
 ---
 
 **🏴‍☠️ Ready to build your worker army? Start with the [Portable RabbitMQ Setup](docs/user_stories/portable_rabbitmq_setup.md)!**
-"""
+""",
 )
 
 # Mount user stories as static files for direct access
-app.mount("/docs/user_stories", StaticFiles(directory="docs/user_stories"), name="user_stories")
+app.mount(
+    "/docs/user_stories",
+    StaticFiles(directory="docs/user_stories"),
+    name="user_stories",
+)
+
 
 # Quick access endpoints for documentation
 @app.get("/docs/rabbitmq-setup", response_class=PlainTextResponse)
@@ -120,6 +148,7 @@ def get_rabbitmq_setup_docs():
     except FileNotFoundError:
         return "RabbitMQ setup documentation not found. Please check the docs/user_stories/ directory."
 
+
 @app.get("/docs/external-onboarding", response_class=PlainTextResponse)
 def get_external_onboarding_docs():
     """Get the external onboarding documentation."""
@@ -129,6 +158,7 @@ def get_external_onboarding_docs():
     except FileNotFoundError:
         return "External onboarding documentation not found. Please check the docs/user_stories/ directory."
 
+
 @app.get("/docs/memory-system", response_class=PlainTextResponse)
 def get_memory_system_docs():
     """Get the memory system documentation."""
@@ -137,6 +167,7 @@ def get_memory_system_docs():
             return f.read()
     except FileNotFoundError:
         return "Memory system documentation not found. Please check the docs/onboarding/ directory."
+
 
 @app.get("/quick-start", response_class=PlainTextResponse)
 def get_quick_start_guide():
@@ -192,12 +223,17 @@ curl -X POST http://localhost:9103/memory/nodes \\
 Ready to build your worker army? Check out the full documentation!
 """
 
+
 # --- Router includes (ensure all are present and correct) ---
 app.include_router(onboarding_router)  # prefix='/onboarding' in onboarding.py
-app.include_router(api_onboarding_router)  # prefix='/api' in api/onboarding_endpoints.py
-app.include_router(rules_router)       # prefix='/rules' in rules.py
-app.include_router(tokens_router)      # prefix='/admin' in tokens.py
-app.include_router(rule_proposals_router)  # prefix='/api/rule_proposals' in rule_proposals.py
+app.include_router(
+    api_onboarding_router
+)  # prefix='/api' in api/onboarding_endpoints.py
+app.include_router(rules_router)  # prefix='/rules' in rules.py
+app.include_router(tokens_router)  # prefix='/admin' in tokens.py
+app.include_router(
+    rule_proposals_router
+)  # prefix='/api/rule_proposals' in rule_proposals.py
 app.include_router(misc_router)
 app.include_router(memory_router)
 app.include_router(projects_router)
@@ -210,14 +246,16 @@ CORS Configuration via Environment Variables:
 - CORS_ALLOW_CREDENTIALS: 'true' or 'false' (default: 'true')
 """
 
+
 # CORS middleware for frontend integration (configurable via env)
 def parse_env_list(var, default):
     val = os.environ.get(var)
     if val is None:
         return default
-    if val.strip() == '*':
+    if val.strip() == "*":
         return ["*"]
     return [v.strip() for v in val.split(",") if v.strip()]
+
 
 allow_origins = parse_env_list("CORS_ORIGINS", ["*"])
 allow_methods = parse_env_list("CORS_METHODS", ["*"])
@@ -425,7 +463,12 @@ def get_rule_history(rule_id: str, db: Session = Depends(get_db)):
             rule = db.query(DBRule).filter(DBRule.id == proposal.parent_rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found.")
-    versions = db.query(RuleVersion).filter(RuleVersion.rule_id == rule.id).order_by(RuleVersion.version.desc()).all()
+    versions = (
+        db.query(RuleVersion)
+        .filter(RuleVersion.rule_id == rule.id)
+        .order_by(RuleVersion.version.desc())
+        .all()
+    )
     return [strip_sqla_state(v.__dict__) for v in versions]
 
 
@@ -524,8 +567,8 @@ def list_enhancements(db: Session = Depends(get_db)):
         data["applies_to_rationale"] = data.get("applies_to_rationale", "")
         data["user_story"] = e.user_story
         data["diff"] = e.diff  # New: include diff in API response
-        if 'status' in data:
-            data['status'] = enum_to_str(data['status'])
+        if "status" in data:
+            data["status"] = enum_to_str(data["status"])
         data = serialize_uuids(data)
         result.append(data)
     return result
@@ -535,7 +578,9 @@ def list_enhancements(db: Session = Depends(get_db)):
 @app.post("/enhancement-to-proposal/{enhancement_id}")
 def enhancement_to_proposal(enhancement_id: str, db: Session = Depends(get_db)):
     if not is_valid_uuid(enhancement_id):
-        raise HTTPException(status_code=404, detail="Invalid enhancement_id (not a valid UUID)")
+        raise HTTPException(
+            status_code=404, detail="Invalid enhancement_id (not a valid UUID)"
+        )
     enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
     if not enh:
         raise HTTPException(status_code=404, detail="Enhancement not found.")
@@ -576,7 +621,9 @@ def enhancement_to_proposal(enhancement_id: str, db: Session = Depends(get_db)):
 @app.post("/reject-enhancement/{enhancement_id}")
 def reject_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
     if not is_valid_uuid(enhancement_id):
-        raise HTTPException(status_code=404, detail="Invalid enhancement_id (not a valid UUID)")
+        raise HTTPException(
+            status_code=404, detail="Invalid enhancement_id (not a valid UUID)"
+        )
     enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
     if not enh:
         raise HTTPException(status_code=404, detail="Enhancement not found.")
@@ -593,7 +640,9 @@ def reject_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
 @app.post("/proposal-to-enhancement/{proposal_id}")
 def proposal_to_enhancement(proposal_id: str, db: Session = Depends(get_db)):
     if not is_valid_uuid(proposal_id):
-        raise HTTPException(status_code=404, detail="Invalid proposal_id (not a valid UUID)")
+        raise HTTPException(
+            status_code=404, detail="Invalid proposal_id (not a valid UUID)"
+        )
     proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found.")
@@ -631,7 +680,9 @@ def proposal_to_enhancement(proposal_id: str, db: Session = Depends(get_db)):
 @app.post("/accept-enhancement/{enhancement_id}")
 def accept_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
     if not is_valid_uuid(enhancement_id):
-        raise HTTPException(status_code=404, detail="Invalid enhancement_id (not a valid UUID)")
+        raise HTTPException(
+            status_code=404, detail="Invalid enhancement_id (not a valid UUID)"
+        )
     enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
     if not enh:
         raise HTTPException(status_code=404, detail="Enhancement not found.")
@@ -648,7 +699,9 @@ def accept_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
 @app.post("/complete-enhancement/{enhancement_id}")
 def complete_enhancement(enhancement_id: str, db: Session = Depends(get_db)):
     if not is_valid_uuid(enhancement_id):
-        raise HTTPException(status_code=404, detail="Invalid enhancement_id (not a valid UUID)")
+        raise HTTPException(
+            status_code=404, detail="Invalid enhancement_id (not a valid UUID)"
+        )
     enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
     if not enh:
         raise HTTPException(status_code=404, detail="Enhancement not found.")
@@ -689,6 +742,7 @@ def get_changelog_json():
 
 # Run with: uvicorn rule_api_server:app --reload
 
+
 class EnhancementUpdate(BaseModel):
     description: Optional[str] = None
     suggested_by: Optional[str] = None
@@ -703,10 +757,15 @@ class EnhancementUpdate(BaseModel):
     user_story: Optional[str] = None
     diff: Optional[str] = None  # New: diff for enhancements
 
+
 @app.patch("/enhancements/{enhancement_id}")
-def update_enhancement(enhancement_id: str, update: EnhancementUpdate, db: Session = Depends(get_db)):
+def update_enhancement(
+    enhancement_id: str, update: EnhancementUpdate, db: Session = Depends(get_db)
+):
     if not is_valid_uuid(enhancement_id):
-        raise HTTPException(status_code=404, detail="Invalid enhancement_id (not a valid UUID)")
+        raise HTTPException(
+            status_code=404, detail="Invalid enhancement_id (not a valid UUID)"
+        )
     enh = db.query(DBEnhancement).filter(DBEnhancement.id == enhancement_id).first()
     if not enh:
         raise HTTPException(status_code=404, detail="Enhancement not found")
@@ -729,23 +788,27 @@ def update_enhancement(enhancement_id: str, update: EnhancementUpdate, db: Sessi
     result["applies_to_rationale"] = result.get("applies_to_rationale", "")
     result["user_story"] = enh.user_story
     result["diff"] = enh.diff  # New: include diff in PATCH response
-    if 'status' in result:
-        result['status'] = enum_to_str(result['status'])
+    if "status" in result:
+        result["status"] = enum_to_str(result["status"])
     result = serialize_uuids(result)
     # In all endpoints before 'return result':
     result["examples"] = ensure_examples_list(result.get("examples"))
     return result
 
+
 # --- Memory Graph API ---
+
 
 class MemoryNodeCreate(BaseModel):
     """
     Request model for creating a memory node.
     NOTE: The 'embedding' field is NOT accepted in the request body. Embedding is always generated server-side from the 'content' field.
     """
+
     namespace: str
     content: str
     meta: Optional[str] = None
+
 
 class MemoryNodeOut(BaseModel):
     id: str
@@ -755,11 +818,13 @@ class MemoryNodeOut(BaseModel):
     meta: Optional[str] = None
     created_at: datetime
 
+
 class MemoryEdgeCreate(BaseModel):
     from_id: str
     to_id: str
     relation_type: str
     meta: Optional[str] = None
+
 
 class MemoryEdgeOut(BaseModel):
     id: str
@@ -769,17 +834,19 @@ class MemoryEdgeOut(BaseModel):
     meta: Optional[str] = None
     created_at: datetime
 
+
 # Helper to generate embedding using Ollama
 OLLAMA_EMBEDDING_URL = "http://host.docker.internal:11434/api/embeddings"
 OLLAMA_EMBEDDING_MODEL = "nomic-embed-text:latest"
 
+
 def get_embedding_ollama(text: str) -> List[float]:
     response = requests.post(
-        OLLAMA_EMBEDDING_URL,
-        json={"model": OLLAMA_EMBEDDING_MODEL, "prompt": text}
+        OLLAMA_EMBEDDING_URL, json={"model": OLLAMA_EMBEDDING_MODEL, "prompt": text}
     )
     response.raise_for_status()
     return response.json()["embedding"]
+
 
 @app.post("/memory/nodes", response_model=MemoryNodeOut)
 def create_memory_node(node: MemoryNodeCreate):
@@ -802,6 +869,7 @@ def create_memory_node(node: MemoryNodeCreate):
         embedding = db_node.embedding
         if isinstance(embedding, str):
             import ast
+
             embedding = ast.literal_eval(embedding)
         result = {
             "id": str(db_node.id) if isinstance(db_node.id, uuid.UUID) else db_node.id,
@@ -815,9 +883,11 @@ def create_memory_node(node: MemoryNodeCreate):
         return result
     except Exception as exc:
         import traceback
+
         logger.error("[ERROR] Exception in /memory/nodes: %s", exc)
         logger.error(traceback.format_exc())
         raise
+
 
 @app.get("/memory/nodes", response_model=List[MemoryNodeOut])
 def list_memory_nodes(namespace: Optional[str] = None):
@@ -831,25 +901,33 @@ def list_memory_nodes(namespace: Optional[str] = None):
         embedding = db_node.embedding
         if isinstance(embedding, str):
             import ast
+
             embedding = ast.literal_eval(embedding)
-        result.append({
-            "id": str(db_node.id) if isinstance(db_node.id, uuid.UUID) else db_node.id,
-            "namespace": db_node.namespace,
-            "content": db_node.content,
-            "embedding": embedding,
-            "meta": db_node.meta,
-            "created_at": db_node.created_at,
-        })
+        result.append(
+            {
+                "id": str(db_node.id)
+                if isinstance(db_node.id, uuid.UUID)
+                else db_node.id,
+                "namespace": db_node.namespace,
+                "content": db_node.content,
+                "embedding": embedding,
+                "meta": db_node.meta,
+                "created_at": db_node.created_at,
+            }
+        )
     session.close()
     return result
 
+
 def enum_to_str(x):
-    if hasattr(x, 'value'):
+    if hasattr(x, "value"):
         return x.value
     return str(x)
 
+
 def ensure_examples_list(val):
     import json
+
     def parse_item(item):
         if isinstance(item, str):
             try:
@@ -867,8 +945,8 @@ def ensure_examples_list(val):
                     return [str(parsed)]
             except Exception:
                 # Fallback: treat as comma-separated or single value
-                if ',' in item:
-                    return [v.strip() for v in item.split(',') if v.strip()]
+                if "," in item:
+                    return [v.strip() for v in item.split(",") if v.strip()]
                 return [item]
         elif isinstance(item, dict):
             # If dict has a single key and empty value, treat key as the example string
@@ -883,6 +961,7 @@ def ensure_examples_list(val):
         elif item is None:
             return []
         return [str(item)]
+
     if isinstance(val, list):
         flat = []
         for item in val:
@@ -890,32 +969,53 @@ def ensure_examples_list(val):
         return flat
     return parse_item(val)
 
+
 def strip_sqla_state(data):
     # Remove SQLAlchemy internal state and any non-serializable fields
     if isinstance(data, dict):
-        return {k: v for k, v in data.items() if not k.startswith('_sa_') and not k.endswith('_state')}
+        return {
+            k: v
+            for k, v in data.items()
+            if not k.startswith("_sa_") and not k.endswith("_state")
+        }
     return data
+
 
 def get_project_onboarding_progress(db: Session, project_name: str, path: str):
     try:
         uuid.UUID(project_name)
         project_id = resolve_project_id(db, project_name)
     except Exception:
-        project_id = resolve_project_id(db, project_name, **project_defaults_from_name(project_name))
+        project_id = resolve_project_id(
+            db, project_name, **project_defaults_from_name(project_name)
+        )
     # ... existing logic ...
+
 
 # ARR! Register pirate validation handler for all 422s
 app.add_exception_handler(RequestValidationError, pirate_validation_exception_handler)
 
+
 @app.post("/rules/{rule_id}/promote", response_class=JSONResponse)
 async def promote_rule(rule_id: str, request: Request, db: Session = Depends(get_db)):
     # Try to find the rule by ID (approved or pending)
-    rule = db.query(DBRule).filter(DBRule.id == rule_id, DBRule.status.in_(["pending", "approved"])) .first()
+    rule = (
+        db.query(DBRule)
+        .filter(DBRule.id == rule_id, DBRule.status.in_(["pending", "approved"]))
+        .first()
+    )
     # If not found, try to resolve from proposal (by proposal ID)
     if not rule:
         proposal = db.query(DBProposal).filter(DBProposal.id == rule_id).first()
         if proposal and proposal.parent_rule_id:
-            rule = db.query(DBRule).filter(DBRule.id == proposal.parent_rule_id, DBRule.status.in_(["pending", "approved"])) .first()
+            rule = (
+                db.query(DBRule)
+                .filter(
+                    DBRule.id == proposal.parent_rule_id,
+                    DBRule.status.in_(["pending", "approved"]),
+                )
+                .first()
+            )
     if not rule:
         raise HTTPException(status_code=404, detail="No rule found to promote.")
     # Parse promotion request
@@ -927,45 +1027,66 @@ async def promote_rule(rule_id: str, request: Request, db: Session = Depends(get
     current_scope = rule.scope_level or "project"
     target_scope = payload.get("scope_level")
     if not target_scope:
-        raise HTTPException(status_code=422, detail="scope_level is required for promotion.")
+        raise HTTPException(
+            status_code=422, detail="scope_level is required for promotion."
+        )
     valid_scopes = ["project", "team", "global"]
     if target_scope not in valid_scopes:
-        raise HTTPException(status_code=400, detail="Invalid scope_level. Allowed: project, team, global.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid scope_level. Allowed: project, team, global.",
+        )
     # Only allow promotion to a higher scope
     scope_order = {"project": 1, "team": 2, "global": 3}
     if scope_order.get(target_scope, 0) <= scope_order.get(current_scope, 0):
-        raise HTTPException(status_code=400, detail="Can only promote to a higher scope.")
+        raise HTTPException(
+            status_code=400, detail="Can only promote to a higher scope."
+        )
     # --- Scope ID resolution logic ---
     scope_id = None
     if target_scope == "team":
         team = payload.get("team")
         if not team:
-            raise HTTPException(status_code=422, detail="team name is required for team scope.")
+            raise HTTPException(
+                status_code=422, detail="team name is required for team scope."
+            )
         try:
             scope_id = resolve_team_id(db, team)
         except Exception:
-            raise HTTPException(status_code=422, detail="Could not resolve team name to UUID.")
+            raise HTTPException(
+                status_code=422, detail="Could not resolve team name to UUID."
+            )
     elif target_scope == "project":
         project = payload.get("project")
         if not project:
-            raise HTTPException(status_code=422, detail="project name is required for project scope.")
+            raise HTTPException(
+                status_code=422, detail="project name is required for project scope."
+            )
         try:
-            scope_id = resolve_project_id(db, project, **project_defaults_from_name(project))
+            scope_id = resolve_project_id(
+                db, project, **project_defaults_from_name(project)
+            )
         except Exception:
-            raise HTTPException(status_code=422, detail="Could not resolve project name to UUID.")
+            raise HTTPException(
+                status_code=422, detail="Could not resolve project name to UUID."
+            )
     # For global, scope_id is None
     # Check for conflicts in the target scope
-    conflicts = db.query(DBRule).filter(
-        DBRule.id != rule.id,
-        DBRule.scope_level == target_scope,
-        DBRule.scope_id == scope_id,
-        DBRule.status.in_(["promoted", "approved"]),
-    ).all()
+    conflicts = (
+        db.query(DBRule)
+        .filter(
+            DBRule.id != rule.id,
+            DBRule.scope_level == target_scope,
+            DBRule.scope_id == scope_id,
+            DBRule.status.in_(["promoted", "approved"]),
+        )
+        .all()
+    )
     if conflicts:
         conflict_ids = [str(c.id) for c in conflicts]
         raise HTTPException(
             status_code=409,
-            detail=f"Conflict: Another rule is already promoted/active in this scope (IDs: {conflict_ids}). Only one promoted/active rule is allowed per scope."
+            detail=f"Conflict: Another rule is already promoted/active in this scope (IDs: {conflict_ids}). Only one promoted/active rule is allowed per scope.",
         )
     # Promote: update rule's scope and status
     rule.scope_level = target_scope
@@ -993,17 +1114,24 @@ async def promote_rule(rule_id: str, request: Request, db: Session = Depends(get
         "references": getattr(rule, "references", None),
         "status": rule.status,
         "version": rule.version,
-        "timestamp": rule.timestamp.isoformat() if hasattr(rule.timestamp, "isoformat") else str(rule.timestamp),
+        "timestamp": rule.timestamp.isoformat()
+        if hasattr(rule.timestamp, "isoformat")
+        else str(rule.timestamp),
         "added_by": getattr(rule, "added_by", None),
         "project": getattr(rule, "project", None),
     }
     return JSONResponse(content=rule_dict, status_code=200)
 
+
 class MarkdownResponse(Response):
     media_type = "text/markdown"
+
     def __init__(self, content: str, status_code: int = 200):
-        super().__init__(content=content, status_code=status_code, media_type=self.media_type)
+        super().__init__(
+            content=content, status_code=status_code, media_type=self.media_type
+        )
         self.headers["content-type"] = "text/markdown; charset=utf-8"
+
 
 @app.delete("/delete-rule/{rule_id}")
 def deactivate_rule(rule_id: str, db: Session = Depends(get_db)):
@@ -1021,10 +1149,10 @@ def deactivate_rule(rule_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "inactive", "id": rule.id}
 
+
 @app.post("/summarize-git-diff")
 def summarize_git_diff_passthrough(
-    diff: str = Body(..., embed=True),
-    concise: bool = Body(False, embed=True)
+    diff: str = Body(..., embed=True), concise: bool = Body(False, embed=True)
 ):
     """
     Passthrough endpoint to ollama-functions /summarize-git-diff
@@ -1033,12 +1161,13 @@ def summarize_git_diff_passthrough(
         resp = requests.post(
             "http://ollama-functions:8000/summarize-git-diff",
             json={"diff": diff, "concise": concise},
-            timeout=180
+            timeout=180,
         )
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
         return {"error": str(e)}
+
 
 @app.get("/worker-queues", response_class=JSONResponse)
 def get_worker_queue_info():
@@ -1050,25 +1179,19 @@ def get_worker_queue_info():
                 "description": "Update memory with new information",
                 "example_payload": {
                     "content": "New information to store",
-                    "meta": {"tags": ["example"], "source": "worker"}
+                    "meta": {"tags": ["example"], "source": "worker"},
                 },
-                "use_case": "Store processed data, analysis results, or insights"
+                "use_case": "Store processed data, analysis results, or insights",
             },
             "memory.cleanup": {
                 "description": "Clean up old memory entries",
-                "example_payload": {
-                    "dry_run": True,
-                    "age_days": 180
-                },
-                "use_case": "Remove outdated or irrelevant memory entries"
+                "example_payload": {"dry_run": True, "age_days": 180},
+                "use_case": "Remove outdated or irrelevant memory entries",
             },
             "memory.enrichment": {
                 "description": "Enhance existing memory with additional context",
-                "example_payload": {
-                    "scope": "new",
-                    "dry_run": False
-                },
-                "use_case": "Add context, summaries, or related information to existing memory"
+                "example_payload": {"scope": "new", "dry_run": False},
+                "use_case": "Add context, summaries, or related information to existing memory",
             },
             "memory.similarity": {
                 "description": "Find and merge similar memory entries",
@@ -1076,9 +1199,9 @@ def get_worker_queue_info():
                     "scope": "all",
                     "vector_similarity_threshold": 0.95,
                     "content_similarity_threshold": 0.90,
-                    "dry_run": True
+                    "dry_run": True,
                 },
-                "use_case": "Consolidate duplicate or very similar information"
+                "use_case": "Consolidate duplicate or very similar information",
             },
             "git.history.analysis": {
                 "description": "Analyze git repository history",
@@ -1087,39 +1210,40 @@ def get_worker_queue_info():
                     "max_commits": 50,
                     "create_memory_node": True,
                     "memory_namespace": "git_analysis",
-                    "memory_tags": ["git", "analysis"]
+                    "memory_tags": ["git", "analysis"],
                 },
-                "use_case": "Automatically analyze commits and store insights"
+                "use_case": "Automatically analyze commits and store insights",
             },
             "progress.report": {
                 "description": "Generate progress reports and summaries",
                 "example_payload": {
                     "source": "worker",
-                    "timestamp": "2025-06-01T12:00:00Z"
+                    "timestamp": "2025-06-01T12:00:00Z",
                 },
-                "use_case": "Create automated reports on system health and progress"
+                "use_case": "Create automated reports on system health and progress",
             },
             "maintenance": {
                 "description": "Run system maintenance tasks",
                 "example_payload": {
                     "task": "cleanup_old_data",
-                    "args": {"dry_run": True}
+                    "args": {"dry_run": True},
                 },
-                "use_case": "Automated system maintenance and optimization"
+                "use_case": "Automated system maintenance and optimization",
             },
             "background.jobs": {
                 "description": "Custom background processing",
                 "example_payload": {
                     "job_type": "custom_analysis",
-                    "data": {"custom": "parameters"}
+                    "data": {"custom": "parameters"},
                 },
-                "use_case": "Any custom background processing you need"
-            }
+                "use_case": "Any custom background processing you need",
+            },
         },
         "setup_guide": "http://localhost:9103/docs/rabbitmq-setup",
         "quick_start": "http://localhost:9103/quick-start",
-        "onboarding": "http://localhost:9103/onboarding/init"
+        "onboarding": "http://localhost:9103/onboarding/init",
     }
+
 
 @app.get("/worker-examples", response_class=JSONResponse)
 def get_worker_examples():
@@ -1162,7 +1286,7 @@ curl -X POST http://localhost:9103/memory/nodes \\
     "content": "Weekly git analysis",
     "meta": "{\\"queue\\":\\"git.history.analysis\\",\\"params\\":{\\"since\\":\\"1 week ago\\",\\"max_commits\\":50}}"
   }'
-"""
+""",
             },
             "memory_enricher": {
                 "description": "Enhance existing memory with additional context",
@@ -1189,7 +1313,7 @@ curl -X POST http://localhost:9103/memory/nodes \\
     "content": "Enrich new memory nodes",
     "meta": "{\\"queue\\":\\"memory.enrichment\\",\\"params\\":{\\"scope\\":\\"new\\",\\"dry_run\\":false}}"
   }'
-"""
+""",
             },
             "progress_reporter": {
                 "description": "Generate automated progress reports",
@@ -1216,12 +1340,12 @@ curl -X POST http://localhost:9103/memory/nodes \\
     "content": "Daily progress report",
     "meta": "{\\"queue\\":\\"progress.report\\",\\"params\\":{\\"source\\":\\"daily_worker\\",\\"timestamp\\":\\"2025-06-01T12:00:00Z\\"}}"
   }'
-"""
-            }
+""",
+            },
         },
         "documentation": {
             "rabbitmq_setup": "http://localhost:9103/docs/rabbitmq-setup",
             "memory_system": "http://localhost:9103/docs/memory-system",
-            "external_onboarding": "http://localhost:9103/docs/external-onboarding"
-        }
+            "external_onboarding": "http://localhost:9103/docs/external-onboarding",
+        },
     }

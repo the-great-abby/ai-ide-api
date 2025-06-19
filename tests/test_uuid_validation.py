@@ -17,4 +17,6 @@ def test_non_uuid_string_rejected(client, admin_headers, override_get_db):
         "references": "Test reference.",
     }
     resp = client.post("/propose-rule-change", json=payload, headers=admin_headers)
-    assert resp.status_code == 200, f"Expected 200 for project name resolution, got {resp.status_code}" 
+    assert (
+        resp.status_code == 200
+    ), f"Expected 200 for project name resolution, got {resp.status_code}"

@@ -97,6 +97,7 @@ class MyClass:
 
 def test_review_code_files_llm(admin_headers, client, override_get_db):
     import pytest
+
     pytest.skip("LLM worker not running in test environment; endpoint returns 502.")
 
 

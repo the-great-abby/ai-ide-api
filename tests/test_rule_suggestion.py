@@ -35,11 +35,11 @@ def test_direct_pytest_usage_detection():
         pytest.main(["-x", "test_file.py"])
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -57,11 +57,11 @@ def test_direct_sql_detection():
         cursor.execute("SELECT * FROM users WHERE id = 1")
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -79,11 +79,11 @@ def test_print_statement_detection():
         print("Processing...")
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -102,11 +102,11 @@ def test_unused_imports_detection():
         pass
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -123,11 +123,11 @@ def test_hardcoded_secrets_detection():
     API_KEY = "secret123"
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -146,11 +146,11 @@ def test_todo_fixme_detection():
         pass
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -168,11 +168,11 @@ def test_eval_usage_detection():
         eval("print('hello')")
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -192,11 +192,11 @@ def test_bare_except_detection():
         pass
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -213,11 +213,11 @@ def test_wildcard_imports_detection():
     from module import *
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -238,11 +238,11 @@ def long_function():
         + "    pass\n" * 51
     )
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -260,11 +260,11 @@ def test_missing_docstrings_detection():
         pass
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -281,11 +281,11 @@ def test_deprecated_libraries_detection():
     import imp
     """
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()
@@ -310,11 +310,11 @@ def long_function():
     )
 
     with tempfile.NamedTemporaryFile(suffix=".py", mode="w+", delete=False) as f:
-        dedented = textwrap.dedent(code).lstrip('\n')
+        dedented = textwrap.dedent(code).lstrip("\n")
         lines = dedented.splitlines()
         if lines:
             lines[0] = lines[0].lstrip()
-        code_to_write = '\n'.join(lines) + '\n'
+        code_to_write = "\n".join(lines) + "\n"
         f.write(code_to_write)
         print(f"[DEBUG-TEST] Code written to {f.name}:\n{repr(code_to_write)}")
         f.flush()

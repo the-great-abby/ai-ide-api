@@ -3,8 +3,12 @@ import requests
 from tqdm import tqdm
 
 RULE_API_URL = os.environ.get("RULE_API_URL", "http://api:8000/rules")
-ENHANCEMENT_API_URL = os.environ.get("ENHANCEMENT_API_URL", "http://api:8000/enhancements")
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
+ENHANCEMENT_API_URL = os.environ.get(
+    "ENHANCEMENT_API_URL", "http://api:8000/enhancements"
+)
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_URL", "http://host.docker.internal:11434/api/generate"
+)
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
 
 
@@ -12,6 +16,7 @@ def fetch_rules():
     resp = requests.get(RULE_API_URL)
     resp.raise_for_status()
     return resp.json()
+
 
 def fetch_enhancements():
     resp = requests.get(ENHANCEMENT_API_URL)
@@ -26,11 +31,7 @@ Given the following description and diff (if present), generate a concise user s
 Description: {item.get('description', '')}
 Diff: {item.get('diff', '')}
 """
-    data = {
-        "model": OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False
-    }
+    data = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
     resp = requests.post(OLLAMA_URL, json=data)
     resp.raise_for_status()
     result = resp.json()
@@ -44,6 +45,7 @@ def update_user_story_rule(rule_id, user_story):
         print(f"Updated rule {rule_id} with user story.")
     else:
         print(f"Failed to update rule {rule_id}: {resp.status_code} {resp.text}")
+
 
 def update_user_story_enhancement(enh_id, user_story):
     patch_url = f"{ENHANCEMENT_API_URL}/{enh_id}"
@@ -82,5 +84,6 @@ def main():
         except Exception as e:
             print(f"Error processing enhancement {enh['id']}: {e}")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

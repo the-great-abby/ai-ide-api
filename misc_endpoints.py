@@ -11,7 +11,9 @@ from auth import require_api_token
 
 router = APIRouter(tags=["misc"])
 
-OLLAMA_FUNCTIONS_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000")
+OLLAMA_FUNCTIONS_URL = os.environ.get(
+    "OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000"
+)
 
 
 def analyze_python_code(code: str):
@@ -32,89 +34,109 @@ def analyze_python_code(code: str):
             and isinstance(node.func, ast.Name)
             and node.func.id == "print"
         ):
-            suggestions.append({
-                "rule_type": "no_print",
-                "description": "Avoid print statements in production code",
-                "diff": "-print(...)\n+# Use logging instead of print",
-            })
+            suggestions.append(
+                {
+                    "rule_type": "no_print",
+                    "description": "Avoid print statements in production code",
+                    "diff": "-print(...)\n+# Use logging instead of print",
+                }
+            )
         # Direct pytest usage
         if isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name == "pytest":
-                    suggestions.append({
-                        "rule_type": "no_direct_pytest",
-                        "description": "Avoid direct pytest usage in production code",
-                        "diff": "-import pytest\n# Remove direct pytest usage",
-                    })
+                    suggestions.append(
+                        {
+                            "rule_type": "no_direct_pytest",
+                            "description": "Avoid direct pytest usage in production code",
+                            "diff": "-import pytest\n# Remove direct pytest usage",
+                        }
+                    )
         if isinstance(node, ast.ImportFrom):
             if node.module == "pytest":
-                suggestions.append({
-                    "rule_type": "no_direct_pytest",
-                    "description": "Avoid direct pytest usage in production code",
-                    "diff": "-from pytest import ...\n# Remove direct pytest usage",
-                })
+                suggestions.append(
+                    {
+                        "rule_type": "no_direct_pytest",
+                        "description": "Avoid direct pytest usage in production code",
+                        "diff": "-from pytest import ...\n# Remove direct pytest usage",
+                    }
+                )
         # Eval usage
         if (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
             and node.func.id == "eval"
         ):
-            suggestions.append({
-                "rule_type": "no_eval",
-                "description": "Avoid use of eval() for security reasons",
-                "diff": "-eval(...)\n+# Avoid eval; use safer alternatives",
-            })
+            suggestions.append(
+                {
+                    "rule_type": "no_eval",
+                    "description": "Avoid use of eval() for security reasons",
+                    "diff": "-eval(...)\n+# Avoid eval; use safer alternatives",
+                }
+            )
         # Bare except
         if isinstance(node, ast.ExceptHandler):
             if node.type is None:
-                suggestions.append({
-                    "rule_type": "no_bare_except",
-                    "description": "Avoid bare except; catch specific exceptions",
-                    "diff": "-except:\n+except ExceptionType:",
-                })
+                suggestions.append(
+                    {
+                        "rule_type": "no_bare_except",
+                        "description": "Avoid bare except; catch specific exceptions",
+                        "diff": "-except:\n+except ExceptionType:",
+                    }
+                )
         # Wildcard imports
         if isinstance(node, ast.ImportFrom):
             if node.names and any(alias.name == "*" for alias in node.names):
-                suggestions.append({
-                    "rule_type": "no_wildcard_imports",
-                    "description": "Avoid wildcard imports",
-                    "diff": "-from module import *\n+from module import specific_function",
-                })
+                suggestions.append(
+                    {
+                        "rule_type": "no_wildcard_imports",
+                        "description": "Avoid wildcard imports",
+                        "diff": "-from module import *\n+from module import specific_function",
+                    }
+                )
         # Deprecated libraries (imp)
         if isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name == "imp":
-                    suggestions.append({
-                        "rule_type": "deprecated_library",
-                        "description": "Avoid using deprecated libraries like 'imp'",
-                        "diff": "-import imp\n+import importlib",
-                    })
+                    suggestions.append(
+                        {
+                            "rule_type": "deprecated_library",
+                            "description": "Avoid using deprecated libraries like 'imp'",
+                            "diff": "-import imp\n+import importlib",
+                        }
+                    )
         # Missing docstrings (always check, even for short functions/classes)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             if not ast.get_docstring(node):
-                suggestions.append({
-                    "rule_type": "missing_docstring",
-                    "description": f"Add a docstring to {node.name}",
-                    "diff": f'-def {node.name}(...):\n+def {node.name}(...):\n    """Add docstring here"""',
-                })
+                suggestions.append(
+                    {
+                        "rule_type": "missing_docstring",
+                        "description": f"Add a docstring to {node.name}",
+                        "diff": f'-def {node.name}(...):\n+def {node.name}(...):\n    """Add docstring here"""',
+                    }
+                )
         # Long functions (over 10 lines for test reliability)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             # Count lines spanned by the function
-            start = getattr(node, 'lineno', None)
-            end = getattr(node, 'end_lineno', None)
+            start = getattr(node, "lineno", None)
+            end = getattr(node, "end_lineno", None)
             if start is not None and end is not None and (end - start + 1) > 10:
-                suggestions.append({
-                    "rule_type": "long_function",
-                    "description": f"Function '{node.name}' is too long ({end - start + 1} lines)",
-                    "diff": f'# Consider refactoring {node.name} into smaller functions',
-                })
-            elif hasattr(node, 'body') and len(node.body) > 10:
+                suggestions.append(
+                    {
+                        "rule_type": "long_function",
+                        "description": f"Function '{node.name}' is too long ({end - start + 1} lines)",
+                        "diff": f"# Consider refactoring {node.name} into smaller functions",
+                    }
+                )
+            elif hasattr(node, "body") and len(node.body) > 10:
                 # Fallback for Python <3.8
-                suggestions.append({
-                    "rule_type": "long_function",
-                    "description": f"Function '{node.name}' is too long ({len(node.body)} statements)",
-                    "diff": f'# Consider refactoring {node.name} into smaller functions',
-                })
+                suggestions.append(
+                    {
+                        "rule_type": "long_function",
+                        "description": f"Function '{node.name}' is too long ({len(node.body)} statements)",
+                        "diff": f"# Consider refactoring {node.name} into smaller functions",
+                    }
+                )
     logging.warning(f"[DEBUG] Suggestions generated: {suggestions}")
     return suggestions
 
@@ -161,7 +183,9 @@ async def review_code_files_llm(
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Ollama functions service unavailable: {e}")
+        raise HTTPException(
+            status_code=502, detail=f"Ollama functions service unavailable: {e}"
+        )
 
 
 @router.post("/review-code-snippet")

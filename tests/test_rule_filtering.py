@@ -194,7 +194,9 @@ def test_rule_filtering_by_tag(client, clean_db, admin_headers, override_get_db)
     assert all("tag1" in r["tags"] for r in filtered_rules)
 
 
-def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_team_uuid, override_get_db):
+def test_rule_filtering_by_scope(
+    client, admin_headers, test_project_uuid, test_team_uuid, override_get_db
+):
     # Create rules with different scopes
     rules = [
         {
@@ -281,7 +283,9 @@ def test_rule_filtering_by_scope(client, admin_headers, test_project_uuid, test_
     assert filtered_rules[0]["scope_id"] == test_project_uuid
 
 
-def test_rule_filtering_combinations(client, admin_headers, test_project_uuid, test_team_uuid, override_get_db):
+def test_rule_filtering_combinations(
+    client, admin_headers, test_project_uuid, test_team_uuid, override_get_db
+):
     # Create rules with various combinations
     rules = [
         {

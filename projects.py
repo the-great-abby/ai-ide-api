@@ -7,7 +7,14 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from auth import require_api_token, require_role
-from db import ApiAccessToken, Project, get_db, resolve_project_id, resolve_team_id, project_defaults_from_name
+from db import (
+    ApiAccessToken,
+    Project,
+    get_db,
+    resolve_project_id,
+    resolve_team_id,
+    project_defaults_from_name,
+)
 from utils.serialization import serialize_uuids
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -65,7 +72,9 @@ def get_project(
         uuid.UUID(project_id)
         resolved_id = resolve_project_id(db, project_id)
     except Exception:
-        resolved_id = resolve_project_id(db, project_id, **project_defaults_from_name(project_id))
+        resolved_id = resolve_project_id(
+            db, project_id, **project_defaults_from_name(project_id)
+        )
     project = (
         db.query(Project)
         .filter(Project.id == resolved_id, Project.active == True)
@@ -88,7 +97,9 @@ def update_project(
         uuid.UUID(project_id)
         resolved_id = resolve_project_id(db, project_id)
     except Exception:
-        resolved_id = resolve_project_id(db, project_id, **project_defaults_from_name(project_id))
+        resolved_id = resolve_project_id(
+            db, project_id, **project_defaults_from_name(project_id)
+        )
     db_project = (
         db.query(Project)
         .filter(Project.id == resolved_id, Project.active == True)
@@ -115,7 +126,9 @@ def delete_project(
         uuid.UUID(project_id)
         resolved_id = resolve_project_id(db, project_id)
     except Exception:
-        resolved_id = resolve_project_id(db, project_id, **project_defaults_from_name(project_id))
+        resolved_id = resolve_project_id(
+            db, project_id, **project_defaults_from_name(project_id)
+        )
     db_project = (
         db.query(Project)
         .filter(Project.id == resolved_id, Project.active == True)

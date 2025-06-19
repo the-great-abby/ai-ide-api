@@ -8,6 +8,7 @@ print("[healthcheck] Starting misc-scripts healthcheck...")
 # Check Python
 try:
     import platform
+
     print(f"[OK] Python version: {platform.python_version()}")
 except Exception as e:
     print(f"[ERROR] Python not available: {e}")
@@ -32,4 +33,4 @@ if ok:
     sys.exit(0)
 else:
     print("[FAIL] misc-scripts healthcheck failed!")
-    sys.exit(1) 
+    sys.exit(1)

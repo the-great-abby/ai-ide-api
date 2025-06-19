@@ -3,6 +3,7 @@ import importlib
 import types
 import pytest
 
+
 def test_get_db_uses_mock(monkeypatch):
     pytest.skip("Skipping: Mock database setup not available.")
     monkeypatch.setenv("USE_MOCK_SERVICES", "true")
@@ -11,8 +12,10 @@ def test_get_db_uses_mock(monkeypatch):
     db_gen = rule_api_server.get_db()
     db_instance = next(db_gen)
     from mocks.mock_db import MockSession
+
     assert isinstance(db_instance, MockSession)
     db_gen.close()
+
 
 def test_get_db_uses_real(monkeypatch):
     monkeypatch.delenv("USE_MOCK_SERVICES", raising=False)
@@ -21,6 +24,7 @@ def test_get_db_uses_real(monkeypatch):
     db_instance = next(db_gen)
     # Should be a SQLAlchemy Session
     from db import SessionLocal
+
     real_session = SessionLocal()
     assert type(db_instance) == type(real_session)
-    db_gen.close() 
+    db_gen.close()

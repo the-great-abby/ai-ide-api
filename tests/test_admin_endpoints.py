@@ -132,7 +132,9 @@ def test_token_role_bootstrap_flow(client, override_get_db):
     response = client.post(
         "/admin/generate-token", json={"description": "Viewer token", "role": "viewer"}
     )
-    assert response.status_code == 200, "Arrr! The first token should be allowed without auth."
+    assert (
+        response.status_code == 200
+    ), "Arrr! The first token should be allowed without auth."
     viewer_token = response.json()["token"]
     # 2. Use viewer token to create first admin token (should succeed)
     admin_headers = {"Authorization": f"Bearer {viewer_token}"}
@@ -141,19 +143,24 @@ def test_token_role_bootstrap_flow(client, override_get_db):
         json={"description": "Admin token", "role": "admin"},
         headers=admin_headers,
     )
-    assert response2.status_code == 200, "Aye! The first admin token should be creatable with a non-admin token."
+    assert (
+        response2.status_code == 200
+    ), "Aye! The first admin token should be creatable with a non-admin token."
     admin_token = response2.json()["token"]
     # 3. Try to create another viewer token with NO auth (should fail with 401)
     response3 = client.post(
         "/admin/generate-token",
         json={"description": "Another viewer token", "role": "viewer"},
     )
-    assert response3.status_code == 401, "Avast! Unauthenticated requests be forbidden after admin tokens exist."
+    assert (
+        response3.status_code == 401
+    ), "Avast! Unauthenticated requests be forbidden after admin tokens exist."
     # --- Cleanup: delete all tokens so the DB is clean for the next test ---
     db = TestingSessionLocal()
     db.query(ApiAccessToken).delete()
     db.commit()
     db.close()
+
 
 # --- Post-admin test: admin exists, only admin can create more tokens ---
 def test_token_role_restrictions_post_admin(client, override_get_db):
@@ -162,7 +169,9 @@ def test_token_role_restrictions_post_admin(client, override_get_db):
     response = client.post(
         "/admin/generate-token", json={"description": "Test user token", "role": "user"}
     )
-    assert response.status_code == 200, "Arrr! The first token should be allowed without auth."
+    assert (
+        response.status_code == 200
+    ), "Arrr! The first token should be allowed without auth."
     user_token = response.json()["token"]
     # 2. Use user token to create the first admin token
     admin_headers = {"Authorization": f"Bearer {user_token}"}
@@ -171,14 +180,18 @@ def test_token_role_restrictions_post_admin(client, override_get_db):
         json={"description": "Test admin token", "role": "admin"},
         headers=admin_headers,
     )
-    assert response2.status_code == 200, "Aye! The first admin token should be creatable with a non-admin token."
+    assert (
+        response2.status_code == 200
+    ), "Aye! The first admin token should be creatable with a non-admin token."
     admin_token = response2.json()["token"]
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
     # 3. Try to create a viewer token with NO auth (should fail with 401)
     response3 = client.post(
         "/admin/generate-token", json={"description": "Viewer token", "role": "viewer"}
     )
-    assert response3.status_code == 401, "Avast! Unauthenticated requests be forbidden after admin tokens exist."
+    assert (
+        response3.status_code == 401
+    ), "Avast! Unauthenticated requests be forbidden after admin tokens exist."
     # 4. Try to create a viewer token WITH a viewer token (should fail with 401 or 403)
     # First, create a viewer token with admin auth
     response4 = client.post(
@@ -194,7 +207,10 @@ def test_token_role_restrictions_post_admin(client, override_get_db):
         json={"description": "Another viewer token", "role": "viewer"},
         headers=viewer_headers,
     )
-    assert response5.status_code in (401, 403), "Ye cannae use a mere viewer token to mint more!"
+    assert response5.status_code in (
+        401,
+        403,
+    ), "Ye cannae use a mere viewer token to mint more!"
     # 5. Try to create another viewer token WITH admin token (should succeed)
     response6 = client.post(
         "/admin/generate-token",
@@ -203,7 +219,9 @@ def test_token_role_restrictions_post_admin(client, override_get_db):
     )
     assert response6.status_code == 200, "Only a true admin can conjure more tokens!"
     data6 = response6.json()
-    assert data6["role"] == "viewer", "The new token should be a viewer token, by thunder!"
+    assert (
+        data6["role"] == "viewer"
+    ), "The new token should be a viewer token, by thunder!"
     # --- Cleanup: delete all tokens so the DB is clean for the next test ---
     db = TestingSessionLocal()
     db.query(ApiAccessToken).delete()

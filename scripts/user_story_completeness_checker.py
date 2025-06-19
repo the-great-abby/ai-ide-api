@@ -20,6 +20,7 @@ MAKEFILES = ["Makefile", "Makefile.ai"] + glob.glob("Makefile.ai-*")
 API_FILES = ["rule_api_server.py", "memory_endpoints.py"]
 USER_STORY_TEMPLATE = """# User Story: {name}\n\n## Motivation\n\n## Actors\n\n## Preconditions\n\n## Step-by-Step Actions\n\n## Expected Outcomes\n\n## Best Practices\n"""
 
+
 def parse_makefile_targets(makefile_path):
     targets = set()
     if not os.path.exists(makefile_path):
@@ -31,26 +32,34 @@ def parse_makefile_targets(makefile_path):
                 targets.add(m.group(1))
     return targets
 
+
 def parse_api_endpoints(api_file):
     endpoints = set()
     if not os.path.exists(api_file):
         return endpoints
     with open(api_file) as f:
         for line in f:
-            m = re.search(r"@(app|router)\.(get|post|put|delete)\(\s*['\"](/[^'\"]*)", line)
+            m = re.search(
+                r"@(app|router)\.(get|post|put|delete)\(\s*['\"](/[^'\"]*)", line
+            )
             if m:
                 endpoints.add(m.group(3))
     return endpoints
 
+
 def list_user_story_files():
     return set(f.name for f in Path(USER_STORY_DIR).glob("*.md"))
+
 
 def normalize_name(name):
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
+
 def main():
     parser = argparse.ArgumentParser(description="User Story Completeness Checker")
-    parser.add_argument("--dry-run", action="store_true", help="Report only, do not create files")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Report only, do not create files"
+    )
     args = parser.parse_args()
 
     # Collect all targets and endpoints
@@ -60,7 +69,9 @@ def main():
     all_endpoints = set()
     for af in API_FILES:
         all_endpoints.update(parse_api_endpoints(af))
-    logger.info(f"Found {len(all_targets)} Makefile targets and {len(all_endpoints)} API endpoints.")
+    logger.info(
+        f"Found {len(all_targets)} Makefile targets and {len(all_endpoints)} API endpoints."
+    )
 
     # List user story files
     user_story_files = list_user_story_files()
@@ -71,22 +82,28 @@ def main():
         path = os.path.join(USER_STORY_DIR, filename)
         with open(path) as f:
             content = f.read()
-            if '```mermaid' not in content:
-                logger.warning(f"[INCOMPLETE] Mermaid diagram missing in user story: {filename}")
+            if "```mermaid" not in content:
+                logger.warning(
+                    f"[INCOMPLETE] Mermaid diagram missing in user story: {filename}"
+                )
 
     # Check for missing user stories for targets
     missing = []
     for target in sorted(all_targets):
         expected = f"{normalize_name(target)}.md"
         if expected not in user_story_files:
-            logger.info(f"[MISSING] User story for Makefile target: {target} (expected: {expected})")
+            logger.info(
+                f"[MISSING] User story for Makefile target: {target} (expected: {expected})"
+            )
             missing.append((expected, target))
     # Check for missing user stories for endpoints
     for endpoint in sorted(all_endpoints):
         name = endpoint.strip("/").replace("/", "_") or "root"
         expected = f"{normalize_name(name)}.md"
         if expected not in user_story_files:
-            logger.info(f"[MISSING] User story for API endpoint: {endpoint} (expected: {expected})")
+            logger.info(
+                f"[MISSING] User story for API endpoint: {endpoint} (expected: {expected})"
+            )
             missing.append((expected, endpoint))
     # Print template for missing stories
     if missing and not args.dry_run:
@@ -101,5 +118,6 @@ def main():
     else:
         logger.info("All targets and endpoints have user stories.")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

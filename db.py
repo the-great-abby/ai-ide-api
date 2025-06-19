@@ -8,7 +8,16 @@ import sqlalchemy as sa
 from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, Boolean, create_engine, text
+from sqlalchemy import (
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Boolean,
+    create_engine,
+    text,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID, JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
@@ -80,7 +89,9 @@ class Rule(Base):
     scope_level = Column(String, index=True, nullable=False, default="global")
     scope_id = Column(String, index=True, nullable=True)
     parent_rule_id = Column(String, nullable=True)
-    superseded_by = Column(String, nullable=True)  # New: points to the rule that supersedes this one
+    superseded_by = Column(
+        String, nullable=True
+    )  # New: points to the rule that supersedes this one
 
 
 # Proposal model
@@ -171,7 +182,9 @@ class Enhancement(Base):
     categories = Column(String, default="")
     timestamp = Column(DateTime, default=datetime.utcnow)
     status = Column(String, default="open")
-    proposal_id = Column(String, nullable=True, default=None)  # New: reference to original proposal
+    proposal_id = Column(
+        String, nullable=True, default=None
+    )  # New: reference to original proposal
     project = Column(String, index=True, nullable=True)  # Project association
     examples = Column(Text, nullable=True, default=None)  # New field for examples
     applies_to = Column(String, default="")  # Comma-separated list of targets
@@ -203,7 +216,9 @@ class NamespacePermission(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     namespace = Column(String, nullable=False, index=True)
     project_id = Column(String, ForeignKey("projects.id"), nullable=False, index=True)
-    allowed_project_id = Column(String, ForeignKey("projects.id"), nullable=True, index=True)
+    allowed_project_id = Column(
+        String, ForeignKey("projects.id"), nullable=True, index=True
+    )
     permission_type = Column(String, nullable=False)  # "read" or "write"
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, nullable=True)
@@ -225,13 +240,19 @@ class ApiAccessToken(Base):
     token = Column(String, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, nullable=True)
-    user = Column(String, nullable=True, index=True)  # New: user identifier for memory association
+    user = Column(
+        String, nullable=True, index=True
+    )  # New: user identifier for memory association
     description = Column(String, nullable=True)
     active = Column(Boolean, default=True)  # True = active, False = revoked
     role = Column(String(32), default="admin", nullable=False)
     project_id = Column(String, ForeignKey("projects.id"), nullable=True, index=True)
-    allowed_namespaces = Column(JSON, nullable=True)  # List of namespaces this token can access
-    namespace_permissions = Column(String, nullable=True)  # JSON string of namespace:permission_type mappings
+    allowed_namespaces = Column(
+        JSON, nullable=True
+    )  # List of namespaces this token can access
+    namespace_permissions = Column(
+        String, nullable=True
+    )  # JSON string of namespace:permission_type mappings
     has_llm_access = Column(Integer, default=0)  # 1 = has LLM access, 0 = no LLM access
 
 
@@ -382,7 +403,10 @@ def init_memorydb():
 def get_db():
     """Get a database session."""
     import os
-    print(f"[DEBUG-get_db] ENVIRONMENT={os.environ.get('ENVIRONMENT')}, POSTGRES_HOST={os.environ.get('POSTGRES_HOST')}")
+
+    print(
+        f"[DEBUG-get_db] ENVIRONMENT={os.environ.get('ENVIRONMENT')}, POSTGRES_HOST={os.environ.get('POSTGRES_HOST')}"
+    )
     db = SessionLocal()
     try:
         yield db
@@ -447,6 +471,7 @@ def resolve_project_id(db: Session, identifier: str, **kwargs) -> str:
         project = get_or_create_project_by_name(db, str(identifier), **kwargs)
         return str(project.id)
 
+
 def resolve_team_id(db: Session, identifier: str, **kwargs) -> str:
     """
     Given a team identifier (UUID or name), return the UUID string.
@@ -458,6 +483,7 @@ def resolve_team_id(db: Session, identifier: str, **kwargs) -> str:
         team = get_or_create_team_by_name(db, identifier, **kwargs)
         return str(team.id)
 
+
 def project_defaults_from_name(name: str) -> dict:
     """
     Generate default fields for project creation from a project name.
@@ -466,5 +492,5 @@ def project_defaults_from_name(name: str) -> dict:
     return {
         "default_namespace": f"{name}/private",
         "namespace_prefix": name,
-        "description": f"[default] auto-created for project '{name}'"
+        "description": f"[default] auto-created for project '{name}'",
     }

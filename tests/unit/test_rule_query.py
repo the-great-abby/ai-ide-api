@@ -1,7 +1,9 @@
 import pytest
+
 pytestmark = pytest.mark.unit
 from tests.mocks.mock_db_session import MockSession
 from tests.mocks.mock_db_models import Rule
+
 
 def test_rule_add_and_query():
     db_session = MockSession()
@@ -14,8 +16,9 @@ def test_rule_add_and_query():
     assert result.description == "desc"
     assert result.submitted_by == "me"
 
+
 def test_rule_query_empty():
     db_session = MockSession()
     # Query for a rule that doesn't exist
     result = db_session.query(Rule).filter_by(rule_type="nonexistent").first()
-    assert result is None 
+    assert result is None

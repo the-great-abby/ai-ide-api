@@ -200,7 +200,9 @@ def test_rule_enforcement_scope_hierarchy(admin_headers, client, override_get_db
     project_rule_id = rule_id
     promotion_request = {"scope_level": "team", "scope_id": str(uuid.uuid4())}
     promote_response = client.post(
-        f"/rules/{project_rule_id}/promote", json=promotion_request, headers=admin_headers
+        f"/rules/{project_rule_id}/promote",
+        json=promotion_request,
+        headers=admin_headers,
     )
     assert promote_response.status_code == 200
     promoted_rule = promote_response.json()
@@ -264,7 +266,9 @@ def test_rule_enforcement_scope_hierarchy_invalid_promotion(
     # Try invalid promotion
     invalid_promotion = {
         "scope_level": "project",
-        "scope_id": str(uuid.uuid4()),  # Use a different UUID to simulate invalid promotion
+        "scope_id": str(
+            uuid.uuid4()
+        ),  # Use a different UUID to simulate invalid promotion
     }
     response = client.post(
         f"/rules/{rule_id}/promote", json=invalid_promotion, headers=admin_headers
@@ -378,9 +382,7 @@ def test_rule_enforcement_combinations(
     headers = admin_headers.copy() if admin_headers else {}
 
     # Propose and approve rule
-    prop_response = client.post(
-        "/propose-rule-change", json=rule, headers=headers
-    )
+    prop_response = client.post("/propose-rule-change", json=rule, headers=headers)
     if prop_response.status_code != 200:
         print("RESPONSE BODY:", prop_response.text)
     assert prop_response.status_code == 200
@@ -423,9 +425,7 @@ def test_rule_enforcement_combinations(
 
         with open(py_file.name, "rb") as f:
             files = {"files": (py_file.name, f, "text/x-python")}
-            response = client.post(
-                "/review-code-files", files=files, headers=headers
-            )
+            response = client.post("/review-code-files", files=files, headers=headers)
 
         assert response.status_code == 200
         data = response.json()

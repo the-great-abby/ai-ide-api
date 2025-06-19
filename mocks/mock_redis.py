@@ -5,6 +5,7 @@ class MockRedis:
 
     async def get(self, key: str):
         import time
+
         if key in self._expiry and self._expiry[key] < time.time():
             self._store.pop(key, None)
             self._expiry.pop(key, None)
@@ -13,6 +14,7 @@ class MockRedis:
 
     async def set(self, key: str, value, ex: int = None):
         import time
+
         self._store[key] = value
         if ex:
             self._expiry[key] = time.time() + ex
@@ -23,4 +25,4 @@ class MockRedis:
     async def delete(self, key: str):
         self._store.pop(key, None)
         self._expiry.pop(key, None)
-        return True 
+        return True

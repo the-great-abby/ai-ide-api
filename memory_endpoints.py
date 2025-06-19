@@ -43,14 +43,16 @@ def create_memory_node(
     db: Session = Depends(get_db),
 ):
     """Create a new memory node. Requires write permission for the namespace and LLM access."""
-    
+
     # Auto-create namespace permission if it doesn't exist
     try:
         check_namespace_permission(node.namespace, token, "write", db)
     except HTTPException as e:
         if e.status_code == 403 and "No write permission for namespace" in e.detail:
             # Auto-create namespace permission for the token's project
-            logger.info(f"Auto-creating namespace permission for {node.namespace} for project {token.project_id}")
+            logger.info(
+                f"Auto-creating namespace permission for {node.namespace} for project {token.project_id}"
+            )
             try:
                 db_permission = NamespacePermission(
                     namespace=node.namespace,
@@ -61,12 +63,14 @@ def create_memory_node(
                 )
                 db.add(db_permission)
                 db.commit()
-                logger.info(f"Successfully created namespace permission for {node.namespace}")
+                logger.info(
+                    f"Successfully created namespace permission for {node.namespace}"
+                )
             except Exception as perm_exc:
                 logger.error(f"Failed to auto-create namespace permission: {perm_exc}")
                 raise HTTPException(
-                    status_code=500, 
-                    detail=f"Failed to auto-create namespace permission for {node.namespace}"
+                    status_code=500,
+                    detail=f"Failed to auto-create namespace permission for {node.namespace}",
                 )
         else:
             raise e
@@ -129,11 +133,11 @@ def list_memory_nodes(
     if category:
         categories = [c.strip() for c in category.split(",")]
         for cat in categories:
-            q = q.filter(MemoryVector.categories.op('@>')(f'"{cat}"'))
+            q = q.filter(MemoryVector.categories.op("@>")(f'"{cat}"'))
     if tag:
         tags = [t.strip() for t in tag.split(",")]
         for tg in tags:
-            q = q.filter(MemoryVector.tags.op('@>')(f'"{tg}"'))
+            q = q.filter(MemoryVector.tags.op("@>")(f'"{tg}"'))
     nodes = q.all()
     result = []
     for db_node in nodes:
@@ -184,7 +188,10 @@ def create_namespace_permission(
     # Patch: Default project_id to token.project_id if not provided
     project_id = permission.project_id or token.project_id
     if not project_id:
-        raise HTTPException(status_code=400, detail="project_id must be provided or present in the admin token.")
+        raise HTTPException(
+            status_code=400,
+            detail="project_id must be provided or present in the admin token.",
+        )
     # Patch: Fetch project name for response
     project = db.query(Project).filter(Project.id == project_id).first()
     project_name = project.name if project else None
@@ -214,12 +221,16 @@ def create_memory_edge(
     # Accept both 'relation_type' and 'relationship' for backward compatibility
     relation_type = edge.get("relation_type") or edge.get("relationship")
     if not relation_type:
-        raise HTTPException(status_code=422, detail="Missing 'relation_type' or 'relationship' field")
+        raise HTTPException(
+            status_code=422, detail="Missing 'relation_type' or 'relationship' field"
+        )
     from_id = edge.get("from_id")
     to_id = edge.get("to_id")
     meta = edge.get("meta")
     # For now, check write permission for the 'from' node's namespace only (can be extended)
-    check_namespace_permission(from_id, token, "write", db)  # TODO: resolve namespace from node if needed
+    check_namespace_permission(
+        from_id, token, "write", db
+    )  # TODO: resolve namespace from node if needed
     session = MemorySessionLocal()
     db_edge = MemoryEdge(
         from_id=from_id,
@@ -233,6 +244,7 @@ def create_memory_edge(
     edge_dict = db_edge.__dict__.copy()
     edge_dict.pop("_sa_instance_state", None)
     import uuid
+
     for key in ("id", "from_id", "to_id"):
         if key in edge_dict and isinstance(edge_dict[key], uuid.UUID):
             edge_dict[key] = str(edge_dict[key])
@@ -261,6 +273,7 @@ def list_memory_edges(
     session.close()
     result = []
     import uuid
+
     for e in edges:
         edge_dict = e.__dict__.copy()
         edge_dict.pop("_sa_instance_state", None)
@@ -395,7 +408,9 @@ async def search_memory_nodes(
     namespace = body.get("namespace")
     limit = body.get("limit", 10)
     if not query_text:
-        raise HTTPException(status_code=400, detail="Missing 'query' field for vector search.")
+        raise HTTPException(
+            status_code=400, detail="Missing 'query' field for vector search."
+        )
     embedding = get_embedding_ollama(query_text)
     session = MemorySessionLocal()
     sql = "SELECT *, embedding <=> CAST(:query_vec AS vector) AS distance FROM memory_vectors"
@@ -412,16 +427,18 @@ async def search_memory_nodes(
         # Compute similarity as 1 - distance (if distance is cosine distance)
         distance = row_dict.get("distance")
         similarity = 1.0 - distance if distance is not None else None
-        result.append({
-            "id": str(row_dict["id"]),
-            "namespace": row_dict["namespace"],
-            "content": row_dict["content"],
-            "embedding": row_dict["embedding"],
-            "meta": row_dict["meta"],
-            "created_at": row_dict["created_at"],
-            "confidence": row_dict.get("confidence"),
-            "similarity": similarity,
-        })
+        result.append(
+            {
+                "id": str(row_dict["id"]),
+                "namespace": row_dict["namespace"],
+                "content": row_dict["content"],
+                "embedding": row_dict["embedding"],
+                "meta": row_dict["meta"],
+                "created_at": row_dict["created_at"],
+                "confidence": row_dict.get("confidence"),
+                "similarity": similarity,
+            }
+        )
     session.close()
     return result
 
@@ -429,6 +446,7 @@ async def search_memory_nodes(
 class LLMAccessRequest(BaseModel):
     project_id: str
     has_llm_access: bool
+
 
 @router.post("/admin/project/llm-access")
 def set_project_llm_access(
@@ -445,15 +463,18 @@ def set_project_llm_access(
     db.refresh(project)
     return {"project_id": project.id, "has_llm_access": project.has_llm_access}
 
+
 # --- RAG Search Endpoint ---
 class RAGQuery(BaseModel):
     question: str
     namespace: Optional[str] = None
     top_k: int = 5
 
+
 class RAGResponse(BaseModel):
     answer: str
     sources: List[dict]  # Each dict: {id, content, namespace, meta, created_at}
+
 
 @router.post("/rag_search", response_model=RAGResponse, status_code=status.HTTP_200_OK)
 def rag_search(
@@ -473,7 +494,9 @@ def rag_search(
     embedding = get_embedding_ollama(query.question)
 
     # 2. Vector search for top_k memory nodes (optionally filter by namespace)
-    node_dicts = vector_search_memory_nodes(embedding, namespace=query.namespace, limit=query.top_k)
+    node_dicts = vector_search_memory_nodes(
+        embedding, namespace=query.namespace, limit=query.top_k
+    )
 
     # 3. Check read permission for each namespace and build MemoryNode-like objects
     filtered_nodes = []
@@ -505,6 +528,8 @@ def rag_search(
             "confidence": n.get("confidence"),
         }
         if source["confidence"] is not None and source["confidence"] < 0.5:
-            source["low_confidence_reason"] = "This memory node is only weakly related to your question."
+            source[
+                "low_confidence_reason"
+            ] = "This memory node is only weakly related to your question."
         sources.append(source)
     return RAGResponse(answer=answer, sources=sources)

@@ -14,4 +14,4 @@ class MockSession:
         return []
 
     def close(self):
-        pass 
+        pass

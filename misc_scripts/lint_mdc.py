@@ -5,6 +5,7 @@ import yaml
 
 REQUIRED_YAML_FIELDS = ["description", "globs"]
 
+
 def extract_yaml_frontmatter(path):
     with open(path, "r") as f:
         content = f.read()
@@ -17,12 +18,14 @@ def extract_yaml_frontmatter(path):
     except Exception as e:
         return None, f"YAML parse error: {e}"
 
+
 def validate_yaml_fields(frontmatter):
     errors = []
     for field in REQUIRED_YAML_FIELDS:
         if field not in frontmatter or not str(frontmatter[field]).strip():
             errors.append(f"Missing or empty required YAML field: {field}")
     return errors
+
 
 def main():
     if len(sys.argv) < 2:
@@ -32,7 +35,9 @@ def main():
     any_errors = False
     files = []
     if os.path.isdir(target):
-        files = [os.path.join(target, f) for f in os.listdir(target) if f.endswith('.mdc')]
+        files = [
+            os.path.join(target, f) for f in os.listdir(target) if f.endswith(".mdc")
+        ]
     else:
         files = [target]
     for path in files:
@@ -54,5 +59,6 @@ def main():
     else:
         print("All .mdc files are valid.")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

@@ -16,14 +16,12 @@ TARGETS = [
     "KNOWLEDGE_GRAPH.md",
     "CHANGELOG.md",
     "README.md",
-    
     # Code and scripts
     "scripts/",
     "misc_scripts/",
     "ai_ide_rules/",
     "rule_api_server.py",
     "db.py",
-    
     # Build and configuration files
     "Makefile",
     "Makefile.ai*",
@@ -32,24 +30,23 @@ TARGETS = [
     "requirements.txt",
     "alembic.ini",
     "alembic_memorydb.ini",
-    
     # Test and development
     "tests/",
     "pytest.ini",
-    
     # Database and migrations
     "migrations/",
     "migrations_memorydb/",
-    
     # Frontend
     "admin-frontend/",
-    
     # GitHub workflows
-    ".github/workflows/"
+    ".github/workflows/",
 ]
 
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_URL", "http://host.docker.internal:11434/api/generate"
+)
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
+
 
 def get_git_diff(paths):
     """Return the git diff for the given paths in the staged (cached) index."""
@@ -57,27 +54,39 @@ def get_git_diff(paths):
     for path in paths:
         code_path = f"/code/{path}" if not path.startswith("/code/") else path
         try:
-            result = subprocess.run([
-                'git', '-C', '/code', 'diff', '--name-only', '--cached', '--', code_path
-            ], capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    "/code",
+                    "diff",
+                    "--name-only",
+                    "--cached",
+                    "--",
+                    code_path,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             changed_files = [f for f in result.stdout.strip().split("\n") if f]
             if changed_files:
                 for file in changed_files:
-                    diff_result = subprocess.run([
-                        'git', '-C', '/code', 'diff', '--cached', '--', file
-                    ], capture_output=True, text=True, check=True)
+                    diff_result = subprocess.run(
+                        ["git", "-C", "/code", "diff", "--cached", "--", file],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
                     diffs[file] = diff_result.stdout.strip()
         except subprocess.CalledProcessError as e:
             if os.path.exists(code_path):
                 print(f"Warning: git diff failed for {path}: {e}", file=sys.stderr)
     return diffs
 
+
 def call_ollama(prompt):
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False
-    }
+    payload = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
     try:
         resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
         resp.raise_for_status()
@@ -87,23 +96,32 @@ def call_ollama(prompt):
         print(f"[ERROR] Ollama call failed: {e}")
         return None
 
+
 def main():
-    print("[scan_for_memory_node_opportunities] Scanning for changes since last commit...")
+    print(
+        "[scan_for_memory_node_opportunities] Scanning for changes since last commit..."
+    )
     diffs = get_git_diff(TARGETS)
     if not diffs:
-        print("No changes detected in rules, user stories, or onboarding docs since last commit.")
+        print(
+            "No changes detected in rules, user stories, or onboarding docs since last commit."
+        )
         return
     print("\n=== Changes detected ===")
     combined_diff = ""
     for file, diff in diffs.items():
-        print(f"\n--- {file} ---\n{diff[:1000]}{'... (truncated)' if len(diff) > 1000 else ''}")
+        print(
+            f"\n--- {file} ---\n{diff[:1000]}{'... (truncated)' if len(diff) > 1000 else ''}"
+        )
         combined_diff += f"\n--- {file} ---\n{diff}\n"
-    print("\n[REMINDER] Consider creating a new memory node for any important lessons, best practices, or workflow changes!")
+    print(
+        "\n[REMINDER] Consider creating a new memory node for any important lessons, best practices, or workflow changes!"
+    )
 
     # LLM integration: Summarize changes and suggest memory node content using Ollama
     prompt = (
         "Given the following project changes (git diff), generate a JSON object for a new memory node to capture this lesson or best practice for the knowledge graph.\n"
-        "Respond ONLY with a single-line JSON object: { \"title\": \"...\", \"content\": \"...\" }. Do NOT include any Markdown, code blocks, or explanation.\n\n"
+        'Respond ONLY with a single-line JSON object: { "title": "...", "content": "..." }. Do NOT include any Markdown, code blocks, or explanation.\n\n'
         f"{combined_diff}"
     )
     print("\n[LLM] Calling Ollama to suggest a memory node...")
@@ -114,14 +132,17 @@ def main():
         # Try to parse JSON
         import json
         import re
+
         try:
             suggestion = json.loads(llm_response)
             print("\n[LLM Suggestion] Parsed:")
             print(json.dumps(suggestion, indent=2))
         except Exception:
             # Try to extract the first JSON object from the response
-            print("[WARNING] LLM response was not valid JSON. Attempting to extract JSON object...")
-            match = re.search(r'\{[\s\S]*\}', llm_response)
+            print(
+                "[WARNING] LLM response was not valid JSON. Attempting to extract JSON object..."
+            )
+            match = re.search(r"\{[\s\S]*\}", llm_response)
             if match:
                 json_str = match.group(0)
                 try:
@@ -132,9 +153,12 @@ def main():
                     print(f"[ERROR] Failed to parse extracted JSON: {e}")
                     print(json_str)
             else:
-                print("[ERROR] No JSON object found in LLM response. Please review and copy manually.")
+                print(
+                    "[ERROR] No JSON object found in LLM response. Please review and copy manually."
+                )
     else:
         print("[ERROR] No response from Ollama LLM.")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

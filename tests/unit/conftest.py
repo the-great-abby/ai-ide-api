@@ -1,6 +1,7 @@
 import pytest
 from mocks.mock_rabbitmq import MockRabbitMQ
 
+
 @pytest.fixture
 def mock_rabbitmq():
     """
@@ -11,4 +12,4 @@ def mock_rabbitmq():
             msg = await mock_rabbitmq.consume('queue')
             assert msg == {'foo': 'bar'}
     """
-    return MockRabbitMQ() 
+    return MockRabbitMQ()

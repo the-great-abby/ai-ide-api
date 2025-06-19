@@ -10,10 +10,12 @@ class MockQuery:
 
     def filter_by(self, **kwargs):
         filtered = [
-            obj for obj in self._data
+            obj
+            for obj in self._data
             if all(getattr(obj, k, None) == v for k, v in kwargs.items())
         ]
         return MockQuery(filtered)
+
 
 class MockSession:
     def __init__(self, initial_data=None):
@@ -38,4 +40,4 @@ class MockSession:
         pass
 
     def rollback(self):
-        pass 
+        pass

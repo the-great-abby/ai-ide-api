@@ -10,9 +10,11 @@ REQUIRED_YAML_FIELDS = ["description"]  # globs and alwaysApply are optional
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 REQUIRED_FIELDS = ["rule_type", "description", "diff", "submitted_by"]
 
+
 def load_json_rule(path):
     with open(path, "r") as f:
         return json.load(f)
+
 
 def parse_mdc_file(path):
     with open(path, "r") as f:
@@ -24,6 +26,7 @@ def parse_mdc_file(path):
     body = m.group(2)
     return frontmatter, body
 
+
 def validate_yaml_frontmatter(frontmatter):
     errors = []
     for field in REQUIRED_YAML_FIELDS:
@@ -34,9 +37,12 @@ def validate_yaml_frontmatter(frontmatter):
     # globs and alwaysApply are optional, but if present, check type
     if "globs" in frontmatter and not isinstance(frontmatter["globs"], (list, str)):
         errors.append("YAML field 'globs' should be a string or list")
-    if "alwaysApply" in frontmatter and not isinstance(frontmatter["alwaysApply"], bool):
+    if "alwaysApply" in frontmatter and not isinstance(
+        frontmatter["alwaysApply"], bool
+    ):
         errors.append("YAML field 'alwaysApply' should be a boolean")
     return errors
+
 
 def validate_mdc_body(body):
     errors = []
@@ -49,6 +55,7 @@ def validate_mdc_body(body):
         errors.append("Body should contain '## Enforcement' section (MDC format)")
     return errors
 
+
 def validate_mdc_file(path):
     try:
         frontmatter, body = parse_mdc_file(path)
@@ -57,6 +64,7 @@ def validate_mdc_file(path):
     errors = validate_yaml_frontmatter(frontmatter)
     errors += validate_mdc_body(body)
     return errors
+
 
 def validate_json_rule(rule):
     errors = []
@@ -75,6 +83,7 @@ def validate_json_rule(rule):
         errors.append("'diff' should contain '## Enforcement' section (MDC format)")
     return errors
 
+
 def validate_file(path):
     if path.endswith(".mdc"):
         return validate_mdc_file(path)
@@ -85,6 +94,7 @@ def validate_file(path):
             return [f"JSON load error: {e}"]
         return validate_json_rule(rule)
 
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python lint_rule.py <file_or_directory>")
@@ -93,7 +103,11 @@ def main():
     target = sys.argv[1]
     any_errors = False
     if os.path.isdir(target):
-        files = [os.path.join(target, f) for f in os.listdir(target) if f.endswith('.json') or f.endswith('.mdc')]
+        files = [
+            os.path.join(target, f)
+            for f in os.listdir(target)
+            if f.endswith(".json") or f.endswith(".mdc")
+        ]
         for path in sorted(files):
             errors = validate_file(path)
             if errors:
@@ -117,5 +131,6 @@ def main():
     else:
         print("All rules are valid.")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

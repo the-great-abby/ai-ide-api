@@ -1,5 +1,5 @@
 def print_pirate_flag():
-    banner = r'''
+    banner = r"""
            |    |    |
          )_)  )_)  )_)
         )___))___))___)\
@@ -12,5 +12,5 @@ def print_pirate_flag():
 
       🏴‍☠️  HOIST THE JOLLY ROGER!  🏴‍☠️
    The crew has conquered a mighty challenge!
-'''
-    print(banner) 
+"""
+    print(banner)

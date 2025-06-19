@@ -23,6 +23,7 @@ from utils.message_broker import RealRabbitMQClient
 RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://user:password@rabbitmq:5672/")
 QUEUE_NAME = "memory.similarity"
 
+
 async def publish_job(args):
     """Publish a similarity pruning job to RabbitMQ."""
     # Prepare job configuration
@@ -30,7 +31,7 @@ async def publish_job(args):
         "scope": args.scope,
         "dry_run": args.dry_run,
     }
-    
+
     # Add optional thresholds if specified
     if args.vector_threshold is not None:
         job_config["vector_similarity_threshold"] = args.vector_threshold
@@ -38,7 +39,7 @@ async def publish_job(args):
         job_config["content_similarity_threshold"] = args.content_threshold
     if args.tag_threshold is not None:
         job_config["tag_overlap_threshold"] = args.tag_threshold
-        
+
     # Connect to RabbitMQ and publish
     try:
         broker = RealRabbitMQClient(RABBITMQ_URL)
@@ -48,52 +49,48 @@ async def publish_job(args):
         print(f"Error publishing job: {e}", file=sys.stderr)
         sys.exit(1)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Publish a memory similarity pruning job")
+    parser = argparse.ArgumentParser(
+        description="Publish a memory similarity pruning job"
+    )
     parser.add_argument(
         "--scope",
         choices=["all", "new"],
         default="all",
-        help="Scope of nodes to process. Use 'namespace:xyz' for specific namespace."
+        help="Scope of nodes to process. Use 'namespace:xyz' for specific namespace.",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Only report changes, don't apply them"
+        "--dry-run", action="store_true", help="Only report changes, don't apply them"
     )
     parser.add_argument(
-        "--vector-threshold",
-        type=float,
-        help="Vector similarity threshold (0-1)"
+        "--vector-threshold", type=float, help="Vector similarity threshold (0-1)"
     )
     parser.add_argument(
-        "--content-threshold",
-        type=float,
-        help="Content similarity threshold (0-1)"
+        "--content-threshold", type=float, help="Content similarity threshold (0-1)"
     )
     parser.add_argument(
-        "--tag-threshold",
-        type=float,
-        help="Tag overlap threshold (0-1)"
+        "--tag-threshold", type=float, help="Tag overlap threshold (0-1)"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Allow namespace:xyz format
     if args.scope.startswith("namespace:"):
         if len(args.scope.split(":")) != 2:
             parser.error("Namespace format should be 'namespace:xyz'")
-    
+
     # Validate thresholds
     for name, value in [
         ("vector", args.vector_threshold),
         ("content", args.content_threshold),
-        ("tag", args.tag_threshold)
+        ("tag", args.tag_threshold),
     ]:
         if value is not None and not (0 <= value <= 1):
             parser.error(f"{name} threshold must be between 0 and 1")
-    
+
     asyncio.run(publish_job(args))
 
+
 if __name__ == "__main__":
-    main() 
+    main()

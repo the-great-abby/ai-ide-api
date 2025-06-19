@@ -45,7 +45,9 @@ def check_direct_pytest_usage(
                 and hasattr(node.func, "value")
                 and getattr(node.func.value, "id", None) == "pytest"
             ):
-                print(f"[DEBUG] check_direct_pytest_usage: AST pattern matched in {file_path}")
+                print(
+                    f"[DEBUG] check_direct_pytest_usage: AST pattern matched in {file_path}"
+                )
                 if project:
                     suggestion["project"] = project
                 if suggestion not in suggestions:
@@ -78,7 +80,9 @@ def check_print_statements(
         tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "print":
-                print(f"[DEBUG] check_print_statements: print() found in {file_path} at line {node.lineno}")
+                print(
+                    f"[DEBUG] check_print_statements: print() found in {file_path} at line {node.lineno}"
+                )
                 suggestions.append(
                     {
                         "rule_type": "no_print",
@@ -103,7 +107,9 @@ def check_unused_imports(
         parts = line.replace("import", "").strip().split()
         for name in parts:
             if name and name not in content.replace(line, ""):
-                print(f"[DEBUG] check_unused_imports: Unused import '{name}' in {file_path}")
+                print(
+                    f"[DEBUG] check_unused_imports: Unused import '{name}' in {file_path}"
+                )
                 suggestions.append(
                     {
                         "rule_type": "unused_import",
@@ -140,7 +146,9 @@ def check_todo_fixme_comments(
     suggestions = []
     for i, line in enumerate(content.splitlines(), 1):
         if re.search(r"#\s*(TODO|FIXME)", line, re.IGNORECASE):
-            print(f"[DEBUG] check_todo_fixme_comments: {line.strip()} found in {file_path} at line {i}")
+            print(
+                f"[DEBUG] check_todo_fixme_comments: {line.strip()} found in {file_path} at line {i}"
+            )
             suggestions.append(
                 {
                     "rule_type": "todo_fixme_comment",
@@ -158,7 +166,9 @@ def check_eval_usage(file_path: str, content: str, project: str = None) -> List[
         tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "eval":
-                print(f"[DEBUG] check_eval_usage: eval() found in {file_path} at line {node.lineno}")
+                print(
+                    f"[DEBUG] check_eval_usage: eval() found in {file_path} at line {node.lineno}"
+                )
                 suggestions.append(
                     {
                         "rule_type": "no_eval",
@@ -178,7 +188,9 @@ def check_bare_except(file_path: str, content: str, project: str = None) -> List
         tree = ast.parse(textwrap.dedent(content))
         for node in ast.walk(tree):
             if isinstance(node, ast.ExceptHandler) and node.type is None:
-                print(f"[DEBUG] check_bare_except: bare except found in {file_path} at line {node.lineno}")
+                print(
+                    f"[DEBUG] check_bare_except: bare except found in {file_path} at line {node.lineno}"
+                )
                 suggestions.append(
                     {
                         "rule_type": "no_bare_except",
@@ -199,7 +211,9 @@ def check_wildcard_imports(
     for i, line in enumerate(content.splitlines(), 1):
         print(f"[DEBUG] check_wildcard_imports: Checking line {i}: {repr(line)}")
         if re.match(r"^from\s+\S+\s+import\s+\*$", line):
-            print(f"[DEBUG] check_wildcard_imports: Wildcard import found in {file_path} at line {i}")
+            print(
+                f"[DEBUG] check_wildcard_imports: Wildcard import found in {file_path} at line {i}"
+            )
             suggestions.append(
                 {
                     "rule_type": "no_wildcard_imports",
@@ -226,9 +240,13 @@ def check_long_functions(
                         [n.lineno for n in ast.walk(node) if hasattr(n, "lineno")],
                         default=start,
                     )
-                print(f"[DEBUG] check_long_functions: Function '{node.name}' spans lines {start}-{end}")
+                print(
+                    f"[DEBUG] check_long_functions: Function '{node.name}' spans lines {start}-{end}"
+                )
                 if end - start + 1 > max_lines:
-                    print(f"[DEBUG] check_long_functions: Long function '{node.name}' in {file_path} ({end - start + 1} lines)")
+                    print(
+                        f"[DEBUG] check_long_functions: Long function '{node.name}' in {file_path} ({end - start + 1} lines)"
+                    )
                     suggestions.append(
                         {
                             "rule_type": "long_function",
@@ -251,7 +269,9 @@ def check_missing_docstrings(
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 if not ast.get_docstring(node):
-                    print(f"[DEBUG] check_missing_docstrings: Missing docstring for {type(node).__name__} '{getattr(node, 'name', '?')}' in {file_path} at line {node.lineno}")
+                    print(
+                        f"[DEBUG] check_missing_docstrings: Missing docstring for {type(node).__name__} '{getattr(node, 'name', '?')}' in {file_path} at line {node.lineno}"
+                    )
                     suggestions.append(
                         {
                             "rule_type": "missing_docstring",
@@ -276,7 +296,9 @@ def check_deprecated_libraries(
             if re.match(rf"import {lib}(\\s|$)", line) or re.match(
                 rf"from {lib} ", line
             ):
-                print(f"[DEBUG] check_deprecated_libraries: Deprecated library '{lib}' used in {file_path} at line {i}")
+                print(
+                    f"[DEBUG] check_deprecated_libraries: Deprecated library '{lib}' used in {file_path} at line {i}"
+                )
                 suggestions.append(
                     {
                         "rule_type": "deprecated_library",

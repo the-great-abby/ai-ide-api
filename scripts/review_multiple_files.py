@@ -14,7 +14,9 @@ for arg in sys.argv[1:]:
         files.append(arg)
 
 if not files:
-    print("Usage: python scripts/review_multiple_files.py file1.py file2.py [--propose]")
+    print(
+        "Usage: python scripts/review_multiple_files.py file1.py file2.py [--propose]"
+    )
     sys.exit(1)
 
 file_objs = [("files", open(f, "rb")) for f in files]
@@ -41,7 +43,7 @@ try:
                         "submitted_by": "auto-proposer",
                         "categories": ["auto"],
                         "tags": [rule_type],
-                        "project": "ai-ide-api"
+                        "project": "ai-ide-api",
                     }
                     resp = requests.post(PROPOSE_URL, json=proposal)
                     if resp.ok:
@@ -50,4 +52,4 @@ try:
                         print(f"Failed to propose rule: {rule_type}", resp.text)
 finally:
     for _, f in file_objs:
-        f.close() 
+        f.close()

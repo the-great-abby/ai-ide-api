@@ -10,11 +10,16 @@ import subprocess
 import argparse
 
 # For Docker: use host.docker.internal; for direct API container, use localhost
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
-API_URL = os.environ.get("RULE_API_URL", "http://host.docker.internal:9103/propose-rule-change")
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_URL", "http://host.docker.internal:11434/api/generate"
+)
+API_URL = os.environ.get(
+    "RULE_API_URL", "http://host.docker.internal:9103/propose-rule-change"
+)
 MODEL = "llama3"
 
 # ... rest of the script unchanged ...
+
 
 # 1. Scan codebase for repeated patterns (simple example: direct SQL queries)
 def scan_codebase_for_patterns():
@@ -23,20 +28,26 @@ def scan_codebase_for_patterns():
         with open(pyfile, "r", encoding="utf-8") as f:
             for i, line in enumerate(f, 1):
                 if "SELECT" in line or "INSERT" in line or "UPDATE" in line:
-                    sql_patterns.append({
-                        "file": pyfile,
-                        "line": i,
-                        "code": line.strip()
-                    })
+                    sql_patterns.append(
+                        {"file": pyfile, "line": i, "code": line.strip()}
+                    )
     return sql_patterns
+
 
 # 2. Fetch current rules (stubbed)
 def get_current_rules():
     # In a real implementation, fetch from API or read rule files
     return [
-        {"rule_type": "testing_flow", "description": "Use Makefile.ai for all test runs."},
-        {"rule_type": "precommit", "description": "All repos must use pre-commit hooks."}
+        {
+            "rule_type": "testing_flow",
+            "description": "Use Makefile.ai for all test runs.",
+        },
+        {
+            "rule_type": "precommit",
+            "description": "All repos must use pre-commit hooks.",
+        },
     ]
+
 
 # 3. Generate prompt for Ollama
 def build_prompt(patterns, rules):
@@ -52,6 +63,7 @@ Given these code patterns and the current rules, suggest new rules or improvemen
     prompt += "\nRespond with a JSON array of rule proposals, each with: rule_type, description, diff, rationale, references, current_rule (if updating)."
     return prompt
 
+
 # 4. Call Ollama LLM
 def call_ollama(prompt):
     response = requests.post(OLLAMA_URL, json={"model": MODEL, "prompt": prompt})
@@ -59,6 +71,7 @@ def call_ollama(prompt):
     # Ollama returns a streaming response; get the full text
     result = response.json()["response"]
     return result
+
 
 # 5. Parse LLM output (expecting JSON array)
 def parse_rule_proposals(llm_output):
@@ -72,21 +85,30 @@ def parse_rule_proposals(llm_output):
         print("Raw output:", llm_output)
         return []
 
+
 # 6. Submit proposals to API
 def submit_proposals(proposals):
     for proposal in proposals:
         resp = requests.post(API_URL, json=proposal)
         if resp.ok:
-            print(f"Submitted: {proposal.get('rule_type')} - {proposal.get('description')[:60]}...")
+            print(
+                f"Submitted: {proposal.get('rule_type')} - {proposal.get('description')[:60]}..."
+            )
         else:
             print(f"Failed to submit: {proposal.get('rule_type')}", resp.text)
+
 
 def main():
     import argparse
     import sys
+
     parser = argparse.ArgumentParser(description="Auto Code Review CLI")
-    parser.add_argument("target", nargs="?", default=".", help="Target directory or file to analyze")
-    parser.add_argument("--dry-run", action="store_true", help="Run static checker only (no LLM)")
+    parser.add_argument(
+        "target", nargs="?", default=".", help="Target directory or file to analyze"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Run static checker only (no LLM)"
+    )
     args = parser.parse_args()
     if not os.path.exists(args.target):
         print(f"[ERROR] Target path '{args.target}' does not exist.")
@@ -95,7 +117,16 @@ def main():
     rules = get_current_rules()
     prompt = build_prompt(patterns, rules)
     if args.dry_run:
-        print(json.dumps({"patterns": patterns, "rules": rules, "prompt": prompt[:200] + ("..." if len(prompt) > 200 else "")}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "patterns": patterns,
+                    "rules": rules,
+                    "prompt": prompt[:200] + ("..." if len(prompt) > 200 else ""),
+                },
+                indent=2,
+            )
+        )
         return 0
     llm_output = call_ollama(prompt)
     proposals = parse_rule_proposals(llm_output)
@@ -107,6 +138,8 @@ def main():
         print("No valid proposals generated.")
         return 1
 
+
 if __name__ == "__main__":
     import sys
-    sys.exit(main()) 
+
+    sys.exit(main())

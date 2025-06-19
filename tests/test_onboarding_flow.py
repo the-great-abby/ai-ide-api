@@ -3,23 +3,36 @@ import requests
 import pytest
 import uuid
 
-API_URL = os.environ.get("API_URL", "http://test-api:8000" if os.environ.get("ENVIRONMENT") == "test" else "http://localhost:9104")
+API_URL = os.environ.get(
+    "API_URL",
+    "http://test-api:8000"
+    if os.environ.get("ENVIRONMENT") == "test"
+    else "http://localhost:9104",
+)
+
 
 @pytest.fixture
 def admin_headers_fixture(admin_headers):
     return admin_headers
 
+
 @pytest.fixture
 def test_project_name():
     return f"test_project_{uuid.uuid4().hex[:8]}"
+
 
 @pytest.fixture
 def onboarding_journey():
     return "test_path"
 
-def test_internal_project_onboarding(admin_headers_fixture, test_project_name, onboarding_journey, override_get_db):
+
+def test_internal_project_onboarding(
+    admin_headers_fixture, test_project_name, onboarding_journey, override_get_db
+):
     headers = admin_headers_fixture
-    print(f"[TEST DEBUG] project_name={test_project_name}, journey={onboarding_journey}, headers={headers}")
+    print(
+        f"[TEST DEBUG] project_name={test_project_name}, journey={onboarding_journey}, headers={headers}"
+    )
     # 1. Initialize onboarding
     init_response = requests.post(
         f"{API_URL}/onboarding/init",
@@ -27,7 +40,9 @@ def test_internal_project_onboarding(admin_headers_fixture, test_project_name, o
         headers=headers,
     )
     if init_response.status_code != 200:
-        print(f"[ONBOARDING INIT ERROR] Status: {init_response.status_code}, Response: {init_response.text}")
+        print(
+            f"[ONBOARDING INIT ERROR] Status: {init_response.status_code}, Response: {init_response.text}"
+        )
     assert (
         init_response.status_code == 200
     ), f"Failed to initialize onboarding: {init_response.text}"
@@ -40,7 +55,9 @@ def test_internal_project_onboarding(admin_headers_fixture, test_project_name, o
         progress_response.status_code == 200
     ), f"Failed to fetch progress: {progress_response.text}"
     initial_progress = progress_response.json()
-    assert isinstance(initial_progress, dict), "Progress should be a dict with 'steps' key"
+    assert isinstance(
+        initial_progress, dict
+    ), "Progress should be a dict with 'steps' key"
     assert "steps" in initial_progress, "Progress should have a 'steps' key"
     steps = initial_progress["steps"]
     assert len(steps) > 0, "Should have at least one onboarding step"
@@ -64,7 +81,11 @@ def test_internal_project_onboarding(admin_headers_fixture, test_project_name, o
         final_progress_response.status_code == 200
     ), f"Failed to fetch final progress: {final_progress_response.text}"
     final_progress = final_progress_response.json()
-    assert isinstance(final_progress, dict), "Final progress should be a dict with 'steps' key"
+    assert isinstance(
+        final_progress, dict
+    ), "Final progress should be a dict with 'steps' key"
     assert "steps" in final_progress, "Final progress should have a 'steps' key"
     final_steps = final_progress["steps"]
-    assert all(step.get("completed") for step in final_steps), "All steps should be marked as complete" 
+    assert all(
+        step.get("completed") for step in final_steps
+    ), "All steps should be marked as complete"

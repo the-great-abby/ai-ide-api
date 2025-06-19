@@ -2,10 +2,12 @@ from typing import Any, Optional
 from utils.message_broker import MessageBrokerBase
 import asyncio
 
+
 class MockRabbitMQ(MessageBrokerBase):
     """
     Mock RabbitMQ client for unit tests. Uses in-memory queues.
     """
+
     def __init__(self):
         self.queues = {}
         self.lock = asyncio.Lock()
@@ -18,4 +20,4 @@ class MockRabbitMQ(MessageBrokerBase):
         async with self.lock:
             if self.queues.get(queue):
                 return self.queues[queue].pop(0)
-            return None 
+            return None

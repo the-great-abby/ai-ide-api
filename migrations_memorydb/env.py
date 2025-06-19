@@ -33,19 +33,28 @@ db = os.environ.get("MEMORY_POSTGRES_DB", "memorydb")
 SQLALCHEMY_URL = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
 context.config.set_main_option("sqlalchemy.url", SQLALCHEMY_URL)
 
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode."""
-    url = os.environ.get("MEMORY_DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+    url = os.environ.get("MEMORY_DATABASE_URL") or config.get_main_option(
+        "sqlalchemy.url"
+    )
     context.configure(
-        url=url, target_metadata=None, literal_binds=True, dialect_opts={"paramstyle": "named"}
+        url=url,
+        target_metadata=None,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online():
     """Run migrations in 'online' mode."""
-    url = os.environ.get("MEMORY_DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+    url = os.environ.get("MEMORY_DATABASE_URL") or config.get_main_option(
+        "sqlalchemy.url"
+    )
     connectable = engine_from_config(
         {"sqlalchemy.url": url},
         prefix="sqlalchemy.",
@@ -53,12 +62,11 @@ def run_migrations_online():
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=None
-        )
+        context.configure(connection=connection, target_metadata=None)
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

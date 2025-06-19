@@ -111,7 +111,9 @@ def test_partial_rule_update(admin_headers, client, override_get_db):
         "description": "Updated complex rule",
         "applies_to": ["python", "javascript", "typescript"],
     }
-    response = client.patch(f"/rules/{rule_id}", json=partial_update, headers=admin_headers)
+    response = client.patch(
+        f"/rules/{rule_id}", json=partial_update, headers=admin_headers
+    )
     assert response.status_code == 200
     updated_rule = response.json()
     assert updated_rule["description"] == "Updated complex rule"
@@ -259,7 +261,9 @@ def test_update_immutable_fields(admin_headers, client, override_get_db):
 
     # Update rule_type (now allowed)
     update_request = {"rule_type": "updated_type"}
-    response = client.patch(f"/rules/{rule_id}", json=update_request, headers=admin_headers)
+    response = client.patch(
+        f"/rules/{rule_id}", json=update_request, headers=admin_headers
+    )
     assert response.status_code == 200
     updated_rule = response.json()
     assert updated_rule["rule_type"] == "updated_type"

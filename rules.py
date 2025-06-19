@@ -13,7 +13,14 @@ from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql import select, literal_column, lateral
 
 from auth import require_api_token, require_role
-from db import Rule, RuleVersion, get_db, resolve_project_id, resolve_team_id, project_defaults_from_name
+from db import (
+    Rule,
+    RuleVersion,
+    get_db,
+    resolve_project_id,
+    resolve_team_id,
+    project_defaults_from_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +126,8 @@ def ensure_list(val):
         except Exception:
             pass
         # Fallback: comma split, or wrap as single-item list if no comma
-        if ',' in val:
-            return [v.strip() for v in val.split(',') if v.strip()]
+        if "," in val:
+            return [v.strip() for v in val.split(",") if v.strip()]
         if val.strip():
             return [val.strip()]
         return []
@@ -128,9 +135,9 @@ def ensure_list(val):
 
 
 def normalize_rule_fields(data):
-    if hasattr(data, '__dict__'):
+    if hasattr(data, "__dict__"):
         data = data.__dict__.copy()
-    for field in ['categories', 'tags', 'examples', 'applies_to']:
+    for field in ["categories", "tags", "examples", "applies_to"]:
         data[field] = ensure_list(data.get(field))
     return data
 
@@ -149,7 +156,9 @@ def list_rules(
 
     if category:
         categories = [c.strip() for c in category.split(",")]
-        category_filters = [Rule.categories.op('@>')(json.dumps([cat])) for cat in categories]
+        category_filters = [
+            Rule.categories.op("@>")(json.dumps([cat])) for cat in categories
+        ]
         if len(category_filters) == 1:
             query = query.filter(category_filters[0])
         else:
@@ -157,7 +166,7 @@ def list_rules(
 
     if tag:
         tags = [t.strip() for t in tag.split(",")]
-        tag_filters = [Rule.tags.op('@>')(json.dumps([tag])) for tag in tags]
+        tag_filters = [Rule.tags.op("@>")(json.dumps([tag])) for tag in tags]
         if len(tag_filters) == 1:
             query = query.filter(tag_filters[0])
         else:
@@ -173,18 +182,27 @@ def list_rules(
             # If not a valid UUID, treat as project name
             if not validate_uuid(scope_id):
                 try:
-                    scope_id = resolve_project_id(db, scope_id, **project_defaults_from_name(scope_id))
+                    scope_id = resolve_project_id(
+                        db, scope_id, **project_defaults_from_name(scope_id)
+                    )
                 except Exception:
-                    raise HTTPException(status_code=422, detail=f"Could not resolve project name '{scope_id}' to UUID.")
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Could not resolve project name '{scope_id}' to UUID.",
+                    )
         elif scope_level == "team":
             # If not a valid UUID, treat as team name
             if not validate_uuid(scope_id):
                 try:
                     scope_id = resolve_team_id(db, scope_id)
                 except Exception:
-                    raise HTTPException(status_code=422, detail=f"Could not resolve team name '{scope_id}' to UUID.")
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Could not resolve team name '{scope_id}' to UUID.",
+                    )
         try:
             import uuid as uuidlib
+
             uuid_val = str(uuidlib.UUID(scope_id))
             query = query.filter(
                 or_(Rule.scope_id == scope_id, Rule.scope_id == uuid_val)
@@ -195,21 +213,29 @@ def list_rules(
     if search:
         search_term = f"%{search.lower()}%"
         # Lateral join for tags
-        tags_lateral = select(func.jsonb_array_elements_text(Rule.tags).label('tag_elem')).lateral()
-        applies_to_lateral = select(func.jsonb_array_elements_text(Rule.applies_to).label('applies_to_elem')).lateral()
-        query = query.outerjoin(tags_lateral, literal_column('true')).outerjoin(applies_to_lateral, literal_column('true'))
+        tags_lateral = select(
+            func.jsonb_array_elements_text(Rule.tags).label("tag_elem")
+        ).lateral()
+        applies_to_lateral = select(
+            func.jsonb_array_elements_text(Rule.applies_to).label("applies_to_elem")
+        ).lateral()
+        query = query.outerjoin(tags_lateral, literal_column("true")).outerjoin(
+            applies_to_lateral, literal_column("true")
+        )
         query = query.filter(
             or_(
                 Rule.description.ilike(search_term),
                 Rule.diff.ilike(search_term),
-                literal_column('tag_elem').ilike(search_term),
-                literal_column('applies_to_elem').ilike(search_term),
+                literal_column("tag_elem").ilike(search_term),
+                literal_column("applies_to_elem").ilike(search_term),
             )
         )
 
     # Before executing the query, log the SQL for debugging
     try:
-        logger.debug(f"[FILTER-DEBUG] SQL: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}")
+        logger.debug(
+            f"[FILTER-DEBUG] SQL: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}"
+        )
     except Exception as e:
         logger.error(f"[FILTER-DEBUG] Could not compile SQL: {e}")
     rules = query.order_by(Rule.timestamp.desc()).all()
@@ -278,7 +304,9 @@ async def update_rule(
     db: Session = Depends(get_db),
     token: dict = Depends(require_role("admin")),
 ):
-    logger.debug(f"[UPDATE-DEBUG] Called with rule_id={rule_id}, update={update.dict()}, token={token}")
+    logger.debug(
+        f"[UPDATE-DEBUG] Called with rule_id={rule_id}, update={update.dict()}, token={token}"
+    )
     # Validate UUID format
     if not validate_uuid(rule_id):
         logger.error(f"[UPDATE-DEBUG] Invalid UUID: {rule_id}")
@@ -288,16 +316,36 @@ async def update_rule(
     logger.debug(f"[UPDATE-DEBUG] DB query for rule_id={rule_id} returned: {rule}")
     if not rule:
         logger.error(f"[UPDATE-DEBUG] Rule not found: {rule_id}")
-        raise HTTPException(status_code=404, detail=f"Rule not found: {rule_id}. Did you approve the proposal first?")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Rule not found: {rule_id}. Did you approve the proposal first?",
+        )
     # Log the raw incoming payload for debugging
     try:
-        raw_payload = await request.json() if request and hasattr(request, 'json') and callable(request.json) else None
+        raw_payload = (
+            await request.json()
+            if request and hasattr(request, "json") and callable(request.json)
+            else None
+        )
     except Exception:
         raw_payload = None
     logger.debug(f"[UPDATE-DEBUG] Raw incoming payload: {raw_payload}")
     # Allowed fields for update (now includes 'rule_type')
     allowed_fields = {
-        "description", "diff", "categories", "tags", "examples", "applies_to", "applies_to_rationale", "user_story", "scope_level", "scope_id", "submitted_by", "reason_for_change", "references", "rule_type"
+        "description",
+        "diff",
+        "categories",
+        "tags",
+        "examples",
+        "applies_to",
+        "applies_to_rationale",
+        "user_story",
+        "scope_level",
+        "scope_id",
+        "submitted_by",
+        "reason_for_change",
+        "references",
+        "rule_type",
     }
     # Only version and id are immutable now
     immutable_fields = {"version", "id"}
@@ -310,7 +358,9 @@ async def update_rule(
                     detail=f"Unknown field '{key}' in update.",
                 )
             if key in immutable_fields:
-                logger.error(f"[UPDATE-DEBUG] Attempt to update immutable field in payload: {key}")
+                logger.error(
+                    f"[UPDATE-DEBUG] Attempt to update immutable field in payload: {key}"
+                )
                 raise HTTPException(
                     status_code=422,
                     detail=f"Field '{key}' is immutable and cannot be updated.",
@@ -360,11 +410,16 @@ async def update_rule(
         for field in update.__fields_set__:
             value = getattr(update, field)
             # Normalize list fields
-            if field in ['categories', 'tags', 'examples', 'applies_to'] and value is not None:
+            if (
+                field in ["categories", "tags", "examples", "applies_to"]
+                and value is not None
+            ):
                 value = ensure_list(value)
             setattr(rule, field, value)
-        logger.warning(f"[PIRATE-PATCH] Rule {rule_id} updated with fields: {list(update.__fields_set__)}")
-        for field in ['categories', 'tags', 'examples', 'applies_to']:
+        logger.warning(
+            f"[PIRATE-PATCH] Rule {rule_id} updated with fields: {list(update.__fields_set__)}"
+        )
+        for field in ["categories", "tags", "examples", "applies_to"]:
             if hasattr(rule, field):
                 setattr(rule, field, ensure_list(getattr(rule, field)))
         db.commit()
@@ -381,7 +436,9 @@ async def update_rule(
     except Exception as e:
         logger.error(f"[UPDATE-DEBUG] Internal server error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    logger.error(f"[UPDATE-DEBUG] Unexpected fall-through in update_rule for rule {rule_id}")
+    logger.error(
+        f"[UPDATE-DEBUG] Unexpected fall-through in update_rule for rule {rule_id}"
+    )
     raise HTTPException(status_code=500, detail="Unexpected error in update_rule")
 
 
@@ -402,7 +459,10 @@ async def promote_rule(
     logger.debug(f"[PROMOTE-DEBUG] DB query for rule_id={rule_id} returned: {rule}")
     if not rule:
         logger.error(f"[PROMOTE-DEBUG] Rule not found: {rule_id}")
-        raise HTTPException(status_code=404, detail=f"Rule not found: {rule_id}. Did you approve the proposal first?")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Rule not found: {rule_id}. Did you approve the proposal first?",
+        )
     data = await request.json()
     logger.debug(f"[PROMOTE-DEBUG] Incoming request data: {data}")
     scope_level = data.get("scope_level") or data.get("target_scope")
@@ -411,7 +471,9 @@ async def promote_rule(
     project = data.get("project")
     if not scope_level:
         logger.error(f"[PROMOTE-DEBUG] scope_level missing for rule {rule_id}")
-        raise HTTPException(status_code=400, detail="scope_level (or target_scope) is required")
+        raise HTTPException(
+            status_code=400, detail="scope_level (or target_scope) is required"
+        )
     logger.debug(f"[PROMOTE-DEBUG] scope_level validated: {scope_level}")
     levels = ["project", "team", "global"]
     current_idx = levels.index(rule.scope_level) if rule.scope_level in levels else -1
@@ -421,27 +483,50 @@ async def promote_rule(
         raise HTTPException(status_code=400, detail="Invalid scope_level")
     logger.debug(f"[PROMOTE-DEBUG] target_idx={target_idx}, current_idx={current_idx}")
     if target_idx <= current_idx:
-        logger.error(f"[PROMOTE-DEBUG] Cannot promote to same or lower scope: {scope_level}")
-        raise HTTPException(status_code=400, detail="Can only promote to a higher scope")
+        logger.error(
+            f"[PROMOTE-DEBUG] Cannot promote to same or lower scope: {scope_level}"
+        )
+        raise HTTPException(
+            status_code=400, detail="Can only promote to a higher scope"
+        )
     # Team scope promotion: resolve team name to scope_id
     if scope_level == "team":
         if project and not team and not scope_id:
-            logger.error(f"[PROMOTE-DEBUG] project provided instead of team for team scope promotion")
-            raise HTTPException(status_code=422, detail="team is required for team scope promotion; got project instead")
+            logger.error(
+                f"[PROMOTE-DEBUG] project provided instead of team for team scope promotion"
+            )
+            raise HTTPException(
+                status_code=422,
+                detail="team is required for team scope promotion; got project instead",
+            )
         if not scope_id:
             if team:
                 try:
                     scope_id = resolve_team_id(db, team)
                 except Exception as e:
-                    logger.error(f"[PROMOTE-DEBUG] Could not resolve team '{team}' to UUID: {e}")
-                    raise HTTPException(status_code=422, detail=f"Could not resolve team '{team}' to UUID.")
+                    logger.error(
+                        f"[PROMOTE-DEBUG] Could not resolve team '{team}' to UUID: {e}"
+                    )
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Could not resolve team '{team}' to UUID.",
+                    )
             else:
-                logger.error(f"[PROMOTE-DEBUG] team is required for team scope promotion")
-                raise HTTPException(status_code=422, detail="team is required for team scope promotion")
+                logger.error(
+                    f"[PROMOTE-DEBUG] team is required for team scope promotion"
+                )
+                raise HTTPException(
+                    status_code=422, detail="team is required for team scope promotion"
+                )
     # Global scope: must not have scope_id, team, or project
     if scope_level == "global" and (scope_id or team or project):
-        logger.error(f"[PROMOTE-DEBUG] scope_id, team, or project must not be set for global scope promotion")
-        raise HTTPException(status_code=400, detail="scope_id, team, or project must not be set for global scope")
+        logger.error(
+            f"[PROMOTE-DEBUG] scope_id, team, or project must not be set for global scope promotion"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="scope_id, team, or project must not be set for global scope",
+        )
     logger.debug(f"[PROMOTE-DEBUG] All checks passed for rule {rule_id}")
     # All checks passed, perform promotion
     try:
@@ -481,12 +566,16 @@ async def promote_rule(
             data["timestamp"] = data["timestamp"].isoformat()
         # Always return status as 'promoted' after promotion
         data["status"] = "promoted"
-        logger.info(f"[PROMOTE-DEBUG] Promotion successful for rule {rule_id} to {scope_level}/{scope_id}")
+        logger.info(
+            f"[PROMOTE-DEBUG] Promotion successful for rule {rule_id} to {scope_level}/{scope_id}"
+        )
         return data
     except Exception as e:
         logger.error(f"[PROMOTE-DEBUG] Internal server error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-    logger.error(f"[PROMOTE-DEBUG] Unexpected fall-through in promote_rule for rule {rule_id}")
+    logger.error(
+        f"[PROMOTE-DEBUG] Unexpected fall-through in promote_rule for rule {rule_id}"
+    )
     raise HTTPException(status_code=500, detail="Unexpected error in promote_rule")
 
 
@@ -507,6 +596,7 @@ def rules_mdc(
     mdc = "\n\n".join(r.diff for r in rules if r.diff)
     return Response(content=mdc, media_type="text/markdown")
 
+
 # Add 'superseded_by' to Rule model if not present
-if not hasattr(Rule, 'superseded_by'):
+if not hasattr(Rule, "superseded_by"):
     Rule.superseded_by = Column(String, nullable=True)

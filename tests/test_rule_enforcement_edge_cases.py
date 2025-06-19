@@ -189,7 +189,9 @@ Testing promotion edge cases.""",
     response = client.post(
         f"/rules/{rule_id}/promote", json=missing_scope_id, headers=admin_headers
     )
-    assert response.status_code == 400  # API returns 400 for missing/invalid scope_id (business logic)
+    assert (
+        response.status_code == 400
+    )  # API returns 400 for missing/invalid scope_id (business logic)
 
     # Test promotion of non-existent rule
     response = client.post(
@@ -197,7 +199,9 @@ Testing promotion edge cases.""",
         json={"scope_level": "team", "scope_id": "team-1"},
         headers=admin_headers,
     )
-    assert response.status_code == 422  # API returns 422 for invalid UUID; use a valid UUID for 404 test
+    assert (
+        response.status_code == 422
+    )  # API returns 422 for invalid UUID; use a valid UUID for 404 test
 
 
 def test_rule_versioning_edge_cases(admin_headers, override_get_db):
@@ -241,7 +245,9 @@ Testing versioning edge cases.""",
 
     # Test history for non-existent rule
     response = client.get("/rules/nonexistent-id/history", headers=admin_headers)
-    assert response.status_code == 422  # API returns 422 for invalid UUID/nonexistent rule
+    assert (
+        response.status_code == 422
+    )  # API returns 422 for invalid UUID/nonexistent rule
 
     # Test update with invalid rule_id
     invalid_update = {
@@ -384,7 +390,9 @@ def test_rule_enforcement_edge_cases(admin_headers, override_get_db):
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=valid_scope, headers=admin_headers
     )
-    assert promote_response.status_code == 400  # API returns 400 for invalid promotion (business logic)
+    assert (
+        promote_response.status_code == 400
+    )  # API returns 400 for invalid promotion (business logic)
 
     # Test promotion with invalid scope level
     invalid_scope = {"scope_level": "invalid_scope", "scope_id": "team-1"}
@@ -398,7 +406,9 @@ def test_rule_enforcement_edge_cases(admin_headers, override_get_db):
     promote_response = client.post(
         f"/rules/{rule_id}/promote", json=missing_scope_id, headers=admin_headers
     )
-    assert promote_response.status_code == 400  # API returns 400 for missing/invalid scope_id (business logic)
+    assert (
+        promote_response.status_code == 400
+    )  # API returns 400 for missing/invalid scope_id (business logic)
 
     # Test promotion of non-existent rule
     promote_response = client.post(
@@ -406,13 +416,17 @@ def test_rule_enforcement_edge_cases(admin_headers, override_get_db):
         json={"scope_level": "team", "scope_id": "team-1"},
         headers=admin_headers,
     )
-    assert promote_response.status_code == 422  # API returns 422 for invalid UUID; use a valid UUID for 404 test
+    assert (
+        promote_response.status_code == 422
+    )  # API returns 422 for invalid UUID; use a valid UUID for 404 test
 
     # Test history for non-existent rule
     history_response = client.get(
         "/rules/nonexistent-id/history", headers=admin_headers
     )
-    assert history_response.status_code == 422  # API returns 422 for invalid UUID/nonexistent rule
+    assert (
+        history_response.status_code == 422
+    )  # API returns 422 for invalid UUID/nonexistent rule
 
     # Test update with invalid rule_id
     invalid_update = {

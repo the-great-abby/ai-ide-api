@@ -99,7 +99,10 @@ class MemoryNodeSearchOut(MemoryNodeOut):
 
 
 # Helper to generate embedding using Ollama
-OLLAMA_EMBEDDING_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000") + "/embed-text"
+OLLAMA_EMBEDDING_URL = (
+    os.environ.get("OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000")
+    + "/embed-text"
+)
 OLLAMA_EMBEDDING_MODEL = "nomic-embed-text:latest"
 
 
@@ -118,8 +121,11 @@ def get_embedding_ollama(text: str) -> List[float]:
 
 
 # Helper to call the Ollama LLM for text generation (not just embeddings)
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434/api/generate")
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_URL", "http://host.docker.internal:11434/api/generate"
+)
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
+
 
 def call_ollama_llm(prompt: str) -> str:
     """
@@ -127,7 +133,12 @@ def call_ollama_llm(prompt: str) -> str:
     Handles streaming JSON responses.
     """
     try:
-        response = requests.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt}, timeout=120, stream=True)
+        response = requests.post(
+            OLLAMA_URL,
+            json={"model": OLLAMA_MODEL, "prompt": prompt},
+            timeout=120,
+            stream=True,
+        )
         response.raise_for_status()
         answer = ""
         for line in response.iter_lines():
@@ -228,22 +239,35 @@ def check_llm_access(token: ApiAccessToken, db: Session = Depends(get_db)):
     )
 
 
-def create_namespace_permission(permission: NamespacePermissionCreate, db: Session = Depends(get_db)):
+def create_namespace_permission(
+    permission: NamespacePermissionCreate, db: Session = Depends(get_db)
+):
     # Resolve project_id and allowed_project_id
     try:
         uuid.UUID(permission.project_id)
         resolved_project_id = resolve_project_id(db, permission.project_id)
     except Exception:
-        resolved_project_id = resolve_project_id(db, permission.project_id, **project_defaults_from_name(permission.project_id))
+        resolved_project_id = resolve_project_id(
+            db,
+            permission.project_id,
+            **project_defaults_from_name(permission.project_id),
+        )
     resolved_allowed_project_id = None
     if permission.allowed_project_id:
         try:
             uuid.UUID(permission.allowed_project_id)
-            resolved_allowed_project_id = resolve_project_id(db, permission.allowed_project_id)
+            resolved_allowed_project_id = resolve_project_id(
+                db, permission.allowed_project_id
+            )
         except Exception:
-            resolved_allowed_project_id = resolve_project_id(db, permission.allowed_project_id, **project_defaults_from_name(permission.allowed_project_id))
+            resolved_allowed_project_id = resolve_project_id(
+                db,
+                permission.allowed_project_id,
+                **project_defaults_from_name(permission.allowed_project_id),
+            )
     # Use resolved_project_id and resolved_allowed_project_id for DB operations
     # ... existing logic ...
+
 
 # For each endpoint that returns a SQLAlchemy object or dict, apply serialize_uuids before returning.
 # Example for a single object:
@@ -256,6 +280,7 @@ def create_namespace_permission(permission: NamespacePermissionCreate, db: Sessi
 # return [serialize_uuids(obj.__dict__.copy()) for obj in objects]
 
 # You should apply this to all endpoints returning MemoryNodeOut, MemoryEdgeOut, NamespacePermissionOut, or any dict/SQLAlchemy object.
+
 
 def vector_search_memory_nodes(embedding, namespace=None, limit=5):
     """

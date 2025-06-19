@@ -224,7 +224,7 @@ def test_review_code_files_endpoint(client, admin_headers, override_get_db):
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, dict)
-        assert "test.py" in data or any(k.endswith('.py') for k in data.keys())
+        assert "test.py" in data or any(k.endswith(".py") for k in data.keys())
         suggestions = data.get("test.py", [])
         assert isinstance(suggestions, list)
     finally:
@@ -708,7 +708,9 @@ def test_patch_onboarding_progress(client, admin_headers, override_get_db):
     assert data.get("status") == "completed"
 
 
-@pytest.mark.skip(reason="LLM worker not running in test environment; endpoint returns 502.")
+@pytest.mark.skip(
+    reason="LLM worker not running in test environment; endpoint returns 502."
+)
 def test_review_code_files_llm_endpoint(client, admin_headers, override_get_db):
     pass
 
@@ -731,13 +733,17 @@ def test_rule_promotion_endpoint(
         },
         headers=admin_headers,
     )
-    print(f"[DEBUG] Proposal creation response: {prop_response.status_code} {prop_response.json()}")
+    print(
+        f"[DEBUG] Proposal creation response: {prop_response.status_code} {prop_response.json()}"
+    )
     assert prop_response.status_code == 200
     proposal_id = prop_response.json()["id"]
 
     # List proposals to check if it exists
     proposals_list_response = client.get("/proposals", headers=admin_headers)
-    print(f"[DEBUG] Proposals list response: {proposals_list_response.status_code} {proposals_list_response.json()}")
+    print(
+        f"[DEBUG] Proposals list response: {proposals_list_response.status_code} {proposals_list_response.json()}"
+    )
     assert proposals_list_response.status_code == 200
     proposal_ids = [p["id"] for p in proposals_list_response.json()]
     print(f"[DEBUG] Proposal ID in list: {proposal_id in proposal_ids}")
@@ -747,7 +753,9 @@ def test_rule_promotion_endpoint(
         f"/proposals/{proposal_id}/approve",
         headers=admin_headers,
     )
-    print(f"[DEBUG] Approve response: {approve_response.status_code} {approve_response.text}")
+    print(
+        f"[DEBUG] Approve response: {approve_response.status_code} {approve_response.text}"
+    )
     assert approve_response.status_code == 200
     rule_id = approve_response.json().get("rule_id", proposal_id)
 
@@ -763,7 +771,9 @@ def test_rule_promotion_endpoint(
         json={"target_scope": "team", "team": "test-team"},
         headers=admin_headers,
     )
-    print(f"[DEBUG] Promote response: {promote_response.status_code} {promote_response.text}")
+    print(
+        f"[DEBUG] Promote response: {promote_response.status_code} {promote_response.text}"
+    )
     assert promote_response.status_code == 200
     promote_data = promote_response.json()
     assert promote_data["status"] == "promoted"
@@ -825,18 +835,22 @@ def test_rule_patch_endpoint(client, admin_headers, override_get_db):
             "scope_level": "project",
             "project": "test-project",
             "examples": ["Example 1"],
-            "applies_to": ["python"]
+            "applies_to": ["python"],
         },
         headers=admin_headers,
     )
-    print(f"[DEBUG] Proposal creation response: {prop_response.status_code} {prop_response.json()}")
+    print(
+        f"[DEBUG] Proposal creation response: {prop_response.status_code} {prop_response.json()}"
+    )
     assert prop_response.status_code == 200
     proposal = prop_response.json()
     proposal_id = proposal["id"]
 
     # List proposals to check if it exists
     proposals_list_response = client.get("/proposals", headers=admin_headers)
-    print(f"[DEBUG] Proposals list response: {proposals_list_response.status_code} {proposals_list_response.json()}")
+    print(
+        f"[DEBUG] Proposals list response: {proposals_list_response.status_code} {proposals_list_response.json()}"
+    )
     assert proposals_list_response.status_code == 200
     proposal_ids = [p["id"] for p in proposals_list_response.json()]
     print(f"[DEBUG] Proposal ID in list: {proposal_id in proposal_ids}")
@@ -846,7 +860,9 @@ def test_rule_patch_endpoint(client, admin_headers, override_get_db):
         f"/proposals/{proposal_id}/approve",
         headers=admin_headers,
     )
-    print(f"[DEBUG] Approve response: {approve_response.status_code} {approve_response.text}")
+    print(
+        f"[DEBUG] Approve response: {approve_response.status_code} {approve_response.text}"
+    )
     assert approve_response.status_code == 200
     rule_id = approve_response.json().get("rule_id", proposal_id)
 
@@ -856,7 +872,9 @@ def test_rule_patch_endpoint(client, admin_headers, override_get_db):
         json={"description": "Updated description."},
         headers=admin_headers,
     )
-    print(f"[DEBUG] Patch response: {update_response.status_code} {update_response.text}")
+    print(
+        f"[DEBUG] Patch response: {update_response.status_code} {update_response.text}"
+    )
     assert update_response.status_code == 200
     updated_rule = update_response.json()
     assert updated_rule["description"] == "Updated description."

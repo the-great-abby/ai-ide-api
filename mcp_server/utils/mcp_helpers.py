@@ -13,6 +13,7 @@ Future Implementations:
 
 from typing import Dict, Any, List, Optional
 
+
 def format_mcp_response(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Placeholder for MCP response formatting.
@@ -21,10 +22,11 @@ def format_mcp_response(data: Dict[str, Any]) -> Dict[str, Any]:
     # TODO: Implement when MCP integration begins
     return data
 
+
 def prepare_vector_store_switch(provider: str) -> Dict[str, Any]:
     """
     Placeholder for vector store switching logic.
     Will handle the transition between different embedding providers.
     """
     # TODO: Implement when adding Claude embeddings support
-    return {"status": "not_implemented", "provider": provider} 
+    return {"status": "not_implemented", "provider": provider}

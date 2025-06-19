@@ -9,6 +9,7 @@ from db import Base, resolve_project_id, resolve_team_id
 
 # ARR! All IDs and foreign keys be sa.String() for maximum compatibility. No UUID columns! See ONBOARDING_INTERNAL.md and rules/db_types.mdc for the tale.
 
+
 class RuleProposalFeedback(Base):
     __tablename__ = "rule_proposal_feedback"
 

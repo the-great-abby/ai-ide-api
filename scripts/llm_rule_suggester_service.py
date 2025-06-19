@@ -12,6 +12,7 @@ app = FastAPI()
 
 # Helper for Docker/host detection
 
+
 def get_default_url(port, path):
     if os.environ.get("RUNNING_IN_DOCKER") == "1":
         host = "host.docker.internal"
@@ -19,24 +20,27 @@ def get_default_url(port, path):
         host = "localhost"
     return f"http://{host}:{port}{path}"
 
-OLLAMA_URL = os.environ.get(
-    "OLLAMA_URL",
-    get_default_url(11434, "/api/generate")
-)
+
+OLLAMA_URL = os.environ.get("OLLAMA_URL", get_default_url(11434, "/api/generate"))
 MODEL = os.environ.get("OLLAMA_MODEL", "llama3")
+
 
 class SuggestRequest(BaseModel):
     target: str = "."
     dry_run: Optional[bool] = False
 
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
 
+
 def run_static_checker(target="."):
-    result = subprocess.run([
-        sys.executable, "scripts/suggest_rules.py", target
-    ], capture_output=True, text=True)
+    result = subprocess.run(
+        [sys.executable, "scripts/suggest_rules.py", target],
+        capture_output=True,
+        text=True,
+    )
     if result.returncode != 0:
         raise RuntimeError(f"suggest_rules.py failed: {result.stderr}")
     try:
@@ -44,6 +48,7 @@ def run_static_checker(target="."):
     except Exception as e:
         raise RuntimeError(f"Failed to parse suggest_rules.py output as JSON: {e}")
     return suggestions
+
 
 def build_llm_prompt(suggestions):
     prompt = (
@@ -59,23 +64,23 @@ def build_llm_prompt(suggestions):
     )
     return prompt
 
+
 def call_ollama(chunk, prompt=None):
     if prompt is not None:
         full_prompt = f"{prompt}\n\n{chunk}"
     else:
         full_prompt = chunk
-    payload = {
-        "model": MODEL,
-        "prompt": full_prompt,
-        "stream": False
-    }
-    print(f"[DEBUG] Sending to Ollama: {OLLAMA_URL} with payload: {json.dumps(payload)[:200]}...")
+    payload = {"model": MODEL, "prompt": full_prompt, "stream": False}
+    print(
+        f"[DEBUG] Sending to Ollama: {OLLAMA_URL} with payload: {json.dumps(payload)[:200]}..."
+    )
     resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
     print(f"[DEBUG] Ollama response status: {resp.status_code}")
     print(f"[DEBUG] Ollama response text: {resp.text[:500]}")
     resp.raise_for_status()
     data = resp.json()
     return data.get("response", "")
+
 
 def parse_llm_output(llm_output):
     # Try to parse as JSON first
@@ -86,7 +91,7 @@ def parse_llm_output(llm_output):
     # Fallback: parse markdown/text output for rule proposals
     # More robust: split on patterns like '**Rule', optional whitespace, optional number, optional colon, optional asterisks
     proposals = []
-    rule_blocks = re.split(r'\n\s*\*\*?Rule\s*\d*:?\*?\*?\s*', llm_output)
+    rule_blocks = re.split(r"\n\s*\*\*?Rule\s*\d*:?\*?\*?\s*", llm_output)
     for block in rule_blocks[1:]:
         lines = block.strip().splitlines()
         # The first line may be the rule title or description
@@ -99,8 +104,11 @@ def parse_llm_output(llm_output):
                 break
             elif not desc and line.strip():
                 desc = line.strip()
-        proposals.append({"rule_type": title, "description": desc, "raw_block": block.strip()})
+        proposals.append(
+            {"rule_type": title, "description": desc, "raw_block": block.strip()}
+        )
     return proposals
+
 
 @app.post("/suggest-llm-rules")
 def suggest_llm_rules(req: SuggestRequest):
@@ -114,9 +122,13 @@ def suggest_llm_rules(req: SuggestRequest):
             proposals = parse_llm_output(llm_output)
             return {"proposals": proposals}
         except Exception as e:
-            return {"error": f"Failed to parse LLM output: {e}", "raw_output": llm_output}
+            return {
+                "error": f"Failed to parse LLM output: {e}",
+                "raw_output": llm_output,
+            }
     except Exception as e:
         return {"error": str(e)}
+
 
 @app.post("/review-code-file")
 async def review_code_file(file: UploadFile = File(...)):
@@ -141,7 +153,8 @@ async def review_code_file(file: UploadFile = File(...)):
             feedback = [llm_output.strip()]
     except Exception as e:
         feedback = [f"[ERROR] LLM call failed: {e}"]
-    return feedback 
+    return feedback
+
 
 def chunk_text(text, max_tokens=2000):
     lines = text.splitlines()
@@ -159,6 +172,7 @@ def chunk_text(text, max_tokens=2000):
         chunks.append("\n".join(chunk))
     return chunks
 
+
 VERBOSE_PROMPT = (
     "Provide a detailed, technical summary of the following git diff. "
     "List all changed files, describe the nature of the changes, highlight any new features, "
@@ -169,10 +183,10 @@ CONCISE_PROMPT = (
     "Summarize the following git diff. List changed files and main changes."
 )
 
+
 @app.post("/summarize-git-diff")
 def summarize_git_diff(
-    diff: str = Body(..., embed=True),
-    concise: bool = Body(False, embed=True)
+    diff: str = Body(..., embed=True), concise: bool = Body(False, embed=True)
 ):
     prompt = CONCISE_PROMPT if concise else VERBOSE_PROMPT
     chunks = chunk_text(diff, max_tokens=2000)
@@ -184,12 +198,14 @@ def summarize_git_diff(
         "summaries": summaries,
         "combined": "\n\n".join(summaries),
         "chunks": len(chunks),
-        "prompt": prompt
+        "prompt": prompt,
     }
+
 
 class EmbeddingRequest(BaseModel):
     text: str
     model: Optional[str] = "nomic-embed-text:latest"
+
 
 @app.post("/embed-text")
 def embed_text(request: EmbeddingRequest):
@@ -200,28 +216,31 @@ def embed_text(request: EmbeddingRequest):
     try:
         # Call Ollama's embedding endpoint
         ollama_embedding_url = get_default_url(11434, "/api/embeddings")
-        payload = {
-            "model": request.model,
-            "prompt": request.text
-        }
-        
+        payload = {"model": request.model, "prompt": request.text}
+
         response = requests.post(ollama_embedding_url, json=payload, timeout=30)
         response.raise_for_status()
-        
+
         result = response.json()
         return {
             "embedding": result.get("embedding", []),
             "model": request.model,
-            "text_length": len(request.text)
+            "text_length": len(request.text),
         }
     except Exception as e:
         return {"error": f"Embedding generation failed: {str(e)}"}, 500
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="LLM Rule Suggester Service CLI")
-    parser.add_argument("target", nargs="?", default=".", help="Target directory or file to analyze")
-    parser.add_argument("--dry-run", action="store_true", help="Run static checker only (no LLM)")
+    parser.add_argument(
+        "target", nargs="?", default=".", help="Target directory or file to analyze"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Run static checker only (no LLM)"
+    )
     args = parser.parse_args()
     try:
         suggestions = run_static_checker(args.target)
@@ -231,5 +250,6 @@ def main():
         print(f"[ERROR] {e}")
         sys.exit(1)
 
+
 if __name__ == "__main__":
-    main() 
+    main()

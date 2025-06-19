@@ -10,7 +10,9 @@ import os
 import sys
 import subprocess
 
-ONBOARDING_PATHS_FILE = os.path.join(os.path.dirname(__file__), '../onboarding_paths.json')
+ONBOARDING_PATHS_FILE = os.path.join(
+    os.path.dirname(__file__), "../onboarding_paths.json"
+)
 
 # Load onboarding paths
 try:
@@ -29,7 +31,9 @@ for path in onboarding_paths:
 print("\nEnter the API base URL:")
 print("  - If running inside a dev container:      http://api:8000")
 print("  - If running on your host machine:        http://localhost:9103")
-print("  - If running in Docker but want to reach the host: http://host.docker.internal:9103")
+print(
+    "  - If running in Docker but want to reach the host: http://host.docker.internal:9103"
+)
 
 # Try to auto-detect environment
 api_url_default = "http://localhost:9103"
@@ -61,7 +65,12 @@ ONBOARDING_PATH = input("Onboarding path: ").strip()
 
 # Step 1: Initialize onboarding journey (create/get project and team)
 print("\nInitializing onboarding journey...")
-init_payload = {"project_name": PROJECT_NAME, "team_name": TEAM_NAME, "path": ONBOARDING_PATH, "user": USER}
+init_payload = {
+    "project_name": PROJECT_NAME,
+    "team_name": TEAM_NAME,
+    "path": ONBOARDING_PATH,
+    "user": USER,
+}
 init_resp = requests.post(f"{API_URL}/onboarding/init", json=init_payload)
 if init_resp.status_code != 200:
     print(f"Error initializing onboarding: {init_resp.status_code} {init_resp.text}")
@@ -80,7 +89,14 @@ if not project_id:
 
 # Step 2: Generate user token associated with the project
 print("\nGenerating user token...")
-token_resp = requests.post(f"{API_URL}/admin/generate-token", json={"description": f"Token for {PROJECT_NAME}", "role": "user", "project_id": project_id})
+token_resp = requests.post(
+    f"{API_URL}/admin/generate-token",
+    json={
+        "description": f"Token for {PROJECT_NAME}",
+        "role": "user",
+        "project_id": project_id,
+    },
+)
 if token_resp.status_code != 200:
     print(f"Error generating token: {token_resp.status_code} {token_resp.text}")
     exit(1)
@@ -124,25 +140,41 @@ if not admin_token and os.path.exists(".api_admin_token"):
         admin_token = f.read().strip()
 if admin_token:
     namespace_pattern = f"{PROJECT_NAME}/*"
-    print(f"\n[onboard_external] Granting write permission for namespace pattern: {namespace_pattern}")
+    print(
+        f"\n[onboard_external] Granting write permission for namespace pattern: {namespace_pattern}"
+    )
     perm_payload = {
         "namespace": namespace_pattern,
         "permission_type": "write",
-        "project_id": project_id
+        "project_id": project_id,
     }
     perm_headers = {
         "Authorization": f"Bearer {admin_token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-    perm_resp = requests.post(f"{API_URL}/memory/admin/namespace-permissions", headers=perm_headers, json=perm_payload)
+    perm_resp = requests.post(
+        f"{API_URL}/memory/admin/namespace-permissions",
+        headers=perm_headers,
+        json=perm_payload,
+    )
     if perm_resp.status_code == 200:
-        print(f"[onboard_external] Successfully granted write permission for {namespace_pattern}")
+        print(
+            f"[onboard_external] Successfully granted write permission for {namespace_pattern}"
+        )
     else:
-        print(f"[onboard_external] Failed to grant write permission: {perm_resp.status_code} {perm_resp.text}")
+        print(
+            f"[onboard_external] Failed to grant write permission: {perm_resp.status_code} {perm_resp.text}"
+        )
 else:
-    print("[onboard_external] Warning: No admin token found. Cannot grant project-wide namespace permission automatically.")
+    print(
+        "[onboard_external] Warning: No admin token found. Cannot grant project-wide namespace permission automatically."
+    )
 
 print("\nNext steps:")
-print(f"- Your API token is saved in .apitoken. Use it as 'Authorization: Bearer <token>' in requests.")
+print(
+    f"- Your API token is saved in .apitoken. Use it as 'Authorization: Bearer <token>' in requests."
+)
 print(f"- Explore the API docs at {API_URL}/docs")
-print(f"- Follow the onboarding steps for '{ONBOARDING_PATH}' in the docs or via the API.") 
+print(
+    f"- Follow the onboarding steps for '{ONBOARDING_PATH}' in the docs or via the API."
+)

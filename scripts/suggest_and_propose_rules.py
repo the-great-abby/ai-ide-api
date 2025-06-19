@@ -4,6 +4,7 @@ import json
 import requests
 import sys
 
+
 def get_default_url(port, path):
     if os.environ.get("RUNNING_IN_DOCKER") == "1":
         host = "test-api"
@@ -11,22 +12,21 @@ def get_default_url(port, path):
         host = "localhost"
     return f"http://{host}:{port}{path}"
 
-OLLAMA_URL = os.environ.get(
-    "OLLAMA_URL",
-    get_default_url(11434, "/api/generate")
-)
+
+OLLAMA_URL = os.environ.get("OLLAMA_URL", get_default_url(11434, "/api/generate"))
 RULE_API_URL = os.environ.get(
-    "RULE_API_URL",
-    get_default_url(9103, "/propose-rule-change")
+    "RULE_API_URL", get_default_url(9103, "/propose-rule-change")
 )
 MODEL = os.environ.get("OLLAMA_MODEL", "llama3")
 
 
 def run_static_checker(target="."):
     """Run scripts/suggest_rules.py and return its JSON output as a Python object."""
-    result = subprocess.run([
-        sys.executable, "scripts/suggest_rules.py", target
-    ], capture_output=True, text=True)
+    result = subprocess.run(
+        [sys.executable, "scripts/suggest_rules.py", target],
+        capture_output=True,
+        text=True,
+    )
     if result.returncode != 0:
         print("[ERROR] suggest_rules.py failed:", result.stderr)
         sys.exit(1)
@@ -50,11 +50,7 @@ def build_llm_prompt(suggestions):
 
 
 def call_ollama(prompt):
-    payload = {
-        "model": MODEL,
-        "prompt": prompt,
-        "stream": False
-    }
+    payload = {"model": MODEL, "prompt": prompt, "stream": False}
     resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
     resp.raise_for_status()
     data = resp.json()
@@ -84,10 +80,14 @@ def submit_proposals(proposals):
         try:
             resp = requests.post(RULE_API_URL, json=proposal, timeout=30)
             if resp.status_code == 200:
-                print(f"[OK] Submitted proposal: {proposal.get('rule_type', proposal.get('rule_name', 'unknown'))}")
+                print(
+                    f"[OK] Submitted proposal: {proposal.get('rule_type', proposal.get('rule_name', 'unknown'))}"
+                )
                 success += 1
             else:
-                print(f"[FAIL] Proposal submission failed: {resp.status_code} {resp.text}")
+                print(
+                    f"[FAIL] Proposal submission failed: {resp.status_code} {resp.text}"
+                )
         except Exception as e:
             print(f"[ERROR] Exception submitting proposal: {e}")
     print(f"Submitted {success}/{len(proposals)} proposals successfully.")
@@ -95,9 +95,16 @@ def submit_proposals(proposals):
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Suggest and propose rules using static checkers and Ollama.")
-    parser.add_argument("target", nargs="?", default=".", help="File or directory to scan")
-    parser.add_argument("--dry-run", action="store_true", help="Only print proposals, do not submit")
+
+    parser = argparse.ArgumentParser(
+        description="Suggest and propose rules using static checkers and Ollama."
+    )
+    parser.add_argument(
+        "target", nargs="?", default=".", help="File or directory to scan"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Only print proposals, do not submit"
+    )
     args = parser.parse_args()
 
     print("[1/4] Running static checkers...")
@@ -125,5 +132,6 @@ def main():
     print("[4/4] Submitting proposals to API...")
     submit_proposals(proposals)
 
+
 if __name__ == "__main__":
-    main() 
+    main()

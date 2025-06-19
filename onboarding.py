@@ -264,7 +264,10 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
                     path_entry = entry
                     break
         if not path_entry or "steps" not in path_entry:
-            raise HTTPException(status_code=400, detail=f"Invalid onboarding journey. Valid options are: {', '.join(valid_journeys)}.")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid onboarding journey. Valid options are: {', '.join(valid_journeys)}.",
+            )
         buddy = path_entry.get("buddy")
         # Define buddy intros (can be moved to a config file if needed)
         buddy_intros = {
@@ -355,14 +358,22 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
         }
         if journey == "test_path":
             from db import ApiAccessToken
+
             new_token = None
             # Check for existing token for (project, user, role)
             if user:
-                existing_token = db.query(ApiAccessToken).filter_by(project_id=project.id, user=user, role="admin", active=True).first()
+                existing_token = (
+                    db.query(ApiAccessToken)
+                    .filter_by(
+                        project_id=project.id, user=user, role="admin", active=True
+                    )
+                    .first()
+                )
                 if existing_token:
                     new_token = existing_token.token
             if not new_token:
                 import secrets
+
                 new_token = secrets.token_urlsafe(32)
                 db_token = ApiAccessToken(
                     token=new_token,

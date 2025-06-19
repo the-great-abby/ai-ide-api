@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'aba36a03157c'
-down_revision: Union[str, None] = 'd7f1630c88dc'
+revision: str = "aba36a03157c"
+down_revision: Union[str, None] = "d7f1630c88dc"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -47,39 +47,56 @@ def upgrade() -> None:
     # )
     # op.create_index(op.f('ix_memory_vectors_namespace'), 'memory_vectors', ['namespace'], unique=False)
     # op.create_index(op.f('ix_memory_vectors_project_id'), 'memory_vectors', ['project_id'], unique=False)
-    op.create_table('proposals',
-    sa.Column('id', sa.String(), nullable=False),
-    sa.Column('rule_id', sa.String(), nullable=True),
-    sa.Column('rule_type', sa.String(), nullable=True),
-    sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('diff', sa.Text(), nullable=True),
-    sa.Column('status', sa.String(), nullable=True),
-    sa.Column('submitted_by', sa.String(), nullable=True),
-    sa.Column('project', sa.UUID(), nullable=True),
-    sa.Column('timestamp', sa.DateTime(), nullable=True),
-    sa.Column('version', sa.Integer(), nullable=True),
-    sa.Column('categories', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('tags', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('examples', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('applies_to', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('applies_to_rationale', sa.Text(), nullable=True),
-    sa.Column('reason_for_change', sa.Text(), nullable=True),
-    sa.Column('references', sa.Text(), nullable=True),
-    sa.Column('current_rule', sa.Text(), nullable=True),
-    sa.Column('user_story', sa.Text(), nullable=True),
-    sa.Column('scope_level', sa.String(), nullable=False),
-    sa.Column('scope_id', sa.String(), nullable=True),
-    sa.Column('parent_rule_id', sa.String(), nullable=True),
-    sa.ForeignKeyConstraint(['parent_rule_id'], ['rules.id'], ),
-    sa.ForeignKeyConstraint(['rule_id'], ['rules.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    op.create_table(
+        "proposals",
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("rule_id", sa.String(), nullable=True),
+        sa.Column("rule_type", sa.String(), nullable=True),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("diff", sa.Text(), nullable=True),
+        sa.Column("status", sa.String(), nullable=True),
+        sa.Column("submitted_by", sa.String(), nullable=True),
+        sa.Column("project", sa.UUID(), nullable=True),
+        sa.Column("timestamp", sa.DateTime(), nullable=True),
+        sa.Column("version", sa.Integer(), nullable=True),
+        sa.Column("categories", postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column("tags", postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column("examples", postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column("applies_to", postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column("applies_to_rationale", sa.Text(), nullable=True),
+        sa.Column("reason_for_change", sa.Text(), nullable=True),
+        sa.Column("references", sa.Text(), nullable=True),
+        sa.Column("current_rule", sa.Text(), nullable=True),
+        sa.Column("user_story", sa.Text(), nullable=True),
+        sa.Column("scope_level", sa.String(), nullable=False),
+        sa.Column("scope_id", sa.String(), nullable=True),
+        sa.Column("parent_rule_id", sa.String(), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["parent_rule_id"],
+            ["rules.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["rule_id"],
+            ["rules.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f('ix_proposals_id'), 'proposals', ['id'], unique=False)
-    op.create_index(op.f('ix_proposals_project'), 'proposals', ['project'], unique=False)
-    op.create_index(op.f('ix_proposals_rule_type'), 'proposals', ['rule_type'], unique=False)
-    op.create_index(op.f('ix_proposals_scope_id'), 'proposals', ['scope_id'], unique=False)
-    op.create_index(op.f('ix_proposals_scope_level'), 'proposals', ['scope_level'], unique=False)
-    op.create_index(op.f('ix_proposals_submitted_by'), 'proposals', ['submitted_by'], unique=False)
+    op.create_index(op.f("ix_proposals_id"), "proposals", ["id"], unique=False)
+    op.create_index(
+        op.f("ix_proposals_project"), "proposals", ["project"], unique=False
+    )
+    op.create_index(
+        op.f("ix_proposals_rule_type"), "proposals", ["rule_type"], unique=False
+    )
+    op.create_index(
+        op.f("ix_proposals_scope_id"), "proposals", ["scope_id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_proposals_scope_level"), "proposals", ["scope_level"], unique=False
+    )
+    op.create_index(
+        op.f("ix_proposals_submitted_by"), "proposals", ["submitted_by"], unique=False
+    )
     # op.drop_table('test_table')
     # op.alter_column('rule_versions', 'project',
     #            existing_type=sa.VARCHAR(),
@@ -89,7 +106,7 @@ def upgrade() -> None:
     #            existing_type=sa.VARCHAR(),
     #            type_=sa.UUID(),
     #            existing_nullable=True)
-     # ### end Alembic commands ###
+    # ### end Alembic commands ###
 
 
 def downgrade() -> None:
@@ -104,13 +121,13 @@ def downgrade() -> None:
     #            type_=sa.VARCHAR(),
     #            existing_nullable=True)
     # op.drop_table('test_table')
-    op.drop_index(op.f('ix_proposals_submitted_by'), table_name='proposals')
-    op.drop_index(op.f('ix_proposals_scope_level'), table_name='proposals')
-    op.drop_index(op.f('ix_proposals_scope_id'), table_name='proposals')
-    op.drop_index(op.f('ix_proposals_rule_type'), table_name='proposals')
-    op.drop_index(op.f('ix_proposals_project'), table_name='proposals')
-    op.drop_index(op.f('ix_proposals_id'), table_name='proposals')
-    op.drop_table('proposals')
+    op.drop_index(op.f("ix_proposals_submitted_by"), table_name="proposals")
+    op.drop_index(op.f("ix_proposals_scope_level"), table_name="proposals")
+    op.drop_index(op.f("ix_proposals_scope_id"), table_name="proposals")
+    op.drop_index(op.f("ix_proposals_rule_type"), table_name="proposals")
+    op.drop_index(op.f("ix_proposals_project"), table_name="proposals")
+    op.drop_index(op.f("ix_proposals_id"), table_name="proposals")
+    op.drop_table("proposals")
     # op.drop_index(op.f('ix_memory_vectors_project_id'), table_name='memory_vectors')
     # op.drop_index(op.f('ix_memory_vectors_namespace'), table_name='memory_vectors')
     # op.drop_table('memory_vectors')

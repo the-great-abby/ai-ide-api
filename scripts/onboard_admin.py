@@ -13,7 +13,9 @@ import string
 apitoken_path = os.path.join("/code", ".apitoken")
 if os.path.exists(apitoken_path):
     if os.path.isdir(apitoken_path):
-        print(f"[onboarding_admin] Warning: {apitoken_path} is a directory. Removing it for a clean start.")
+        print(
+            f"[onboarding_admin] Warning: {apitoken_path} is a directory. Removing it for a clean start."
+        )
         shutil.rmtree(apitoken_path)
 
 # Prompt for API URL if not set in environment
@@ -35,33 +37,50 @@ USER = input("Enter user identifier (email or username): ").strip()
 print("Enter onboarding path (e.g., internal_dev, external_project, ai_agent):")
 ONBOARDING_PATH = input("Onboarding path: ").strip()
 
+
 # Step 1: Initialize onboarding journey (create/get project and team)
 def initialize_onboarding(project_name, team_name, onboarding_path, user):
-    print(f"\n[onboarding_admin] Initializing onboarding journey for project '{project_name}', team '{team_name}', user '{user}'...")
-    init_payload = {"project_name": project_name, "team_name": team_name, "path": onboarding_path, "user": user}
+    print(
+        f"\n[onboarding_admin] Initializing onboarding journey for project '{project_name}', team '{team_name}', user '{user}'..."
+    )
+    init_payload = {
+        "project_name": project_name,
+        "team_name": team_name,
+        "path": onboarding_path,
+        "user": user,
+    }
     init_resp = requests.post(f"{API_URL}/onboarding/init", json=init_payload)
     if init_resp.status_code != 200:
-        print(f"Error initializing onboarding: {init_resp.status_code} {init_resp.text}")
+        print(
+            f"Error initializing onboarding: {init_resp.status_code} {init_resp.text}"
+        )
         return None
     init_json = init_resp.json()
     print("Onboarding initialized successfully!")
     print(f"Response: {init_json}")
     return init_json
 
+
 init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER)
 if not init_json:
     # Interactive recovery mode
     print("\n[onboarding_admin] Onboarding initialization failed.")
     while True:
-        choice = input("Would you like to try a new project/team name? (y/n): ").strip().lower()
-        if choice == 'y':
+        choice = (
+            input("Would you like to try a new project/team name? (y/n): ")
+            .strip()
+            .lower()
+        )
+        if choice == "y":
             PROJECT_NAME = suggest_new_name(PROJECT_NAME)
             TEAM_NAME = suggest_new_name(TEAM_NAME)
             print(f"Trying with project: {PROJECT_NAME}, team: {TEAM_NAME}")
-            init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER)
+            init_json = initialize_onboarding(
+                PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER
+            )
             if init_json:
                 break
-        elif choice == 'n':
+        elif choice == "n":
             print("Exiting onboarding script.")
             exit(1)
         else:
@@ -71,20 +90,30 @@ if not init_json.get("project_id"):
     exit(1)
 project_id = init_json.get("project_id")
 
+
 # Step 2: Generate user token associated with the project
 def generate_user_token():
     print("\n[onboarding_admin] Generating user token...")
-    token_resp = requests.post(f"{API_URL}/admin/generate-token", json={
-        "description": f"Token for {PROJECT_NAME}", 
-        "role": "user", 
-        "project_id": project_id,
-        "user": USER
-    })
+    token_resp = requests.post(
+        f"{API_URL}/admin/generate-token",
+        json={
+            "description": f"Token for {PROJECT_NAME}",
+            "role": "user",
+            "project_id": project_id,
+            "user": USER,
+        },
+    )
     if token_resp.status_code != 200:
-        print(f"Error generating user token: {token_resp.status_code} {token_resp.text}")
+        print(
+            f"Error generating user token: {token_resp.status_code} {token_resp.text}"
+        )
         if token_resp.status_code == 401:
-            print("\n[onboarding_admin] It looks like a user token for this project already exists and an admin token is now required to generate new tokens.")
-            print("Attempting to load previously saved user token from /code/.apitoken or /code/.api_info_capture...")
+            print(
+                "\n[onboarding_admin] It looks like a user token for this project already exists and an admin token is now required to generate new tokens."
+            )
+            print(
+                "Attempting to load previously saved user token from /code/.apitoken or /code/.api_info_capture..."
+            )
             user_token = None
             # Try to load from /code/.apitoken
             if os.path.exists(apitoken_path) and os.path.isfile(apitoken_path):
@@ -100,19 +129,27 @@ def generate_user_token():
                 except Exception:
                     pass
             if not user_token:
-                print("[onboarding_admin] Could not find a previously saved user token.\nRecovery options:")
+                print(
+                    "[onboarding_admin] Could not find a previously saved user token.\nRecovery options:"
+                )
                 print("  1. Try a new project/team name (recommended)")
                 print("  2. Exit and reset the DB/onboarding state")
                 while True:
-                    choice = input("Would you like to try a new project/team name? (y/n): ").strip().lower()
-                    if choice == 'y':
-                        return 'retry'
-                    elif choice == 'n':
+                    choice = (
+                        input("Would you like to try a new project/team name? (y/n): ")
+                        .strip()
+                        .lower()
+                    )
+                    if choice == "y":
+                        return "retry"
+                    elif choice == "n":
                         print("Exiting onboarding script.")
                         exit(1)
                     else:
                         print("Please enter 'y' or 'n'.")
-            print(f"[onboarding_admin] Loaded user token: {user_token[:6]}... Proceeding to generate admin token.")
+            print(
+                f"[onboarding_admin] Loaded user token: {user_token[:6]}... Proceeding to generate admin token."
+            )
             return user_token
         else:
             exit(1)
@@ -122,13 +159,16 @@ def generate_user_token():
             f.write(user_token)
         return user_token
 
+
 while True:
     user_token = generate_user_token()
-    if user_token == 'retry':
+    if user_token == "retry":
         PROJECT_NAME = suggest_new_name(PROJECT_NAME)
         TEAM_NAME = suggest_new_name(TEAM_NAME)
         print(f"Trying with project: {PROJECT_NAME}, team: {TEAM_NAME}")
-        init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER)
+        init_json = initialize_onboarding(
+            PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER
+        )
         if not init_json:
             continue
         project_id = init_json.get("project_id")
@@ -142,39 +182,50 @@ admin_token_payload = {
     "description": "Admin token for LLM access",
     "role": "admin",
     "project_id": project_id,
-    "user": USER
+    "user": USER,
 }
-headers = {
-    "Authorization": f"Bearer {user_token}",
-    "Content-Type": "application/json"
-}
-admin_token_resp = requests.post(f"{API_URL}/admin/generate-token", headers=headers, json=admin_token_payload)
+headers = {"Authorization": f"Bearer {user_token}", "Content-Type": "application/json"}
+admin_token_resp = requests.post(
+    f"{API_URL}/admin/generate-token", headers=headers, json=admin_token_payload
+)
 if admin_token_resp.status_code != 200:
-    print(f"Error generating admin token: {admin_token_resp.status_code} {admin_token_resp.text}")
+    print(
+        f"Error generating admin token: {admin_token_resp.status_code} {admin_token_resp.text}"
+    )
     print("[onboarding_admin] Recovery options:")
     print("  1. Try a new project/team name (recommended)")
     print("  2. Exit and reset the DB/onboarding state")
     while True:
-        choice = input("Would you like to try a new project/team name? (y/n): ").strip().lower()
-        if choice == 'y':
+        choice = (
+            input("Would you like to try a new project/team name? (y/n): ")
+            .strip()
+            .lower()
+        )
+        if choice == "y":
             PROJECT_NAME = suggest_new_name(PROJECT_NAME)
             TEAM_NAME = suggest_new_name(TEAM_NAME)
             print(f"Trying with project: {PROJECT_NAME}, team: {TEAM_NAME}")
-            init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER)
+            init_json = initialize_onboarding(
+                PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER
+            )
             if not init_json:
                 continue
             project_id = init_json.get("project_id")
             user_token = generate_user_token()
-            if user_token == 'retry':
+            if user_token == "retry":
                 continue
             headers = {
                 "Authorization": f"Bearer {user_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
-            admin_token_resp = requests.post(f"{API_URL}/admin/generate-token", headers=headers, json=admin_token_payload)
+            admin_token_resp = requests.post(
+                f"{API_URL}/admin/generate-token",
+                headers=headers,
+                json=admin_token_payload,
+            )
             if admin_token_resp.status_code == 200:
                 break
-        elif choice == 'n':
+        elif choice == "n":
             print("Exiting onboarding script.")
             exit(1)
         else:
@@ -189,21 +240,31 @@ with open(os.path.join("/code", ".api_admin_token"), "w") as f:
 
 # Step 4: Grant project write permission for project_name/* namespace
 namespace_pattern = f"{PROJECT_NAME}/*"
-print(f"\n[onboarding_admin] Granting write permission for namespace pattern: {namespace_pattern}")
+print(
+    f"\n[onboarding_admin] Granting write permission for namespace pattern: {namespace_pattern}"
+)
 perm_payload = {
     "namespace": namespace_pattern,
     "permission_type": "write",
-    "project_id": project_id
+    "project_id": project_id,
 }
 perm_headers = {
     "Authorization": f"Bearer {admin_token}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
 }
-perm_resp = requests.post(f"{API_URL}/memory/admin/namespace-permissions", headers=perm_headers, json=perm_payload)
+perm_resp = requests.post(
+    f"{API_URL}/memory/admin/namespace-permissions",
+    headers=perm_headers,
+    json=perm_payload,
+)
 if perm_resp.status_code == 200:
-    print(f"[onboarding_admin] Successfully granted write permission for {namespace_pattern}")
+    print(
+        f"[onboarding_admin] Successfully granted write permission for {namespace_pattern}"
+    )
 else:
-    print(f"[onboarding_admin] Failed to grant write permission: {perm_resp.status_code} {perm_resp.text}")
+    print(
+        f"[onboarding_admin] Failed to grant write permission: {perm_resp.status_code} {perm_resp.text}"
+    )
 
 # Save all key info to .api_info_capture
 api_info = {
@@ -227,4 +288,6 @@ print(f"  Project: {PROJECT_NAME} ({project_id})")
 print(f"  Team: {TEAM_NAME} ({init_json.get('team_id')})")
 print(f"  User token: {user_token}")
 print(f"  Admin token: {admin_token}")
-print("  All info saved to .api_info_capture, .apitoken, .api_admin_token, .teamname, .projectname in /code/") 
+print(
+    "  All info saved to .api_info_capture, .apitoken, .api_admin_token, .teamname, .projectname in /code/"
+)

@@ -14,6 +14,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 import rule_proposal_feedback
+
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
@@ -61,7 +62,9 @@ def run_migrations_online() -> None:
     """
     url = os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
     print(f"DEBUG: Entering run_migrations_online, using URL: {url}")
-    connectable = create_engine(url, poolclass=pool.NullPool, isolation_level="AUTOCOMMIT")
+    connectable = create_engine(
+        url, poolclass=pool.NullPool, isolation_level="AUTOCOMMIT"
+    )
     print("DEBUG: Engine created")
     with connectable.connect() as connection:
         print("DEBUG: Connection established")

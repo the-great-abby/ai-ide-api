@@ -5,11 +5,13 @@ from typing import Dict, List
 import pytest
 import requests
 
+
 def _default_api_url():
     # Use Docker hostname if in test environment, else use localhost with mapped port
     if os.environ.get("ENVIRONMENT") == "test":
         return "http://test-api:8000"
     return "http://localhost:9104"
+
 
 API_URL = os.environ.get("API_URL", _default_api_url())
 
@@ -42,14 +44,18 @@ def test_internal_project_onboarding(
 ):
     """Test the complete internal project onboarding process."""
     headers = admin_headers_fixture
-    print(f"[TEST DEBUG] project_name={test_project_name}, journey={onboarding_journey}")
+    print(
+        f"[TEST DEBUG] project_name={test_project_name}, journey={onboarding_journey}"
+    )
     # 1. Initialize onboarding (no headers)
     init_response = requests.post(
         f"{API_URL}/onboarding/init",
         json={"project_name": test_project_name, "journey": onboarding_journey},
     )
     if init_response.status_code != 200:
-        print(f"[ONBOARDING INIT ERROR] Status: {init_response.status_code}, Response: {init_response.text}")
+        print(
+            f"[ONBOARDING INIT ERROR] Status: {init_response.status_code}, Response: {init_response.text}"
+        )
     assert (
         init_response.status_code == 200
     ), f"Failed to initialize onboarding: {init_response.text}"
@@ -93,7 +99,9 @@ def test_internal_project_onboarding(
     for step in final_steps:
         assert step["completed"] is True, f"Step {step['id']} is not marked as complete"
     for step in final_steps:
-        assert step["journey"] == onboarding_journey, f"Step {step['id']} has incorrect journey"
+        assert (
+            step["journey"] == onboarding_journey
+        ), f"Step {step['id']} has incorrect journey"
 
 
 def test_onboarding_validation(
@@ -107,21 +115,30 @@ def test_onboarding_validation(
         json={"project_name": test_project_name, "journey": "invalid_journey"},
         headers=headers,
     )
-    assert (
-        invalid_journey_response.status_code in (400, 422)
+    assert invalid_journey_response.status_code in (
+        400,
+        422,
     ), f"Should reject invalid onboarding journey (got {invalid_journey_response.status_code})"
     # Test missing project_name
     missing_project_response = requests.post(
-        f"{API_URL}/onboarding/init", json={"journey": onboarding_journey}, headers=headers
+        f"{API_URL}/onboarding/init",
+        json={"journey": onboarding_journey},
+        headers=headers,
     )
-    assert missing_project_response.status_code in (400, 422), f"Should require project_name (got {missing_project_response.status_code})"
+    assert missing_project_response.status_code in (
+        400,
+        422,
+    ), f"Should require project_name (got {missing_project_response.status_code})"
     # Test missing journey
     missing_journey_response = requests.post(
         f"{API_URL}/onboarding/init",
         json={"project_name": test_project_name},
         headers=headers,
     )
-    assert missing_journey_response.status_code in (400, 422), f"Should require journey (got {missing_journey_response.status_code})"
+    assert missing_journey_response.status_code in (
+        400,
+        422,
+    ), f"Should require journey (got {missing_journey_response.status_code})"
 
 
 def test_onboarding_progress_retrieval(

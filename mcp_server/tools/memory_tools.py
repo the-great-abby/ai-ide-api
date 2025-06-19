@@ -14,9 +14,10 @@ Future Implementations:
 from typing import Dict, Any, List, Optional
 from ..utils.mcp_helpers import format_mcp_response
 
+
 class MemoryTools:
     """Collection of MCP-compatible memory operation tools."""
-    
+
     @staticmethod
     async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -25,7 +26,7 @@ class MemoryTools:
         """
         # TODO: Implement when MCP integration begins
         return format_mcp_response({"status": "not_implemented", "entities": entities})
-    
+
     @staticmethod
     async def search_nodes(query: str) -> Dict[str, Any]:
         """
@@ -33,4 +34,4 @@ class MemoryTools:
         Will handle semantic search through MCP protocol.
         """
         # TODO: Implement when MCP integration begins
-        return format_mcp_response({"status": "not_implemented", "query": query}) 
+        return format_mcp_response({"status": "not_implemented", "query": query})

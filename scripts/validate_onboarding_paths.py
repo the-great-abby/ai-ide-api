@@ -11,6 +11,7 @@ BUDDY_NAMES = {
     "Bosun Riggs",
 }
 
+
 def main():
     # Allow path override
     if len(sys.argv) > 1:
@@ -35,7 +36,9 @@ def main():
         # Check buddy
         buddy = path_entry.get("buddy")
         if buddy not in BUDDY_NAMES:
-            errors.append(f"{prefix}: Buddy '{buddy}' not in allowed buddy names: {sorted(BUDDY_NAMES)}.")
+            errors.append(
+                f"{prefix}: Buddy '{buddy}' not in allowed buddy names: {sorted(BUDDY_NAMES)}."
+            )
         # Check steps
         steps = path_entry.get("steps")
         if not isinstance(steps, list):
@@ -44,7 +47,9 @@ def main():
         for j, step in enumerate(steps):
             sprefix = f"{prefix} Step[{j}]"
             if not isinstance(step, dict):
-                errors.append(f"{sprefix}: Step is not a dict (found {type(step)}). All steps must be dicts with 'instruction'.")
+                errors.append(
+                    f"{sprefix}: Step is not a dict (found {type(step)}). All steps must be dicts with 'instruction'."
+                )
                 continue
             if "instruction" not in step:
                 errors.append(f"{sprefix}: Missing 'instruction' field.")
@@ -60,5 +65,6 @@ def main():
         sys.exit(1)
     print("Validation passed!")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

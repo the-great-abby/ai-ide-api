@@ -30,6 +30,7 @@ def parse_meta(meta_str):
     except Exception:
         return {}
 
+
 def find_duplicates(nodes):
     """Return sets of node IDs with duplicate content in the same namespace."""
     seen = defaultdict(list)
@@ -44,6 +45,7 @@ def find_duplicates(nodes):
             duplicates.extend(sorted_group[1:])
     return duplicates
 
+
 def find_deprecated(nodes):
     """Return nodes with meta indicating 'deprecated' or 'obsolete'."""
     flagged = []
@@ -54,10 +56,12 @@ def find_deprecated(nodes):
             flagged.append(node)
     return flagged
 
+
 def find_stale(nodes, age_days):
     """Return nodes older than age_days."""
     cutoff = datetime.utcnow() - timedelta(days=age_days)
     return [node for node in nodes if node.created_at < cutoff]
+
 
 async def process_memory_cleanup_job(body: Dict[str, Any]):
     """
@@ -67,7 +71,9 @@ async def process_memory_cleanup_job(body: Dict[str, Any]):
     """
     dry_run = body.get("dry_run", False)
     age_days = body.get("age_days", default_age_days)
-    logger.info(f"[memory_cleanup_worker] Starting cleanup job (dry_run={dry_run}, age_days={age_days})")
+    logger.info(
+        f"[memory_cleanup_worker] Starting cleanup job (dry_run={dry_run}, age_days={age_days})"
+    )
 
     session = MemorySessionLocal()
     nodes = session.query(MemoryVector).all()
@@ -80,12 +86,16 @@ async def process_memory_cleanup_job(body: Dict[str, Any]):
 
     # Use sets of IDs to avoid double-counting
     to_delete = {n.id: n for n in stale + duplicates + deprecated}
-    logger.info(f"Identified {len(stale)} stale, {len(duplicates)} duplicates, {len(deprecated)} deprecated/obsolete nodes.")
+    logger.info(
+        f"Identified {len(stale)} stale, {len(duplicates)} duplicates, {len(deprecated)} deprecated/obsolete nodes."
+    )
     logger.info(f"Total unique nodes to delete: {len(to_delete)}")
 
     # Log details
     for node in to_delete.values():
-        logger.info(f"[CANDIDATE] id={node.id} ns={node.namespace} created={node.created_at} meta={node.meta}")
+        logger.info(
+            f"[CANDIDATE] id={node.id} ns={node.namespace} created={node.created_at} meta={node.meta}"
+        )
 
     if dry_run:
         logger.info("Dry run mode: no deletions performed.")
@@ -101,15 +111,27 @@ async def process_memory_cleanup_job(body: Dict[str, Any]):
     session.close()
     logger.info(f"Deleted {deleted} memory nodes.")
 
+
 # Retain CLI entrypoint for manual runs
+
 
 def main():
     parser = argparse.ArgumentParser(description="Memory Cleanup Worker")
-    parser.add_argument("--dry-run", action="store_true", help="Preview changes without deleting")
-    parser.add_argument("--age-days", type=int, default=default_age_days, help="Age threshold for staleness")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview changes without deleting"
+    )
+    parser.add_argument(
+        "--age-days",
+        type=int,
+        default=default_age_days,
+        help="Age threshold for staleness",
+    )
     args = parser.parse_args()
     # Call the async handler from sync code
-    asyncio.run(process_memory_cleanup_job({"dry_run": args.dry_run, "age_days": args.age_days}))
+    asyncio.run(
+        process_memory_cleanup_job({"dry_run": args.dry_run, "age_days": args.age_days})
+    )
+
 
 if __name__ == "__main__":
-    main() 
+    main()
