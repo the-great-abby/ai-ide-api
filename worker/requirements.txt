@@ -1,0 +1,7 @@
+requests
+pika
+sqlalchemy
+psycopg2-binary
+python-dateutil
+numpy
+fastapi 

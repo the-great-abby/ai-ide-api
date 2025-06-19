@@ -52,6 +52,28 @@ Enable automated, AI-powered summaries of code changes (git diffs) for improved 
      ```
    - Check worker and ollama logs for errors or successful processing.
 
+## Makefile Usage
+Trigger the progress report worker using the following Makefile targets:
+
+```bash
+# Trigger a progress report job
+make -f Makefile.ai memory-trigger-progress
+
+# Alternative trigger method (from misc-scripts container)
+make -f Makefile.ai misc-trigger-progress-report
+
+# Monitor worker logs during progress report processing
+make -f Makefile.ai memory-worker-logs
+
+# Check progress report status and queue
+make -f Makefile.ai memory-status-report
+
+# View recent progress report memory nodes
+make -f Makefile.ai memory-list-nodes-summary
+```
+
+**Note:** The progress report worker automatically fetches the latest git diff and creates a memory node with the LLM-generated summary.
+
 ## Expected Outcomes
 - A new memory node is created for each progress report, containing a detailed LLM-generated summary of the latest git diff.
 - The summary is accessible via the API and can be used for documentation, onboarding, or further automation.

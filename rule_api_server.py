@@ -37,6 +37,7 @@ import threading
 from db import get_db, resolve_project_id, resolve_team_id, project_defaults_from_name
 from utils.serialization import serialize_uuids
 from onboarding import router as onboarding_router
+from api.onboarding_endpoints import router as api_onboarding_router
 from rules import router as rules_router
 from tokens import router as tokens_router
 from rule_proposals import router as rule_proposals_router, pirate_validation_exception_handler
@@ -48,24 +49,151 @@ from db import RuleVersion
 logging.getLogger("examples_normalization").setLevel(logging.DEBUG)
 
 app = FastAPI(
-    title="Rule Proposal API",
+    title="AI IDE API - Rule Proposal & Memory System",
     description="""
-# Onboarding & User Stories
+# 🏴‍☠️ AI IDE API - Build Your Own Worker Army!
 
+Welcome to the AI IDE API! This system provides rule management, memory storage, and automated processing capabilities.
+
+## 🚀 Quick Start - Build Your RabbitMQ Worker Army
+
+Want to set up your own automated workers to analyze repositories and report back? Check out our comprehensive guides:
+
+### **🐳 Portable RabbitMQ Setup**
+- **[Complete RabbitMQ Worker Setup](docs/user_stories/portable_rabbitmq_setup.md)** - Build your own worker army!
+- **[External Onboarding Guide](docs/user_stories/external_project_onboarding.md)** - Get started with API access
+- **[Memory System Guide](docs/onboarding/MEMORY_SYSTEM.md)** - Understand how memory works
+
+### **⚡ Quick Setup Options**
+1. **Automated Setup**: Download and run our onboarding script
+   ```bash
+   curl -s http://localhost:9103/scripts/onboard_external.py > onboard_external.py
+   python onboard_external.py
+   ```
+
+2. **Manual Setup**: Initialize your project
+   ```bash
+   curl -X POST http://localhost:9103/onboarding/init \
+     -H 'Content-Type: application/json' \
+     -d '{"project_name": "my-worker-army", "journey": "external_project"}'
+   ```
+
+### **🎯 What You Can Build**
+- **Git History Analyzers** - Automatically analyze repository commits
+- **Memory Enrichment Workers** - Enhance stored knowledge with context
+- **Progress Reporters** - Generate automated reports and summaries
+- **Maintenance Workers** - Keep your systems healthy and optimized
+- **Custom Background Jobs** - Build whatever automated tasks you need
+
+## 📚 Full Documentation
+
+### **Onboarding & User Stories**
 - [External Project Onboarding](docs/user_stories/external_project_onboarding.md)
 - [Internal Developer Onboarding](docs/user_stories/internal_dev_onboarding.md)
 - [AI Agent Onboarding](docs/user_stories/ai_agent_onboarding.md)
 - [Full User Story Index](docs/user_stories/INDEX.md)
 
+### **System Guides**
+- [Memory System Guide](docs/onboarding/MEMORY_SYSTEM.md)
+- [Testing Workflow](docs/onboarding/TESTING_WORKFLOW.md)
+- [Database Migrations](docs/onboarding/DB_MIGRATIONS.md)
+
 See these user stories for step-by-step onboarding, automation, and best practices for all client types.
+
+---
+
+**🏴‍☠️ Ready to build your worker army? Start with the [Portable RabbitMQ Setup](docs/user_stories/portable_rabbitmq_setup.md)!**
 """
 )
 
 # Mount user stories as static files for direct access
 app.mount("/docs/user_stories", StaticFiles(directory="docs/user_stories"), name="user_stories")
 
+# Quick access endpoints for documentation
+@app.get("/docs/rabbitmq-setup", response_class=PlainTextResponse)
+def get_rabbitmq_setup_docs():
+    """Get the complete RabbitMQ setup documentation."""
+    try:
+        with open("docs/user_stories/portable_rabbitmq_setup.md", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "RabbitMQ setup documentation not found. Please check the docs/user_stories/ directory."
+
+@app.get("/docs/external-onboarding", response_class=PlainTextResponse)
+def get_external_onboarding_docs():
+    """Get the external onboarding documentation."""
+    try:
+        with open("docs/user_stories/external_project_onboarding.md", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "External onboarding documentation not found. Please check the docs/user_stories/ directory."
+
+@app.get("/docs/memory-system", response_class=PlainTextResponse)
+def get_memory_system_docs():
+    """Get the memory system documentation."""
+    try:
+        with open("docs/onboarding/MEMORY_SYSTEM.md", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Memory system documentation not found. Please check the docs/onboarding/ directory."
+
+@app.get("/quick-start", response_class=PlainTextResponse)
+def get_quick_start_guide():
+    """Get a quick start guide for building RabbitMQ workers."""
+    return """
+# 🚀 Quick Start Guide - Build Your RabbitMQ Worker Army
+
+## Step 1: Initialize Your Project
+```bash
+curl -X POST http://localhost:9103/onboarding/init \\
+  -H 'Content-Type: application/json' \\
+  -d '{"project_name": "my-worker-army", "journey": "external_project"}'
+```
+
+## Step 2: Get Your API Token
+```bash
+curl -X POST http://localhost:9103/admin/generate-token \\
+  -H 'Content-Type: application/json' \\
+  -d '{"description": "Worker army token", "role": "user"}'
+```
+
+## Step 3: Download Setup Script
+```bash
+curl -s http://localhost:9103/scripts/onboard_external.py > onboard_external.py
+python onboard_external.py
+```
+
+## Step 4: Set Up RabbitMQ Workers
+Follow the complete guide: http://localhost:9103/docs/rabbitmq-setup
+
+## Available Queue Types
+- `memory.update` - Update memory with new information
+- `memory.cleanup` - Clean up old memory entries
+- `memory.enrichment` - Enhance existing memory
+- `memory.similarity` - Find and merge similar entries
+- `git.history.analysis` - Analyze repository commits
+- `progress.report` - Generate progress reports
+- `maintenance` - Run maintenance tasks
+- `background.jobs` - Custom background processing
+
+## Example: Publish a Git Analysis Job
+```bash
+curl -X POST http://localhost:9103/memory/nodes \\
+  -H 'Authorization: Bearer YOUR_TOKEN' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "namespace": "git_analysis",
+    "content": "Analyze commits from last week",
+    "meta": "{\\"tags\\":[\\"git\\",\\"analysis\\"],\\"queue\\":\\"git.history.analysis\\",\\"params\\":{\\"since\\":\\"1 week ago\\",\\"max_commits\\":50}}"
+  }'
+```
+
+Ready to build your worker army? Check out the full documentation!
+"""
+
 # --- Router includes (ensure all are present and correct) ---
 app.include_router(onboarding_router)  # prefix='/onboarding' in onboarding.py
+app.include_router(api_onboarding_router)  # prefix='/api' in api/onboarding_endpoints.py
 app.include_router(rules_router)       # prefix='/rules' in rules.py
 app.include_router(tokens_router)      # prefix='/admin' in tokens.py
 app.include_router(rule_proposals_router)  # prefix='/api/rule_proposals' in rule_proposals.py
@@ -890,3 +1018,208 @@ def deactivate_rule(rule_id: str, db: Session = Depends(get_db)):
     rule.status = "inactive"
     db.commit()
     return {"status": "inactive", "id": rule.id}
+
+@app.post("/summarize-git-diff")
+def summarize_git_diff_passthrough(
+    diff: str = Body(..., embed=True),
+    concise: bool = Body(False, embed=True)
+):
+    """
+    Passthrough endpoint to ollama-functions /summarize-git-diff
+    """
+    try:
+        resp = requests.post(
+            "http://ollama-functions:8000/summarize-git-diff",
+            json={"diff": diff, "concise": concise},
+            timeout=180
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/worker-queues", response_class=JSONResponse)
+def get_worker_queue_info():
+    """Get information about available worker queues and how to use them."""
+    return {
+        "message": "Available RabbitMQ queues for building your worker army",
+        "queues": {
+            "memory.update": {
+                "description": "Update memory with new information",
+                "example_payload": {
+                    "content": "New information to store",
+                    "meta": {"tags": ["example"], "source": "worker"}
+                },
+                "use_case": "Store processed data, analysis results, or insights"
+            },
+            "memory.cleanup": {
+                "description": "Clean up old memory entries",
+                "example_payload": {
+                    "dry_run": True,
+                    "age_days": 180
+                },
+                "use_case": "Remove outdated or irrelevant memory entries"
+            },
+            "memory.enrichment": {
+                "description": "Enhance existing memory with additional context",
+                "example_payload": {
+                    "scope": "new",
+                    "dry_run": False
+                },
+                "use_case": "Add context, summaries, or related information to existing memory"
+            },
+            "memory.similarity": {
+                "description": "Find and merge similar memory entries",
+                "example_payload": {
+                    "scope": "all",
+                    "vector_similarity_threshold": 0.95,
+                    "content_similarity_threshold": 0.90,
+                    "dry_run": True
+                },
+                "use_case": "Consolidate duplicate or very similar information"
+            },
+            "git.history.analysis": {
+                "description": "Analyze git repository history",
+                "example_payload": {
+                    "since": "1 week ago",
+                    "max_commits": 50,
+                    "create_memory_node": True,
+                    "memory_namespace": "git_analysis",
+                    "memory_tags": ["git", "analysis"]
+                },
+                "use_case": "Automatically analyze commits and store insights"
+            },
+            "progress.report": {
+                "description": "Generate progress reports and summaries",
+                "example_payload": {
+                    "source": "worker",
+                    "timestamp": "2025-06-01T12:00:00Z"
+                },
+                "use_case": "Create automated reports on system health and progress"
+            },
+            "maintenance": {
+                "description": "Run system maintenance tasks",
+                "example_payload": {
+                    "task": "cleanup_old_data",
+                    "args": {"dry_run": True}
+                },
+                "use_case": "Automated system maintenance and optimization"
+            },
+            "background.jobs": {
+                "description": "Custom background processing",
+                "example_payload": {
+                    "job_type": "custom_analysis",
+                    "data": {"custom": "parameters"}
+                },
+                "use_case": "Any custom background processing you need"
+            }
+        },
+        "setup_guide": "http://localhost:9103/docs/rabbitmq-setup",
+        "quick_start": "http://localhost:9103/quick-start",
+        "onboarding": "http://localhost:9103/onboarding/init"
+    }
+
+@app.get("/worker-examples", response_class=JSONResponse)
+def get_worker_examples():
+    """Get example worker implementations and usage patterns."""
+    return {
+        "message": "Example worker implementations for different use cases",
+        "examples": {
+            "git_analyzer": {
+                "description": "Analyze git repositories and store insights",
+                "queue": "git.history.analysis",
+                "python_example": """
+import pika
+import json
+
+# Connect to RabbitMQ
+connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+channel = connection.channel()
+
+# Publish git analysis job
+job = {
+    "since": "1 week ago",
+    "max_commits": 50,
+    "create_memory_node": True,
+    "memory_namespace": "my_project",
+    "memory_tags": ["git", "weekly_analysis"]
+}
+
+channel.basic_publish(
+    exchange='',
+    routing_key='git.history.analysis',
+    body=json.dumps(job)
+)
+""",
+                "curl_example": """
+curl -X POST http://localhost:9103/memory/nodes \\
+  -H 'Authorization: Bearer YOUR_TOKEN' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "namespace": "git_analysis",
+    "content": "Weekly git analysis",
+    "meta": "{\\"queue\\":\\"git.history.analysis\\",\\"params\\":{\\"since\\":\\"1 week ago\\",\\"max_commits\\":50}}"
+  }'
+"""
+            },
+            "memory_enricher": {
+                "description": "Enhance existing memory with additional context",
+                "queue": "memory.enrichment",
+                "python_example": """
+# Publish memory enrichment job
+job = {
+    "scope": "new",
+    "dry_run": False
+}
+
+channel.basic_publish(
+    exchange='',
+    routing_key='memory.enrichment',
+    body=json.dumps(job)
+)
+""",
+                "curl_example": """
+curl -X POST http://localhost:9103/memory/nodes \\
+  -H 'Authorization: Bearer YOUR_TOKEN' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "namespace": "enrichment",
+    "content": "Enrich new memory nodes",
+    "meta": "{\\"queue\\":\\"memory.enrichment\\",\\"params\\":{\\"scope\\":\\"new\\",\\"dry_run\\":false}}"
+  }'
+"""
+            },
+            "progress_reporter": {
+                "description": "Generate automated progress reports",
+                "queue": "progress.report",
+                "python_example": """
+# Publish progress report job
+job = {
+    "source": "automated_worker",
+    "timestamp": "2025-06-01T12:00:00Z"
+}
+
+channel.basic_publish(
+    exchange='',
+    routing_key='progress.report',
+    body=json.dumps(job)
+)
+""",
+                "curl_example": """
+curl -X POST http://localhost:9103/memory/nodes \\
+  -H 'Authorization: Bearer YOUR_TOKEN' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "namespace": "reports",
+    "content": "Daily progress report",
+    "meta": "{\\"queue\\":\\"progress.report\\",\\"params\\":{\\"source\\":\\"daily_worker\\",\\"timestamp\\":\\"2025-06-01T12:00:00Z\\"}}"
+  }'
+"""
+            }
+        },
+        "documentation": {
+            "rabbitmq_setup": "http://localhost:9103/docs/rabbitmq-setup",
+            "memory_system": "http://localhost:9103/docs/memory-system",
+            "external_onboarding": "http://localhost:9103/docs/external-onboarding"
+        }
+    }

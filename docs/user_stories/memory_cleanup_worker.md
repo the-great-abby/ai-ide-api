@@ -30,6 +30,25 @@ flowchart TD
     D --> E["Developers review and restore if needed"]
 ```
 
+## Makefile Usage
+Trigger the memory cleanup worker using the following Makefile targets:
+
+```bash
+# Normal cleanup (removes stale nodes)
+make -f Makefile.ai memory-trigger-cleanup
+
+# Preview cleanup without applying changes (recommended first)
+make -f Makefile.ai memory-trigger-cleanup DRY_RUN=true
+
+# Monitor worker logs during cleanup
+make -f Makefile.ai memory-worker-logs
+
+# Check cleanup status and queue
+make -f Makefile.ai memory-status-report
+```
+
+**Best Practice:** Always run with `DRY_RUN=true` first to preview what will be cleaned up before applying changes.
+
 ## Expected Outcomes
 - The knowledge base is free of outdated, duplicate, or irrelevant entries.
 - Developers can review what was cleaned up and restore entries if needed.

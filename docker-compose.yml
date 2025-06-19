@@ -26,7 +26,7 @@ services:
       - POSTGRES_PORT=5432
       - MEMORY_POSTGRES_DB=memorydb
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/rulesdb
-      - OLLAMA_FUNCTIONS_URL=http://ollama-functions:11434
+      - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
       - CORS_ORIGINS=*  # Allow all origins for debugging; restrict in production!
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - ENVIRONMENT=dev
@@ -124,6 +124,7 @@ services:
       context: .
       dockerfile: worker/Dockerfile
     environment:
+      - RUNNING_IN_DOCKER=1
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - OLLAMA_FUNCTIONS_URL=http://ollama-functions:8000
       - MEMORY_API_URL=http://api:8000/memory
@@ -138,8 +139,11 @@ services:
     volumes:
       - ./worker:/app/worker
       - ./utils:/app/utils
+      - ./scripts:/app/scripts
       - .:/code
+      - ./.git:/code/.git
       - ./.apitoken:/code/.apitoken
+      - ./.api_admin_token:/code/.api_admin_token
       - ./.git:/app/.git
 
   valkey:

@@ -99,16 +99,22 @@ class MemoryNodeSearchOut(MemoryNodeOut):
 
 
 # Helper to generate embedding using Ollama
-OLLAMA_EMBEDDING_URL = "http://host.docker.internal:11434/api/embeddings"
+OLLAMA_EMBEDDING_URL = os.environ.get("OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000") + "/embed-text"
 OLLAMA_EMBEDDING_MODEL = "nomic-embed-text:latest"
 
 
 def get_embedding_ollama(text: str) -> List[float]:
     response = requests.post(
-        OLLAMA_EMBEDDING_URL, json={"model": OLLAMA_EMBEDDING_MODEL, "prompt": text}
+        OLLAMA_EMBEDDING_URL, json={"text": text, "model": OLLAMA_EMBEDDING_MODEL}
     )
     response.raise_for_status()
-    return response.json()["embedding"]
+    data = response.json()
+    if isinstance(data, dict) and "embedding" in data:
+        return data["embedding"]
+    elif isinstance(data, list):
+        return data
+    else:
+        raise ValueError(f"Unexpected embedding response format: {data}")
 
 
 # Helper to call the Ollama LLM for text generation (not just embeddings)

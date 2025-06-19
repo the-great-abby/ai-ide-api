@@ -61,19 +61,36 @@ JOB_HANDLERS = {
 }
 
 async def main(broker: MessageBrokerBase = None):
+    logger.info("=== WORKER STARTING ===")
+    logger.info(f"Job handlers configured: {list(JOB_HANDLERS.keys())}")
+    
     if broker is None:
+        logger.info("Creating new RabbitMQ client...")
         broker = RealRabbitMQClient(RABBITMQ_URL)
+    
+    logger.info(f"Broker instance type: {type(broker).__name__}")
+    logger.info(f"Broker instance: {broker}")
+    logger.info("Worker started, polling for jobs...")
     print("Worker started, polling for jobs...")
+    
     while True:
         for queue, handler in JOB_HANDLERS.items():
+            logger.debug(f"About to poll queue: {queue}")
             body = await broker.consume(queue)
             logger.debug(f"Polled queue {queue}, got body: {body}")
+            logger.debug(f"Body type: {type(body)}")
             if body:
                 try:
+                    logger.info(f"Processing job from queue {queue} with handler {handler.__name__}")
+                    logger.debug(f"Job body content: {json.dumps(body, indent=2) if isinstance(body, dict) else str(body)}")
                     await handler(body)
+                    logger.info(f"Job from queue {queue} completed successfully")
                 except Exception as e:
+                    logger.error(f"Error processing job from {queue}: {e}")
+                    logger.exception(f"Full traceback for job error in {queue}:")
                     print(f"Error processing job from {queue}:", e)
             else:
+                logger.debug(f"No message in queue {queue}, sleeping...")
                 await asyncio.sleep(1)
 
 if __name__ == "__main__":

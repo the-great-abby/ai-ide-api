@@ -15,11 +15,25 @@ QUEUE_NAME = "git.history.analysis"
 
 async def publish_git_history_job(job_config: dict, broker: MessageBrokerBase = None):
     """Publish a git history analysis job to RabbitMQ."""
-    if broker is None:
-        broker = RealRabbitMQClient(RABBITMQ_URL)
+    print(f"[DEBUG] Starting publish_git_history_job with config: {job_config}")
+    print(f"[DEBUG] RABBITMQ_URL: {RABBITMQ_URL}")
+    print(f"[DEBUG] QUEUE_NAME: {QUEUE_NAME}")
     
-    await broker.publish(QUEUE_NAME, job_config)
-    print(f"Published git history analysis job: {json.dumps(job_config, indent=2)}")
+    if broker is None:
+        print("[DEBUG] Creating new RealRabbitMQClient...")
+        broker = RealRabbitMQClient(RABBITMQ_URL)
+        print(f"[DEBUG] Broker created: {type(broker)}")
+    
+    try:
+        print(f"[DEBUG] About to publish to queue: {QUEUE_NAME}")
+        await broker.publish(QUEUE_NAME, job_config)
+        print(f"[DEBUG] Publish call completed successfully")
+        print(f"Published git history analysis job: {json.dumps(job_config, indent=2)}")
+    except Exception as e:
+        print(f"[ERROR] Exception during publish: {e}")
+        import traceback
+        print(f"[ERROR] Full traceback: {traceback.format_exc()}")
+        raise
 
 def main():
     parser = argparse.ArgumentParser(description="Publish git history analysis job to RabbitMQ")
@@ -31,10 +45,10 @@ def main():
     parser.add_argument("--no-diff", dest="include_diff", action="store_false", help="Exclude diff from output")
     parser.add_argument("--summarize", action="store_true", default=True, help="Generate LLM summaries")
     parser.add_argument("--no-summarize", dest="summarize", action="store_false", help="Skip LLM summarization")
-    parser.add_argument("--output-format", choices=["json", "text", "summary"], default="json", 
-                       help="Output format")
-    parser.add_argument("--create-memory-node", action="store_true", help="Create memory node with results")
-    parser.add_argument("--memory-namespace", default="git_history_analysis", help="Memory namespace")
+    parser.add_argument("--output-format", choices=["json", "text", "story", "summary"], default="story", 
+                       help="Output format (default: story for narrative development history)")
+    parser.add_argument("--create-memory-node", action="store_true", default=True, help="Create memory node with results")
+    parser.add_argument("--memory-namespace", default="git_history", help="Memory namespace")
     parser.add_argument("--memory-tags", nargs="*", default=[], help="Additional memory tags")
     parser.add_argument("--batch-size", type=int, default=5, help="Number of commits to process before pausing")
     
