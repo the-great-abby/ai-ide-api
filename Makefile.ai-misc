@@ -375,7 +375,7 @@ misc-git-history-trigger:
 		echo "  make -f Makefile.ai misc-git-history-trigger SINCE='2024-01-01' UNTIL='2024-01-31' CREATE_MEMORY=true MEMORY_TAGS='sprint1 retrospective'"; \
 		exit 1; \
 	fi
-	@CMD="docker compose exec misc-scripts python3 /scripts/publish_git_history_job.py --since '$(SINCE)'"; \
+	@CMD="docker compose exec misc-scripts python3 /code/scripts/publish_git_history_job.py --since '$(SINCE)'"; \
 	if [ ! -z "$(UNTIL)" ]; then \
 		CMD="$$CMD --until '$(UNTIL)'"; \
 	fi; \
