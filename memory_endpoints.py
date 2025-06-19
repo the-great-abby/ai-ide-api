@@ -43,8 +43,33 @@ def create_memory_node(
     db: Session = Depends(get_db),
 ):
     """Create a new memory node. Requires write permission for the namespace and LLM access."""
-    # Check namespace permission
-    check_namespace_permission(node.namespace, token, "write", db)
+    
+    # Auto-create namespace permission if it doesn't exist
+    try:
+        check_namespace_permission(node.namespace, token, "write", db)
+    except HTTPException as e:
+        if e.status_code == 403 and "No write permission for namespace" in e.detail:
+            # Auto-create namespace permission for the token's project
+            logger.info(f"Auto-creating namespace permission for {node.namespace} for project {token.project_id}")
+            try:
+                db_permission = NamespacePermission(
+                    namespace=node.namespace,
+                    project_id=token.project_id,
+                    allowed_project_id=token.project_id,  # Allow the same project
+                    permission_type="write",
+                    created_by=token.created_by,
+                )
+                db.add(db_permission)
+                db.commit()
+                logger.info(f"Successfully created namespace permission for {node.namespace}")
+            except Exception as perm_exc:
+                logger.error(f"Failed to auto-create namespace permission: {perm_exc}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to auto-create namespace permission for {node.namespace}"
+                )
+        else:
+            raise e
 
     # Check LLM access for embedding generation
     check_llm_access(token, db)

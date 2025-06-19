@@ -46,6 +46,13 @@ test: test-test
 # Usage: make -f Makefile.ai up
 up: dev-up
 
+# Start all services including LLM and worker services
+# Usage: make -f Makefile.ai up-full
+up-full: dev-up
+	@echo "[up-full] Starting ollama-functions, worker, and misc-scripts..."
+	docker-compose --profile llm --profile dev up -d ollama-functions worker misc-scripts
+	@echo "[up-full] All services started! Check status with: make -f Makefile.ai status"
+
 # Stop all services
 # Usage: make -f Makefile.ai down
 down: ai-down
@@ -69,6 +76,19 @@ memory-migrate: memorydb-migrate
 # View logs
 # Usage: make -f Makefile.ai logs
 logs: admin-logs
+
+# Check status of all services
+# Usage: make -f Makefile.ai status
+status:
+	@echo "[status] Checking service status..."
+	docker-compose ps
+	@echo ""
+	@echo "[status] Service URLs:"
+	@echo "  API: http://localhost:9103"
+	@echo "  API Documentation: http://localhost:9103/docs"
+	@echo "  Admin Frontend: http://localhost:3000"
+	@echo "  RabbitMQ Management: http://localhost:15672"
+	@echo "  Ollama Functions: http://localhost:8000 (if running)"
 
 # --- LEGACY ALIASES FOR BACKWARD COMPATIBILITY ---
 # These maintain compatibility with existing scripts and documentation
@@ -187,7 +207,9 @@ help:
 	@echo ""
 	@echo "QUICK START:"
 	@echo "  make -f Makefile.ai quickstart    - Full setup for new developers"
-	@echo "  make -f Makefile.ai up            - Start all services"
+	@echo "  make -f Makefile.ai up            - Start core services (API, DB, RabbitMQ)"
+	@echo "  make -f Makefile.ai up-full       - Start all services (including LLM, worker, misc-scripts)"
+	@echo "  make -f Makefile.ai status        - Check status of all services"
 	@echo "  make -f Makefile.ai test          - Run all tests"
 	@echo "  make -f Makefile.ai health        - Run health check"
 	@echo ""
@@ -229,7 +251,7 @@ help:
 	@echo "For detailed help on any domain, see the corresponding sub-makefile."
 	@echo "Example: make -f Makefile.ai-test help"
 
-.PHONY: quickstart test up down health health-proactive migrate memory-migrate logs help
+.PHONY: quickstart test up down health health-proactive migrate memory-migrate logs status help
 .PHONY: ai-test ai-test-one ai-test-json ai-test-unit ai-test-integration ai-test-coverage
 .PHONY: ai-db-migrate ai-db-autorevision ai-db-backup ai-db-backup-data-only ai-db-restore ai-db-restore-data ai-db-nuke ai-db-drop-recreate ai-db-drop-statusenum ai-db-merge-heads ai-db-heads ai-db-history ai-db-stamp-head
 .PHONY: ai-bug-report ai-bug-report-test ai-suggest-enhancement ai-suggest-enhancement-test ai-enhancement-to-proposal ai-proposal-to-enhancement ai-accept-enhancement ai-complete-enhancement ai-list-enhancements ai-propose-portable-rule

@@ -261,7 +261,7 @@ misc-git-history-trigger-sprint:
 
 misc-git-history-trigger-monthly:
 	@echo "[misc-git-history-trigger-monthly] Triggering monthly git history analysis..."
-	@make -f Makefile.ai misc-git-history-trigger SINCE='1 month ago' CREATE_MEMORY=true MEMORY_NAMESPACE=monthly_analysis MEMORY_TAGS='monthly detailed' OUTPUT_FORMAT=json
+	@make -f Makefile.ai misc-git-history-trigger SINCE='1 month ago' CREATE_MEMORY=true MEMORY_NAMESPACE=monthly_analysis MEMORY_TAGS='monthly detailed' OUTPUT_FORMAT=summary
 
 ## Analysis Results
 misc-git-history-list-results:
@@ -293,7 +293,7 @@ misc-git-history-restart:
 	@docker compose restart worker maintenance-scheduler
 	@echo "Services restarted. Check status with: make -f Makefile.ai misc-git-history-status"
 
-.PHONY: misc-test-export-rules misc-test-lint-rules misc-test-propose-rule misc-test-list-rules misc-export-rules misc-lint-rules misc-propose-rule misc-list-rules misc-list-rules-mdc misc-review-code-files misc-review-code-snippet misc-scan-db misc-approve-all-pending misc-propose-makefile-rule misc-review-multiple-files misc-propose-rules misc-install misc-up misc-update-rules misc-generate-update-template misc-mdc-to-json misc-enrich-rules misc-build misc-update-missing-user-stories misc-restart misc-propose-portable-rule misc-bug-report misc-bug-report-test misc-suggest-enhancement misc-suggest-enhancement-test misc-enhancement-to-proposal misc-proposal-to-enhancement misc-accept-enhancement misc-complete-enhancement misc-list-enhancements misc-onboarding-health misc-import-backup misc-search-user-stories misc-fdw-setup-script misc-logs-help misc-remove-duplicate-makefile-targets misc-enhancement-lifecycle-notify misc-safe-shutdown misc-auto-feedback misc-status misc-logs misc-healthcheck misc-update-project-map restart-workers trigger-progress-report misc-list-memory-nodes misc-git-history-analyze misc-git-history-quick misc-git-history-daily misc-git-history-weekly misc-git-history-trigger misc-git-history-trigger-daily misc-git-history-trigger-weekly misc-git-history-trigger-sprint misc-git-history-worker-logs misc-git-history-queue-status misc-git-history-status misc-git-history-logs misc-git-history-scheduler-logs misc-git-history-list-results misc-git-history-view-result misc-git-history-check-health misc-git-history-restart
+.PHONY: misc-test-export-rules misc-test-lint-rules misc-test-propose-rule misc-test-list-rules misc-export-rules misc-lint-rules misc-propose-rule misc-list-rules misc-list-rules-mdc misc-review-code-files misc-review-code-snippet misc-scan-db misc-approve-all-pending misc-propose-makefile-rule misc-review-multiple-files misc-propose-rules misc-install misc-up misc-update-rules misc-generate-update-template misc-mdc-to-json misc-enrich-rules misc-build misc-update-missing-user-stories misc-restart misc-propose-portable-rule misc-bug-report misc-bug-report-test misc-suggest-enhancement misc-suggest-enhancement-test misc-enhancement-to-proposal misc-proposal-to-enhancement misc-accept-enhancement misc-complete-enhancement misc-list-enhancements misc-onboarding-health misc-import-backup misc-search-user-stories misc-fdw-setup-script misc-logs-help misc-remove-duplicate-makefile-targets misc-enhancement-lifecycle-notify misc-safe-shutdown misc-auto-feedback misc-status misc-logs misc-healthcheck misc-update-project-map restart-workers trigger-progress-report misc-list-memory-nodes misc-git-history-analyze misc-git-history-story misc-git-history-summary misc-git-history-text misc-git-history-json misc-git-history-quick misc-git-history-daily misc-git-history-weekly misc-git-history-trigger misc-git-history-trigger-daily misc-git-history-trigger-weekly misc-git-history-trigger-sprint misc-git-history-worker-logs misc-git-history-queue-status misc-git-history-status misc-git-history-logs misc-git-history-scheduler-logs misc-git-history-list-results misc-git-history-view-result misc-git-history-check-health misc-git-history-restart
 
 .PHONY: restart-workers
 restart-workers:
@@ -318,37 +318,43 @@ misc-list-memory-nodes:
 .PHONY: misc-git-history-analyze
 misc-git-history-analyze:
 	@if [ -z "$(SINCE)" ] && [ -z "$(UNTIL)" ] && [ -z "$(MAX_COMMITS)" ]; then \
-		echo "[ERROR] Usage: make -f Makefile.ai misc-git-history-analyze SINCE='2 days ago' [UNTIL='1 day ago'] [MAX_COMMITS=10] [AUTHOR='name'] [OUTPUT_FORMAT=json|text|summary] [OUTPUT_FILE=report.json] [DRY_RUN=true]"; \
+		echo "[ERROR] Usage: make -f Makefile.ai misc-git-history-analyze SINCE='2 days ago' [UNTIL='1 day ago'] [MAX_COMMITS=10] [AUTHOR='name'] [OUTPUT_FORMAT=json|text|summary|story] [OUTPUT_FILE=report.json] [DRY_RUN=true]"; \
 		echo "Examples:"; \
 		echo "  make -f Makefile.ai misc-git-history-analyze SINCE='1 week ago' MAX_COMMITS=20"; \
 		echo "  make -f Makefile.ai misc-git-history-analyze SINCE='2024-01-01' UNTIL='2024-01-31' AUTHOR='John Doe'"; \
 		echo "  make -f Makefile.ai misc-git-history-analyze SINCE='2 days ago' OUTPUT_FORMAT=summary OUTPUT_FILE=summary.json"; \
+		echo "  make -f Makefile.ai misc-git-history-analyze SINCE='1 week ago' OUTPUT_FORMAT=story"; \
 		exit 1; \
 	fi
-	@CMD="docker compose exec misc-scripts python3 /scripts/git_history_analyzer.py"; \
-	if [ ! -z "$(SINCE)" ]; then \
-		CMD="$$CMD --since '$(SINCE)'"; \
-	fi; \
-	if [ ! -z "$(UNTIL)" ]; then \
-		CMD="$$CMD --until '$(UNTIL)'"; \
-	fi; \
-	if [ ! -z "$(MAX_COMMITS)" ]; then \
-		CMD="$$CMD --max-commits $(MAX_COMMITS)"; \
-	fi; \
-	if [ ! -z "$(AUTHOR)" ]; then \
-		CMD="$$CMD --author '$(AUTHOR)'"; \
-	fi; \
-	if [ ! -z "$(OUTPUT_FORMAT)" ]; then \
-		CMD="$$CMD --output-format $(OUTPUT_FORMAT)"; \
-	fi; \
-	if [ ! -z "$(OUTPUT_FILE)" ]; then \
-		CMD="$$CMD --output-file $(OUTPUT_FILE)"; \
-	fi; \
-	if [ "$(DRY_RUN)" = "true" ]; then \
-		CMD="$$CMD --dry-run"; \
-	fi; \
-	echo "[misc-git-history-analyze] Running: $$CMD"; \
-	eval $$CMD
+	@echo "[misc-git-history-analyze] Running git history analysis..."
+	@docker compose exec misc-scripts bash -c 'cd /code && python3 scripts/git_history_analyzer.py \
+		--since "$(SINCE)" \
+		$(if $(UNTIL),--until "$(UNTIL)") \
+		$(if $(MAX_COMMITS),--max-commits $(MAX_COMMITS)) \
+		$(if $(AUTHOR),--author "$(AUTHOR)") \
+		$(if $(OUTPUT_FORMAT),--output-format $(OUTPUT_FORMAT)) \
+		$(if $(OUTPUT_FILE),--output-file $(OUTPUT_FILE)) \
+		$(if $(filter true,$(DRY_RUN)),--dry-run)'
+
+.PHONY: misc-git-history-story
+misc-git-history-story:
+	@echo "[misc-git-history-story] Analyzing git history with story format..."
+	@make -f Makefile.ai misc-git-history-analyze SINCE='$(SINCE)' MAX_COMMITS='$(MAX_COMMITS)' OUTPUT_FORMAT=story
+
+.PHONY: misc-git-history-summary
+misc-git-history-summary:
+	@echo "[misc-git-history-summary] Analyzing git history with summary format..."
+	@make -f Makefile.ai misc-git-history-analyze SINCE='$(SINCE)' MAX_COMMITS='$(MAX_COMMITS)' OUTPUT_FORMAT=summary
+
+.PHONY: misc-git-history-text
+misc-git-history-text:
+	@echo "[misc-git-history-text] Analyzing git history with detailed text format..."
+	@make -f Makefile.ai misc-git-history-analyze SINCE='$(SINCE)' MAX_COMMITS='$(MAX_COMMITS)' OUTPUT_FORMAT=text
+
+.PHONY: misc-git-history-json
+misc-git-history-json:
+	@echo "[misc-git-history-json] Analyzing git history with JSON format..."
+	@make -f Makefile.ai misc-git-history-analyze SINCE='$(SINCE)' MAX_COMMITS='$(MAX_COMMITS)' OUTPUT_FORMAT=json
 
 .PHONY: misc-git-history-quick
 misc-git-history-quick:

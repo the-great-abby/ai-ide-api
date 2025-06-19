@@ -26,22 +26,19 @@ else:
     user_input = input(f"Enter API URL [{default_api_url}]: ").strip()
     API_URL = user_input or default_api_url
 
-# Prompt for project and team name
-def suggest_new_name(name):
-    suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
-    return f"{name}_{suffix}"
-
+# Prompt for project, team, and user name
 PROJECT_NAME = input("Enter project name: ").strip()
 TEAM_NAME = input("Enter team name: ").strip()
+USER = input("Enter user identifier (email or username): ").strip()
 
 # Prompt for onboarding path
 print("Enter onboarding path (e.g., internal_dev, external_project, ai_agent):")
 ONBOARDING_PATH = input("Onboarding path: ").strip()
 
 # Step 1: Initialize onboarding journey (create/get project and team)
-def initialize_onboarding(project_name, team_name, onboarding_path):
-    print(f"\n[onboarding_admin] Initializing onboarding journey for project '{project_name}', team '{team_name}'...")
-    init_payload = {"project_name": project_name, "team_name": team_name, "path": onboarding_path}
+def initialize_onboarding(project_name, team_name, onboarding_path, user):
+    print(f"\n[onboarding_admin] Initializing onboarding journey for project '{project_name}', team '{team_name}', user '{user}'...")
+    init_payload = {"project_name": project_name, "team_name": team_name, "path": onboarding_path, "user": user}
     init_resp = requests.post(f"{API_URL}/onboarding/init", json=init_payload)
     if init_resp.status_code != 200:
         print(f"Error initializing onboarding: {init_resp.status_code} {init_resp.text}")
@@ -51,7 +48,7 @@ def initialize_onboarding(project_name, team_name, onboarding_path):
     print(f"Response: {init_json}")
     return init_json
 
-init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH)
+init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER)
 if not init_json:
     # Interactive recovery mode
     print("\n[onboarding_admin] Onboarding initialization failed.")
@@ -61,7 +58,7 @@ if not init_json:
             PROJECT_NAME = suggest_new_name(PROJECT_NAME)
             TEAM_NAME = suggest_new_name(TEAM_NAME)
             print(f"Trying with project: {PROJECT_NAME}, team: {TEAM_NAME}")
-            init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH)
+            init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER)
             if init_json:
                 break
         elif choice == 'n':
@@ -77,7 +74,12 @@ project_id = init_json.get("project_id")
 # Step 2: Generate user token associated with the project
 def generate_user_token():
     print("\n[onboarding_admin] Generating user token...")
-    token_resp = requests.post(f"{API_URL}/admin/generate-token", json={"description": f"Token for {PROJECT_NAME}", "role": "user", "project_id": project_id})
+    token_resp = requests.post(f"{API_URL}/admin/generate-token", json={
+        "description": f"Token for {PROJECT_NAME}", 
+        "role": "user", 
+        "project_id": project_id,
+        "user": USER
+    })
     if token_resp.status_code != 200:
         print(f"Error generating user token: {token_resp.status_code} {token_resp.text}")
         if token_resp.status_code == 401:
@@ -126,7 +128,7 @@ while True:
         PROJECT_NAME = suggest_new_name(PROJECT_NAME)
         TEAM_NAME = suggest_new_name(TEAM_NAME)
         print(f"Trying with project: {PROJECT_NAME}, team: {TEAM_NAME}")
-        init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH)
+        init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER)
         if not init_json:
             continue
         project_id = init_json.get("project_id")
@@ -139,7 +141,8 @@ print("\n[onboarding_admin] Generating admin token...")
 admin_token_payload = {
     "description": "Admin token for LLM access",
     "role": "admin",
-    "project_id": project_id
+    "project_id": project_id,
+    "user": USER
 }
 headers = {
     "Authorization": f"Bearer {user_token}",
@@ -157,7 +160,7 @@ if admin_token_resp.status_code != 200:
             PROJECT_NAME = suggest_new_name(PROJECT_NAME)
             TEAM_NAME = suggest_new_name(TEAM_NAME)
             print(f"Trying with project: {PROJECT_NAME}, team: {TEAM_NAME}")
-            init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH)
+            init_json = initialize_onboarding(PROJECT_NAME, TEAM_NAME, ONBOARDING_PATH, USER)
             if not init_json:
                 continue
             project_id = init_json.get("project_id")

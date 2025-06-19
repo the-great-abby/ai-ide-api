@@ -45,8 +45,8 @@ def main():
     parser.add_argument("--no-diff", dest="include_diff", action="store_false", help="Exclude diff from output")
     parser.add_argument("--summarize", action="store_true", default=True, help="Generate LLM summaries")
     parser.add_argument("--no-summarize", dest="summarize", action="store_false", help="Skip LLM summarization")
-    parser.add_argument("--output-format", choices=["json", "text", "story", "summary"], default="story", 
-                       help="Output format (default: story for narrative development history)")
+    parser.add_argument("--output-format", choices=["json", "text", "story", "summary"], default="summary", 
+                       help="Output format (default: summary for concise analysis)")
     parser.add_argument("--create-memory-node", action="store_true", default=True, help="Create memory node with results")
     parser.add_argument("--memory-namespace", default="git_history", help="Memory namespace")
     parser.add_argument("--memory-tags", nargs="*", default=[], help="Additional memory tags")

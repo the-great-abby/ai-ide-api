@@ -21,9 +21,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("git_history_analyzer")
 
 # Configuration
+GIT_DIFF_SUMMARY_URL = os.environ.get(
+    "GIT_DIFF_SUMMARY_URL",
+    "http://ollama-functions:8000/summarize-git-diff" if os.environ.get("RUNNING_IN_DOCKER") else "http://localhost:9103/summarize-git-diff"
+)
+
+# Keep the original OLLAMA_URL for backward compatibility (not used in this script)
 OLLAMA_URL = os.environ.get(
     "OLLAMA_URL",
-    "http://api:8000/summarize-git-diff" if os.environ.get("RUNNING_IN_DOCKER") else "http://localhost:9103/summarize-git-diff"
+    "http://host.docker.internal:11434/api/generate"
 )
 
 class GitCommit:
@@ -55,11 +61,10 @@ class GitCommit:
 
 def get_commit_list(since: Optional[str] = None, until: Optional[str] = None, 
                    max_commits: int = 50, author: Optional[str] = None) -> List[GitCommit]:
-    """Get a list of commits with metadata."""
+    """Get a list of commits from git log."""
     commits = []
     
-    # Build git log command
-    cmd = ["git", "log", "--pretty=format:%H|%an|%ad|%s", "--date=short", "--name-only"]
+    cmd = ["git", "log", "--pretty=format:%H|%an|%ad|%s", "--date=short"]
     
     if since:
         cmd.extend(["--since", since])
@@ -71,7 +76,7 @@ def get_commit_list(since: Optional[str] = None, until: Optional[str] = None,
     cmd.extend(["-n", str(max_commits)])
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd="/app")
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=".")
         lines = result.stdout.strip().split('\n')
         
         current_commit = None
@@ -100,9 +105,9 @@ def get_commit_list(since: Optional[str] = None, until: Optional[str] = None,
 def get_commit_diff(commit_hash: str) -> str:
     """Get the diff for a specific commit."""
     try:
-        cmd = ["git", "show", commit_hash, "--no-pager"]
+        cmd = ["git", "show", commit_hash]
         
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd="/app")
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=".")
         return result.stdout
     except subprocess.CalledProcessError as e:
         logger.error(f"Git show failed for commit {commit_hash}: {e}")
@@ -113,7 +118,7 @@ def get_parent_commit(commit_hash: str) -> Optional[str]:
     try:
         result = subprocess.run(
             ["git", "rev-parse", f"{commit_hash}^"], 
-            capture_output=True, text=True, check=True, cwd="/app"
+            capture_output=True, text=True, check=True, cwd="."
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError:
@@ -132,7 +137,7 @@ def summarize_diff(diff: str, commit_message: str, author: str, concise: bool = 
             "concise": concise
         }
         
-        response = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        response = requests.post(GIT_DIFF_SUMMARY_URL, json=payload, timeout=120)
         response.raise_for_status()
         
         result = response.json()
@@ -234,7 +239,7 @@ def generate_report(commits: List[GitCommit], output_format: str = "json") -> st
         return "\n".join(report)
     
     elif output_format == "story":
-        """Generate a narrative story of the development progression."""
+        """Generate a concise narrative story of the development progression."""
         if not commits:
             return "No commits found to create a story from."
         
@@ -242,12 +247,9 @@ def generate_report(commits: List[GitCommit], output_format: str = "json") -> st
         sorted_commits = sorted(commits, key=lambda x: x.date)
         
         story = []
-        story.append("=" * 80)
         story.append("DEVELOPMENT STORY")
-        story.append("=" * 80)
-        story.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        story.append(f"Story spans: {sorted_commits[0].date} to {sorted_commits[-1].date}")
-        story.append(f"Total commits: {len(sorted_commits)}")
+        story.append(f"Period: {sorted_commits[0].date} to {sorted_commits[-1].date}")
+        story.append(f"Commits: {len(sorted_commits)}")
         story.append("")
         
         # Calculate overall statistics
@@ -260,12 +262,12 @@ def generate_report(commits: List[GitCommit], output_format: str = "json") -> st
             all_categories.update(commit.categories)
             all_tags.update(commit.tags)
         
-        # Story introduction
-        story.append("📖 THE DEVELOPMENT JOURNEY")
-        story.append("")
-        story.append(f"Over the course of {len(sorted_commits)} commits spanning from {sorted_commits[0].date} to {sorted_commits[-1].date}, ")
-        story.append(f"the development team made significant progress across {total_files} files. ")
-        story.append(f"The work involved {len(authors)} contributors: {', '.join(authors)}.")
+        # Key insights
+        story.append("KEY INSIGHTS:")
+        story.append(f"• Contributors: {', '.join(authors)}")
+        story.append(f"• Files changed: {total_files}")
+        if all_categories:
+            story.append(f"• Focus areas: {', '.join(list(all_categories)[:3])}")
         story.append("")
         
         # Group commits by themes/categories
@@ -276,71 +278,34 @@ def generate_report(commits: List[GitCommit], output_format: str = "json") -> st
                     category_groups[category] = []
                 category_groups[category].append(commit)
         
-        # Tell the story by themes
+        # Tell the story by themes (concise)
         if category_groups:
-            story.append("🎯 MAJOR DEVELOPMENT THEMES")
-            story.append("")
-            
+            story.append("MAJOR THEMES:")
             for category, category_commits in category_groups.items():
-                story.append(f"📋 {category.upper()}")
-                story.append(f"   {len(category_commits)} commits focused on {category.lower()}")
-                
-                # Show progression within this category
-                for i, commit in enumerate(category_commits):
-                    story.append(f"   • {commit.date}: {commit.message}")
-                    if commit.summary:
-                        story.append(f"     → {commit.summary}")
-                
-                story.append("")
-        
-        # Chronological progression
-        story.append("⏰ CHRONOLOGICAL PROGRESSION")
-        story.append("")
-        
-        for i, commit in enumerate(sorted_commits):
-            story.append(f"📅 {commit.date} - {commit.author}")
-            story.append(f"   Commit: {commit.commit_hash[:8]}")
-            story.append(f"   Message: {commit.message}")
-            
-            if commit.summary:
-                story.append(f"   Summary: {commit.summary}")
-            
-            if commit.files_changed:
-                story.append(f"   Files: {', '.join(commit.files_changed[:3])}")
-                if len(commit.files_changed) > 3:
-                    story.append(f"   ... and {len(commit.files_changed) - 3} more files")
-            
-            if commit.categories or commit.tags:
-                story.append(f"   Tags: {', '.join(commit.categories + commit.tags)}")
-            
+                story.append(f"• {category}: {len(category_commits)} commits")
+                # Show only the most recent commit in each category
+                latest_commit = max(category_commits, key=lambda x: x.date)
+                story.append(f"  Latest: {latest_commit.message}")
             story.append("")
         
-        # Development insights
-        story.append("🔍 DEVELOPMENT INSIGHTS")
+        # Recent activity summary
+        story.append("RECENT ACTIVITY:")
+        recent_commits = sorted_commits[-5:]  # Last 5 commits
+        for commit in recent_commits:
+            story.append(f"• {commit.date}: {commit.message}")
+            if commit.summary and len(commit.summary) < 100:
+                story.append(f"  {commit.summary}")
         story.append("")
         
-        # Most active author
+        # Development patterns
+        story.append("PATTERNS:")
         author_counts = {}
         for commit in sorted_commits:
             author_counts[commit.author] = author_counts.get(commit.author, 0) + 1
         
         most_active_author = max(author_counts.items(), key=lambda x: x[1])
-        story.append(f"• Most active contributor: {most_active_author[0]} ({most_active_author[1]} commits)")
-        
-        # Most common categories
-        if all_categories:
-            story.append(f"• Primary focus areas: {', '.join(list(all_categories)[:5])}")
-        
-        # Development patterns
-        story.append(f"• Average files per commit: {total_files / len(sorted_commits):.1f}")
-        
-        # Recent activity
-        recent_commits = [c for c in sorted_commits if c.date >= sorted_commits[-1].date]
-        if len(recent_commits) > 1:
-            story.append(f"• Recent activity: {len(recent_commits)} commits on {sorted_commits[-1].date}")
-        
-        story.append("")
-        story.append("=" * 80)
+        story.append(f"• Most active: {most_active_author[0]} ({most_active_author[1]} commits)")
+        story.append(f"• Avg files per commit: {total_files / len(sorted_commits):.1f}")
         
         return "\n".join(story)
     
@@ -393,6 +358,7 @@ def main():
     
     # Get commit list
     logger.info("Fetching commit list...")
+    logger.info(f"Arguments: since={args.since}, until={args.until}, max_commits={args.max_commits}, author={args.author}")
     commits = get_commit_list(
         since=args.since,
         until=args.until,

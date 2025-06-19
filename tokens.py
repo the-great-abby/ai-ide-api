@@ -29,6 +29,7 @@ class TokenGenerateRequest(BaseModel):
     created_by: Optional[str] = None
     role: str = "user"
     project_id: Optional[str] = None
+    user: Optional[str] = None  # Add user field for user-specific tokens
     allowed_namespaces: Optional[List[str]] = None
     namespace_permissions: Optional[
         Dict[str, str]
@@ -51,96 +52,18 @@ async def generate_token(
     """Generate a new API token with optional project and namespace scoping.
 
     Bootstrapping logic:
-    - If no tokens exist:
+    - If no admin tokens exist for the specific project:
         - Allow creation of a non-admin token with no Authorization required.
-        - To create the first admin token, require a valid (non-admin) token in Authorization header.
-    - If tokens exist:
-        - Require admin token in Authorization header for all token creation.
+        - To create the first admin token for the project, require a valid (non-admin) token in Authorization header.
+    - If admin tokens exist for the project:
+        - Require admin token in Authorization header for all token creation for that project.
     """
     logger.debug(f"Received token generation request: {request.dict()}")
     logger.debug(f"Authorization header: {authorization}")
     print(f"[DEBUG] generate_token: Authorization={authorization}, request.role={request.role}")
     try:
-        # Check if any admin tokens exist
-        existing_admin_tokens = (
-            db.query(ApiAccessToken).filter(ApiAccessToken.active == True, ApiAccessToken.role == "admin").count()
-        )
-        logger.debug(f"Existing admin tokens count: {existing_admin_tokens}")
-        existing_tokens = (
-            db.query(ApiAccessToken).filter(ApiAccessToken.active == True).count()
-        )
-        logger.debug(f"Existing tokens count: {existing_tokens}")
-        logger.debug(f"[generate_token] All tokens in DB: {db.query(ApiAccessToken).all()}")
-
-        token_obj = None
-        if existing_admin_tokens == 0:
-            print(f"[PRINT-DEBUG] Bootstrapping: request.role={request.role}, Authorization={authorization}")
-            logger.warning(f"[DEBUG] Bootstrapping: request.role={request.role}, Authorization={authorization}")
-            logger.debug(f"[generate_token] All tokens before admin creation: {db.query(ApiAccessToken).all()}")
-            # Bootstrapping: allow unauthenticated creation of first non-admin token
-            if request.role == "admin":
-                print(f"[PRINT-DEBUG] Attempting to create first admin token. Authorization={authorization}")
-                # To create the first admin token, require a valid (non-admin) token
-                if not authorization or not authorization.startswith("Bearer "):
-                    print(f"[PRINT-DEBUG] No valid Authorization header for first admin token: {authorization}")
-                    logger.warning(
-                        f"[DEBUG] Attempted to create first admin token without valid Authorization header: {authorization}"
-                    )
-                    raise HTTPException(
-                        status_code=401,
-                        detail="A valid non-admin API token is required to generate the first admin token.",
-                    )
-                token_obj = require_api_token(authorization, db)
-                logger.debug(f"[generate_token] require_api_token returned: {token_obj}")
-                print(f"[PRINT-DEBUG] First admin token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
-                logger.warning(f"[DEBUG] First admin token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
-                if token_obj.role == "admin":
-                    print(f"[PRINT-DEBUG] Attempted to use admin token to create first admin token: token_obj={token_obj}")
-                    logger.warning(f"[DEBUG] Attempted to use admin token to create first admin token: token_obj={token_obj}")
-                    raise HTTPException(status_code=403, detail="Cannot use admin token to create the first admin token.")
-                print(f"[PRINT-DEBUG] Passed non-admin token check for first admin token creation.")
-            # else: allow creation of first non-admin token with no auth
-        else:
-            print(f"[PRINT-DEBUG] Admin tokens exist: request.role={request.role}, Authorization={authorization}")
-            logger.warning(f"[DEBUG] Admin tokens exist: request.role={request.role}, Authorization={authorization}")
-            # If any admin tokens exist, require admin Authorization header for all token creation
-            if not authorization or not authorization.startswith("Bearer "):
-                print(f"[PRINT-DEBUG] No valid Authorization header for additional token creation: {authorization}")
-                logger.warning(
-                    f"[DEBUG] Attempted to generate token without valid Authorization header: {authorization}"
-                )
-                raise HTTPException(
-                    status_code=401,
-                    detail="A valid admin API token is required to generate additional tokens.",
-                )
-            token_obj = require_api_token(authorization, db)
-            print(f"[PRINT-DEBUG] Additional token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
-            logger.warning(f"[DEBUG] Additional token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
-            if token_obj.role != "admin":
-                print(f"[PRINT-DEBUG] Insufficient role for additional token creation: token_obj={token_obj}")
-                logger.warning(f"[DEBUG] Insufficient role for additional token creation: token_obj={token_obj}")
-                raise HTTPException(status_code=403, detail="Insufficient role")
-
-        new_token = secrets.token_urlsafe(32)
-        logger.debug(f"Generated new token: {new_token}")
-
-        # Validate namespace permissions if provided
-        if request.namespace_permissions:
-            logger.debug(
-                f"Validating namespace permissions: {request.namespace_permissions}"
-            )
-            for namespace, perm_type in request.namespace_permissions.items():
-                if perm_type not in ["read", "write"]:
-                    logger.error(
-                        f"Invalid permission type '{perm_type}' for namespace '{namespace}'"
-                    )
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Invalid permission type '{perm_type}' for namespace '{namespace}'. Must be 'read' or 'write'.",
-                    )
-
         # Always define effective_project_id before use
-        effective_project_id = request.project_id or (getattr(token_obj, "project_id", None) if token_obj else None)
+        effective_project_id = request.project_id or (getattr(token_obj, "project_id", None) if 'token_obj' in locals() else None)
         # Patch: Allow token creation with no project_id ONLY if no projects exist (onboarding/init bootstrapping)
         project_count = db.query(Project).count()
         if not effective_project_id:
@@ -161,6 +84,95 @@ async def generate_token(
             except Exception:
                 resolved_project_id = resolve_project_id(db, effective_project_id, **project_defaults_from_name(effective_project_id))
 
+        # Check if any admin tokens exist for THIS PROJECT AND USER (not just project)
+        existing_admin_tokens_for_project_and_user = 0
+        if resolved_project_id and getattr(request, 'user', None):
+            existing_admin_tokens_for_project_and_user = (
+                db.query(ApiAccessToken).filter(
+                    ApiAccessToken.active == True, 
+                    ApiAccessToken.role == "admin",
+                    ApiAccessToken.project_id == resolved_project_id,
+                    ApiAccessToken.user == getattr(request, 'user', None)
+                ).count()
+            )
+        logger.debug(f"Existing admin tokens for project {resolved_project_id} and user {getattr(request, 'user', None)}: {existing_admin_tokens_for_project_and_user}")
+        
+        # Get user from request
+        user = getattr(request, 'user', None)
+        
+        # Check for existing token for this specific (project, user, role) combination
+        existing_token_obj = None
+        if resolved_project_id and user:
+            existing_token_obj = db.query(ApiAccessToken).filter_by(
+                project_id=resolved_project_id,
+                user=user,
+                role=request.role,
+                active=True
+            ).first()
+        
+        # If token already exists for this user/project/role, return it
+        if existing_token_obj:
+            return {
+                "token": existing_token_obj.token,
+                "description": existing_token_obj.description,
+                "role": existing_token_obj.role,
+                "project_id": existing_token_obj.project_id,
+                "project_name": project_name,
+                "allowed_namespaces": existing_token_obj.allowed_namespaces,
+                "namespace_permissions": json.loads(existing_token_obj.namespace_permissions) if existing_token_obj.namespace_permissions else None,
+                "has_llm_access": existing_token_obj.has_llm_access,
+            }
+
+        token_obj = None
+        if existing_admin_tokens_for_project_and_user == 0:
+            print(f"[PRINT-DEBUG] Bootstrapping for project {resolved_project_id} and user {user}: request.role={request.role}, Authorization={authorization}")
+            logger.warning(f"[DEBUG] Bootstrapping for project {resolved_project_id} and user {user}: request.role={request.role}, Authorization={authorization}")
+            logger.debug(f"[generate_token] All tokens before admin creation: {db.query(ApiAccessToken).all()}")
+            # Bootstrapping: allow unauthenticated creation of first non-admin token for this project/user
+            if request.role == "admin":
+                print(f"[PRINT-DEBUG] Attempting to create first admin token for project {resolved_project_id} and user {user}. Authorization={authorization}")
+                # To create the first admin token for this project/user, require a valid token (user or admin)
+                if not authorization or not authorization.startswith("Bearer "):
+                    print(f"[PRINT-DEBUG] No valid Authorization header for first admin token: {authorization}")
+                    logger.warning(
+                        f"[DEBUG] Attempted to create first admin token without valid Authorization header: {authorization}"
+                    )
+                    raise HTTPException(
+                        status_code=401,
+                        detail="A valid API token is required to generate the first admin token for this project and user.",
+                    )
+                token_obj = require_api_token(authorization, db)
+                logger.debug(f"[generate_token] require_api_token returned: {token_obj}")
+                print(f"[PRINT-DEBUG] First admin token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
+                logger.warning(f"[DEBUG] First admin token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
+                # Allow both user and admin tokens to create the first admin token
+                if token_obj.role not in ["user", "admin"]:
+                    print(f"[PRINT-DEBUG] Invalid role for first admin token creation: token_obj={token_obj}")
+                    logger.warning(f"[DEBUG] Invalid role for first admin token creation: token_obj={token_obj}")
+                    raise HTTPException(status_code=403, detail="Invalid role for creating the first admin token.")
+                print(f"[PRINT-DEBUG] Passed token check for first admin token creation.")
+            # else: allow creation of first non-admin token with no auth
+        else:
+            print(f"[PRINT-DEBUG] Admin tokens exist for project {resolved_project_id} and user {user}: request.role={request.role}, Authorization={authorization}")
+            logger.warning(f"[DEBUG] Admin tokens exist for project {resolved_project_id} and user {user}: request.role={request.role}, Authorization={authorization}")
+            # If admin tokens exist for this project/user, require admin Authorization header for all token creation
+            if not authorization or not authorization.startswith("Bearer "):
+                print(f"[PRINT-DEBUG] No valid Authorization header for additional token creation: {authorization}")
+                logger.warning(
+                    f"[DEBUG] Attempted to generate token without valid Authorization header: {authorization}"
+                )
+                raise HTTPException(
+                    status_code=401,
+                    detail="A valid admin API token is required to generate additional tokens for this project and user.",
+                )
+            token_obj = require_api_token(authorization, db)
+            print(f"[PRINT-DEBUG] Additional token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
+            logger.warning(f"[DEBUG] Additional token creation: token_obj.role={getattr(token_obj, 'role', None)}, token_obj={token_obj}")
+            if token_obj.role != "admin":
+                print(f"[PRINT-DEBUG] Insufficient role for additional token creation: token_obj={token_obj}")
+                logger.warning(f"[DEBUG] Insufficient role for additional token creation: token_obj={token_obj}")
+                raise HTTPException(status_code=403, detail="Insufficient role")
+
         # Check if project exists and has LLM access if requested
         has_llm_access = 0
         if effective_project_id:
@@ -177,6 +189,24 @@ async def generate_token(
             has_llm_access = 1 if project.has_llm_access else 0
             logger.debug(f"Project LLM access: {has_llm_access}")
 
+        new_token = secrets.token_urlsafe(32)
+        logger.debug(f"Generated new token: {new_token}")
+
+        # Validate namespace permissions if provided
+        if request.namespace_permissions:
+            logger.debug(
+                f"Validating namespace permissions: {request.namespace_permissions}"
+            )
+            for namespace, perm_type in request.namespace_permissions.items():
+                if perm_type not in ["read", "write"]:
+                    logger.error(
+                        f"Invalid permission type '{perm_type}' for namespace '{namespace}'"
+                    )
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid permission type '{perm_type}' for namespace '{namespace}'. Must be 'read' or 'write'.",
+                    )
+
         db_token = ApiAccessToken(
             token=new_token,
             description=request.description,
@@ -189,6 +219,7 @@ async def generate_token(
             if request.namespace_permissions
             else None,
             has_llm_access=has_llm_access,
+            user=user,  # Store user field
         )
         db.add(db_token)
         db.commit()

@@ -98,6 +98,19 @@ memory-log-git-diff:
 memory-list-nodes-summary:
 	$(MAKE) -f Makefile.ai memory-list-nodes | awk 'f||/^[[]/{f=1;print}' | jq -c '.[] | select(type == "object") | {name: (.meta.name // .name // ""), project: (.meta.project // .project // ""), namespace, created_at, summary: (.meta.summary // null), content}'
 
+memory-list-nodes-by-namespace:
+	@if [ -z "$(NAMESPACE)" ]; then \
+		echo "[ERROR] Usage: make -f Makefile.ai memory-list-nodes-by-namespace NAMESPACE=<namespace_name>"; \
+		echo "Available namespaces: progress_reports, default, daily_analysis, weekly_analysis, sprint_analysis"; \
+		exit 1; \
+	fi
+	@echo "[memory-list-nodes-by-namespace] Listing nodes in namespace: $(NAMESPACE)"
+	@curl -s -X GET "http://localhost:9103/memory/nodes" -H "Authorization: Bearer $$(cat .apitoken)" | jq '.[] | select(.namespace == "$(NAMESPACE)") | {id, namespace, created_at, content: (.content | .[0:200] + "...")}'
+
+memory-list-namespaces:
+	@echo "[memory-list-namespaces] Available namespaces:"
+	@curl -s -X GET "http://localhost:9103/memory/nodes" -H "Authorization: Bearer $$(cat .apitoken)" | jq '.[].namespace' | sort | uniq -c | sort -nr
+
 # --- Memory Worker Targets ---
 
 ## Progress Report Worker

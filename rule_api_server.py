@@ -45,6 +45,7 @@ from utils.normalization import clean_examples_field, clean_list_field, normaliz
 from misc_endpoints import router as misc_router
 from memory_endpoints import router as memory_router
 from db import RuleVersion
+from projects import router as projects_router
 
 logging.getLogger("examples_normalization").setLevel(logging.DEBUG)
 
@@ -199,6 +200,7 @@ app.include_router(tokens_router)      # prefix='/admin' in tokens.py
 app.include_router(rule_proposals_router)  # prefix='/api/rule_proposals' in rule_proposals.py
 app.include_router(misc_router)
 app.include_router(memory_router)
+app.include_router(projects_router)
 
 """
 CORS Configuration via Environment Variables:

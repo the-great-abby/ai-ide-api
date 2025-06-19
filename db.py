@@ -225,6 +225,7 @@ class ApiAccessToken(Base):
     token = Column(String, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, nullable=True)
+    user = Column(String, nullable=True, index=True)  # New: user identifier for memory association
     description = Column(String, nullable=True)
     active = Column(Boolean, default=True)  # True = active, False = revoked
     role = Column(String(32), default="admin", nullable=False)

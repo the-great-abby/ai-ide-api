@@ -101,6 +101,7 @@ services:
       - PGPORT=5432
       - MEMORY_API_URL=http://test-api:8000/memory/nodes
       - OLLAMA_URL=http://host.docker.internal:11434/api/generate
+      - GIT_DIFF_SUMMARY_URL=http://test-ollama-functions:8000/summarize-git-diff
       - OLLAMA_MODEL=llama3.1:8b-instruct-q6_K
       - PYTHONPATH=/code
     command: tail -f /dev/null

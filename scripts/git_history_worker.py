@@ -142,12 +142,13 @@ async def process_git_history_analysis_job(job_config: Dict[str, Any]) -> Dict[s
             logger.info("Creating memory node with analysis results...")
             
             # Prepare memory node content
+            # Increased content length limits for verbose output
             if output_format == "story":
-                content = f"Development story: {report[:500]}..." if len(report) > 500 else report
+                content = report[:8000] + "..." if len(report) > 8000 else report
             elif output_format == "summary":
-                content = f"Git history analysis summary: {report}"
+                content = f"Git history analysis: {report}"
             elif output_format == "text":
-                content = report[:1000] + "..." if len(report) > 1000 else report
+                content = report[:8000] + "..." if len(report) > 8000 else report
             else:  # json
                 content = f"Git history analysis completed. Found {len(analyzed_commits)} commits."
             

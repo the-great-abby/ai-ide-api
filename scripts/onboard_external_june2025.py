@@ -38,12 +38,13 @@ def test_api_connectivity(api_url: str) -> bool:
         print(f"❌ API connectivity test failed: {e}")
         return False
 
-def generate_token(api_url: str, project_name: str) -> Optional[str]:
+def generate_token(api_url: str, project_name: str, user: str) -> Optional[str]:
     """Generate an API token for the external project."""
     try:
         payload = {
             "description": f"Token for {project_name}",
-            "role": "user"
+            "role": "user",
+            "user": user
         }
         
         response = requests.post(
@@ -64,12 +65,13 @@ def generate_token(api_url: str, project_name: str) -> Optional[str]:
         print(f"❌ Error generating token: {e}")
         return None
 
-def initialize_onboarding(api_url: str, project_name: str, onboarding_path: str) -> bool:
+def initialize_onboarding(api_url: str, project_name: str, onboarding_path: str, user: str) -> bool:
     """Initialize onboarding for the external project."""
     try:
         payload = {
             "project_name": project_name,
-            "journey": onboarding_path
+            "journey": onboarding_path,
+            "user": user
         }
         
         response = requests.post(
@@ -174,6 +176,7 @@ def main():
     api_url = api_url.rstrip('/')
     
     project_name = get_user_input("Enter your project name")
+    user = get_user_input("Enter user identifier (email or username)")
     onboarding_path = get_user_input("Enter onboarding path", "external_project")
     
     print(f"\n🔍 Testing API connectivity...")
@@ -184,7 +187,7 @@ def main():
     print("✅ API is accessible!")
     
     print(f"\n🔑 Generating API token...")
-    token = generate_token(api_url, project_name)
+    token = generate_token(api_url, project_name, user)
     if not token:
         print("❌ Failed to generate token. Please check your API access.")
         sys.exit(1)
@@ -192,7 +195,7 @@ def main():
     print(f"✅ Token generated: {token[:8]}...")
     
     print(f"\n📝 Initializing onboarding...")
-    if not initialize_onboarding(api_url, project_name, onboarding_path):
+    if not initialize_onboarding(api_url, project_name, onboarding_path, user):
         print("❌ Failed to initialize onboarding.")
         sys.exit(1)
     

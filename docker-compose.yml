@@ -93,6 +93,7 @@ services:
       - PGPORT=5432
       - MEMORY_API_URL=http://api:8000/memory
       - OLLAMA_URL=http://host.docker.internal:11434/api/generate
+      - GIT_DIFF_SUMMARY_URL=http://ollama-functions:8000/summarize-git-diff
       - OLLAMA_MODEL=llama3.1:8b-instruct-q6_K
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - PYTHONPATH=/code

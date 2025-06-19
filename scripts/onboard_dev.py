@@ -55,12 +55,13 @@ API_URL = api_url_input if api_url_input else api_url_default
 # Prompt for project and team name
 PROJECT_NAME = input("Enter your project name: ").strip()
 TEAM_NAME = input("Enter your team name: ").strip()
+USER = input("Enter user identifier (email or username): ").strip()
 print("Enter onboarding path from the list above:")
 ONBOARDING_PATH = input("Onboarding path: ").strip()
 
 # Step 1: Initialize onboarding journey (create/get project and team)
 print("\nInitializing onboarding journey...")
-init_payload = {"project_name": PROJECT_NAME, "team_name": TEAM_NAME, "path": ONBOARDING_PATH}
+init_payload = {"project_name": PROJECT_NAME, "team_name": TEAM_NAME, "path": ONBOARDING_PATH, "user": USER}
 init_resp = requests.post(f"{API_URL}/onboarding/init", json=init_payload)
 if init_resp.status_code != 200:
     print(f"Error initializing onboarding: {init_resp.status_code} {init_resp.text}")

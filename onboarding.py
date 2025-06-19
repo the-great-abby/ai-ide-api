@@ -221,6 +221,7 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
 
     project_name = data.get("project_name")
     team_name = data.get("team_name")
+    user = data.get("user")
     # Accept 'journey' as preferred, fallback to 'path' for backward compatibility
     journey = data.get("journey") or data.get("path")
     pirate_mode = data.get("pirate_mode", False)
@@ -353,23 +354,30 @@ async def onboarding_init(request: Request, db: Session = Depends(get_db)):
             "team_id": str(team.id) if team else None,
         }
         if journey == "test_path":
-            # Label project as test-run and always create a token
             from db import ApiAccessToken
-            new_token = secrets.token_urlsafe(32)
-            db_token = ApiAccessToken(
-                token=new_token,
-                description="test-run token",
-                active=True,
-                role="admin",
-                project_id=project.id,
-            )
-            db.add(db_token)
-            db.commit()
+            new_token = None
+            # Check for existing token for (project, user, role)
+            if user:
+                existing_token = db.query(ApiAccessToken).filter_by(project_id=project.id, user=user, role="admin", active=True).first()
+                if existing_token:
+                    new_token = existing_token.token
+            if not new_token:
+                import secrets
+                new_token = secrets.token_urlsafe(32)
+                db_token = ApiAccessToken(
+                    token=new_token,
+                    description="test-run token",
+                    active=True,
+                    role="admin",
+                    project_id=project.id,
+                    user=user,
+                )
+                db.add(db_token)
+                db.commit()
             response["project_id"] = str(project.id)
             response["token"] = new_token
             response["project_label"] = "test-run"
         else:
-            # For other paths, include project_id if available/desired
             response["project_id"] = str(project.id)
         return response
     except HTTPException:
