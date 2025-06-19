@@ -1,3 +1,6 @@
+# Set default model if not provided
+OLLAMA_MODEL ?= llama3.1:8b-instruct-q6_K
+
 # LLM-related targets (Ollama, GPT-4, Claude, etc.) extracted from Makefile.ai
 
 # --- Test Environment Targets ---

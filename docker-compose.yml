@@ -111,8 +111,8 @@ services:
       dockerfile: Dockerfile.ollama_functions
     environment:
       - RUNNING_IN_DOCKER=1
-      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}
+      - OLLAMA_URL=http://host.docker.internal:11434/api/generate
+      - OLLAMA_MODEL=llama3.2:latest
     depends_on:
       - api
     volumes:

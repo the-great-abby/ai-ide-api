@@ -20,9 +20,11 @@ def get_default_url(port, path):
         host = "localhost"
     return f"http://{host}:{port}{path}"
 
-
-OLLAMA_URL = os.environ.get("OLLAMA_URL", get_default_url(11434, "/api/generate"))
-MODEL = os.environ.get("OLLAMA_MODEL", "llama3")
+OLLAMA_URL = os.environ.get(
+    "OLLAMA_URL",
+    get_default_url(11434, "/api/generate")
+)
+MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:latest")
 
 
 class SuggestRequest(BaseModel):
@@ -206,6 +208,41 @@ class EmbeddingRequest(BaseModel):
     text: str
     model: Optional[str] = "nomic-embed-text:latest"
 
+class LLMRequest(BaseModel):
+    prompt: str
+    model: Optional[str] = None
+    stream: Optional[bool] = False
+
+@app.post("/generate")
+def generate_text(request: LLMRequest):
+    """
+    Generate text using Ollama LLM.
+    Proxies the request to Ollama's generate endpoint.
+    """
+    try:
+        model = request.model or MODEL
+        payload = {
+            "model": model,
+            "prompt": request.prompt,
+            "stream": request.stream
+        }
+        
+        response = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        response.raise_for_status()
+        
+        if request.stream:
+            # For streaming responses, return the raw response
+            return response.text
+        else:
+            # For non-streaming responses, parse JSON
+            result = response.json()
+            return {
+                "response": result.get("response", ""),
+                "model": model,
+                "prompt_length": len(request.prompt)
+            }
+    except Exception as e:
+        return {"error": f"Text generation failed: {str(e)}"}, 500
 
 @app.post("/embed-text")
 def embed_text(request: EmbeddingRequest):

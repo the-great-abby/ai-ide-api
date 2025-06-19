@@ -133,19 +133,28 @@ def call_ollama_llm(prompt: str) -> str:
     Handles streaming JSON responses.
     """
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": prompt},
-            timeout=120,
-            stream=True,
-        )
-        response.raise_for_status()
-        answer = ""
-        for line in response.iter_lines():
-            if line:
-                chunk = json.loads(line)
-                answer += chunk.get("response", "")
-        return answer
+        # Use ollama-functions service if available, otherwise fall back to direct Ollama
+        ollama_functions_url = os.environ.get("OLLAMA_FUNCTIONS_URL")
+        if ollama_functions_url:
+            # Use the ollama-functions service
+            response = requests.post(
+                f"{ollama_functions_url}/generate",
+                json={"prompt": prompt, "model": OLLAMA_MODEL, "stream": False},
+                timeout=120
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("response", "")
+        else:
+            # Fall back to direct Ollama call
+            response = requests.post(OLLAMA_URL, json={"model": OLLAMA_MODEL, "prompt": prompt}, timeout=120, stream=True)
+            response.raise_for_status()
+            answer = ""
+            for line in response.iter_lines():
+                if line:
+                    chunk = json.loads(line)
+                    answer += chunk.get("response", "")
+            return answer
     except Exception as e:
         logger.error(f"[ERROR] Ollama LLM call failed: {e}")
         raise
