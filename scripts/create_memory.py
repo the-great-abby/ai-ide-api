@@ -4,8 +4,18 @@ import sys
 import requests
 import json
 import ast
+import os
 
-API_URL = "http://localhost:9103/memory/nodes"
+API_URL = "http://api:8000/memory/nodes"
+
+def get_auth_token():
+    """Get API token from /code/.api_admin_token or /code/.apitoken file"""
+    token_paths = ['/code/.api_admin_token', '/code/.apitoken', '.api_admin_token', '.apitoken']
+    for path in token_paths:
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                return f.read().strip()
+    return None
 
 def main():
     parser = argparse.ArgumentParser(description="Create a new memory node via the API.")
@@ -45,9 +55,19 @@ def main():
     if meta:
         node["meta"] = json.dumps(meta)
 
+    # Get API token
+    token = get_auth_token()
+    if not token:
+        print("[ERROR] No API token found. Please ensure /code/.apitoken exists.", file=sys.stderr)
+        sys.exit(1)
+
     # Submit to the API
     try:
-        resp = requests.post(API_URL, json=node)
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}"
+        }
+        resp = requests.post(API_URL, json=node, headers=headers)
         resp.raise_for_status()
     except Exception as e:
         print(f"[ERROR] Failed to create memory: {e}\n{getattr(e, 'response', None) and e.response.text}", file=sys.stderr)

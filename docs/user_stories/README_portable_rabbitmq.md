@@ -94,6 +94,49 @@ job = {
 publisher.publish_job("background.jobs", job)
 ```
 
+## 📊 Check Your Memory Entries
+
+After your workers have been running, you'll want to see what memory entries they've created:
+
+### Quick Memory Check
+```bash
+# List all memory nodes
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:9103/memory/nodes | jq '.'
+
+# Get recent entries (last 10)
+curl -s -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:9103/memory/nodes" | \
+  jq 'sort_by(.created_at) | .[-10:] | .[] | {namespace, content, created_at}'
+
+# Check specific namespace
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:9103/memory/nodes?namespace=your_namespace" | jq '.'
+```
+
+### Memory Monitoring Script
+```bash
+# Run the built-in memory monitor
+python scripts/check_memory.py
+```
+
+This will show you:
+- 📊 Total number of memory nodes
+- 📁 Breakdown by namespace
+- 🏷️ Breakdown by type
+- ⏰ Recent activity (last 24 hours)
+- 📋 Latest entries
+
+### Real-Time Monitoring
+```bash
+# Watch for new memory entries
+watch -n 5 'curl -s -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:9103/memory/nodes" | jq "length"'
+
+# Monitor worker logs for memory creation
+docker compose logs -f worker | grep "Memory node created"
+```
+
 ## 🔧 Customization
 
 ### Add Your Own Job Types
@@ -135,6 +178,18 @@ echo $MEMORY_API_TOKEN
 curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:9103/health
 ```
 
+### "No memory entries showing up"?
+```bash
+# Check if memory nodes are being created
+python scripts/check_memory.py
+
+# Verify worker is creating memory nodes
+docker compose logs worker | grep "Memory node created"
+
+# Check API token permissions
+curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:9103/memory/nodes
+```
+
 ## 📚 Learn More
 
 - **Full Guide**: [portable_rabbitmq_setup.md](portable_rabbitmq_setup.md) - Complete step-by-step instructions
@@ -148,6 +203,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:9103/health
 2. **RabbitMQ Management UI**: http://localhost:15672 (user/password)
 3. **Worker logs**: `docker compose logs worker`
 4. **API health**: `curl http://localhost:9103/health`
+5. **Memory status**: `python scripts/check_memory.py`
 
 ## 🎉 Success!
 
@@ -156,6 +212,7 @@ Once you have this running, you can:
 - Create automated git analysis for your projects  
 - Set up background job processing for your applications
 - Integrate with the AI IDE system for enhanced automation
+- Monitor and track all the memory entries your bots create
 
 ---
 

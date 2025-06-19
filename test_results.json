@@ -1,0 +1,224 @@
+{
+  "tagging": {
+    "total_worker_stories": 4,
+    "tagging_tests": [
+      {
+        "node_id": "a3e915de-4a2d-463c-b9c2-f3661ba12a59",
+        "commit_hash": "1912a2b3",
+        "tags": [
+          "worker-commit",
+          "detailed-story",
+          "git-history",
+          "commit-1912a2b3",
+          "author-abby-malson",
+          "date-2025-06-18",
+          "worker-system",
+          "memory-workers",
+          "containerization",
+          "automation",
+          "memory-system",
+          "worker-system",
+          "docker",
+          "makefile",
+          "memory",
+          "workers"
+        ],
+        "missing_tags": [],
+        "tag_count": 16
+      },
+      {
+        "node_id": "8cea09ea-e5e5-49fb-bfb2-52e446f1911a",
+        "commit_hash": "1ae8a7aa",
+        "tags": [
+          "worker-commit",
+          "detailed-story",
+          "git-history",
+          "commit-1ae8a7aa",
+          "author-abby",
+          "date-2025-06-18",
+          "worker-system",
+          "memory-workers",
+          "automation",
+          "memory-system",
+          "makefile",
+          "memory",
+          "memory-processing"
+        ],
+        "missing_tags": [],
+        "tag_count": 13
+      },
+      {
+        "node_id": "b406b007-21c4-4b73-b72b-52e74e19fd94",
+        "commit_hash": "0a7f0f0c",
+        "tags": [
+          "worker-commit",
+          "detailed-story",
+          "git-history",
+          "commit-0a7f0f0c",
+          "author-abby-malson",
+          "date-2025-06-18",
+          "worker-system",
+          "memory-workers",
+          "automation",
+          "memory-system",
+          "worker-system",
+          "documentation",
+          "makefile",
+          "memory",
+          "workers",
+          "docs",
+          "similarity-pruning",
+          "memory-processing"
+        ],
+        "missing_tags": [],
+        "tag_count": 18
+      },
+      {
+        "node_id": "acdd3184-2bcf-47df-854e-0f07633fc351",
+        "commit_hash": "80417b5f",
+        "tags": [
+          "worker-commit",
+          "detailed-story",
+          "git-history",
+          "commit-80417b5f",
+          "author-abby-malson",
+          "date-2025-06-18",
+          "worker-system",
+          "memory-workers",
+          "automation",
+          "database",
+          "memory-system",
+          "worker-system",
+          "documentation",
+          "code",
+          "makefile",
+          "migrations",
+          "memory",
+          "workers",
+          "docs",
+          "python",
+          "database-setup",
+          "memory-processing"
+        ],
+        "missing_tags": [],
+        "tag_count": 22
+      }
+    ],
+    "categorization_tests": [
+      {
+        "node_id": "a3e915de-4a2d-463c-b9c2-f3661ba12a59",
+        "commit_hash": "1912a2b3",
+        "categories": [
+          "containerization",
+          "automation",
+          "memory-system",
+          "worker-system"
+        ],
+        "missing_categories": [],
+        "category_count": 4
+      },
+      {
+        "node_id": "8cea09ea-e5e5-49fb-bfb2-52e446f1911a",
+        "commit_hash": "1ae8a7aa",
+        "categories": [
+          "automation",
+          "memory-system"
+        ],
+        "missing_categories": [
+          "worker-system"
+        ],
+        "category_count": 2
+      },
+      {
+        "node_id": "b406b007-21c4-4b73-b72b-52e74e19fd94",
+        "commit_hash": "0a7f0f0c",
+        "categories": [
+          "automation",
+          "memory-system",
+          "worker-system",
+          "documentation"
+        ],
+        "missing_categories": [],
+        "category_count": 4
+      },
+      {
+        "node_id": "acdd3184-2bcf-47df-854e-0f07633fc351",
+        "commit_hash": "80417b5f",
+        "categories": [
+          "automation",
+          "database",
+          "memory-system",
+          "worker-system",
+          "documentation",
+          "code"
+        ],
+        "missing_categories": [],
+        "category_count": 6
+      }
+    ],
+    "issues": [
+      "Node 8cea09ea-e5e5-49fb-bfb2-52e446f1911a missing categories: ['worker-system']"
+    ]
+  },
+  "search": {
+    "queries": [
+      {
+        "query": "worker",
+        "rag_results": 0,
+        "success": false,
+        "error": "Internal Server Error"
+      },
+      {
+        "query": "memory",
+        "rag_results": 0,
+        "success": false,
+        "error": "Internal Server Error"
+      },
+      {
+        "query": "docker",
+        "rag_results": 0,
+        "success": false,
+        "error": "Internal Server Error"
+      },
+      {
+        "query": "similarity pruning",
+        "rag_results": 0,
+        "success": false,
+        "error": "Internal Server Error"
+      },
+      {
+        "query": "migrations",
+        "rag_results": 0,
+        "success": false,
+        "error": "Internal Server Error"
+      },
+      {
+        "query": "makefile",
+        "rag_results": 0,
+        "success": false,
+        "error": "Internal Server Error"
+      }
+    ],
+    "total_results": 0
+  },
+  "deduplication": {
+    "original_node_id": "c80d1e13-a6e3-4cc8-9b9d-19a92f6ce5e2",
+    "duplicate_attempt_status": 200,
+    "duplicate_attempt_response": "Success",
+    "deduplication_working": false
+  },
+  "similarity_pruning": {
+    "total_worker_stories": 4,
+    "similarity_issues": [],
+    "content_length_stats": {
+      "average_length": 1539.75,
+      "variance": 12926.1875,
+      "min_length": 1430,
+      "max_length": 1710
+    },
+    "potential_duplicates": 0
+  },
+  "memory_cleanup": {
+    "error": "the JSON object must be str, bytes or bytearray, not NoneType"
+  }
+}

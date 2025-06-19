@@ -187,6 +187,36 @@ def summarize_git_diff(
         "prompt": prompt
     }
 
+class EmbeddingRequest(BaseModel):
+    text: str
+    model: Optional[str] = "nomic-embed-text:latest"
+
+@app.post("/embed-text")
+def embed_text(request: EmbeddingRequest):
+    """
+    Generate embeddings for text using Ollama.
+    Proxies the request to Ollama's embedding endpoint.
+    """
+    try:
+        # Call Ollama's embedding endpoint
+        ollama_embedding_url = get_default_url(11434, "/api/embeddings")
+        payload = {
+            "model": request.model,
+            "prompt": request.text
+        }
+        
+        response = requests.post(ollama_embedding_url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        result = response.json()
+        return {
+            "embedding": result.get("embedding", []),
+            "model": request.model,
+            "text_length": len(request.text)
+        }
+    except Exception as e:
+        return {"error": f"Embedding generation failed: {str(e)}"}, 500
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="LLM Rule Suggester Service CLI")

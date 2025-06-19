@@ -41,14 +41,16 @@ def get_api_token() -> str:
             return f.read().strip()
     return MEMORY_API_TOKEN
 
-def create_memory_node(content: str, meta: Dict[str, Any]) -> Optional[str]:
+def create_memory_node(content: str, meta: Dict[str, Any], namespace: str) -> Optional[str]:
     """Create a memory node with the analysis results."""
     import requests
+    import json
     
     headers = {"Authorization": f"Bearer {get_api_token()}"}
     payload = {
+        "namespace": namespace,
         "content": content,
-        "meta": meta
+        "meta": json.dumps(meta)  # Convert meta dict to JSON string
     }
     
     try:
@@ -71,9 +73,12 @@ async def process_git_history_analysis_job(job_config: Dict[str, Any]) -> Dict[s
     - summarize: bool (default: True)
     - output_format: str (json, text, summary)
     - create_memory_node: bool (default: False)
-    - memory_namespace: str (default: 'git_history_analysis')
+    - memory_namespace: str (default: 'git_history')
     - memory_tags: list (optional)
     """
+    logger.info(f"=== GIT HISTORY WORKER STARTED ===")
+    logger.info(f"Job config received: {job_config}")
+    
     stats = {
         "commits_found": 0,
         "commits_analyzed": 0,
@@ -94,7 +99,7 @@ async def process_git_history_analysis_job(job_config: Dict[str, Any]) -> Dict[s
         summarize = job_config.get("summarize", True)
         output_format = job_config.get("output_format", "json")
         create_memory = job_config.get("create_memory_node", False)
-        memory_namespace = job_config.get("memory_namespace", "git_history_analysis")
+        memory_namespace = job_config.get("memory_namespace", "git_history")
         memory_tags = job_config.get("memory_tags", [])
         
         # Get commit list
@@ -137,7 +142,9 @@ async def process_git_history_analysis_job(job_config: Dict[str, Any]) -> Dict[s
             logger.info("Creating memory node with analysis results...")
             
             # Prepare memory node content
-            if output_format == "summary":
+            if output_format == "story":
+                content = f"Development story: {report[:500]}..." if len(report) > 500 else report
+            elif output_format == "summary":
                 content = f"Git history analysis summary: {report}"
             elif output_format == "text":
                 content = report[:1000] + "..." if len(report) > 1000 else report
@@ -156,11 +163,12 @@ async def process_git_history_analysis_job(job_config: Dict[str, Any]) -> Dict[s
                 "tags": memory_tags + ["git-history", "analysis"],
                 "categories": ["development", "code-analysis"],
                 "full_report": report if output_format != "json" else None,
-                "report_length": len(report)
+                "report_length": len(report),
+                "story_mode": output_format == "story"
             }
             
             # Create the memory node
-            memory_id = create_memory_node(content, meta)
+            memory_id = create_memory_node(content, meta, memory_namespace)
             if memory_id:
                 stats["memory_node_created"] = True
                 logger.info(f"Created memory node with ID: {memory_id}")

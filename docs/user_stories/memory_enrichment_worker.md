@@ -101,6 +101,31 @@ flowchart TD
     style G fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
+## Makefile Usage
+Trigger the memory enrichment worker using the following Makefile targets:
+
+```bash
+# Process all memory nodes
+make -f Makefile.ai memory-trigger-enrichment SCOPE=all
+
+# Process only new nodes
+make -f Makefile.ai memory-trigger-enrichment SCOPE=new
+
+# Process specific namespace
+make -f Makefile.ai memory-trigger-enrichment SCOPE=namespace:docs
+
+# Preview enrichment without applying changes (recommended first)
+make -f Makefile.ai memory-trigger-enrichment SCOPE=all DRY_RUN=true
+
+# Monitor worker logs during enrichment
+make -f Makefile.ai memory-worker-logs
+
+# Check enrichment status and queue
+make -f Makefile.ai memory-status-report
+```
+
+**Best Practice:** Always run with `DRY_RUN=true` first to preview what tags and categories will be added before applying changes.
+
 ---
 
 ## Rationale

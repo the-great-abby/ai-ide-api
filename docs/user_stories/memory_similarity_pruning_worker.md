@@ -178,6 +178,37 @@ graph TD
     M -->|No| N[Complete]
 ```
 
+## Makefile Usage
+Trigger the memory similarity pruning worker using the following Makefile targets:
+
+```bash
+# Process all memory nodes for similarity
+make -f Makefile.ai memory-trigger-similarity SCOPE=all
+
+# Process only new nodes
+make -f Makefile.ai memory-trigger-similarity SCOPE=new
+
+# Process specific namespace
+make -f Makefile.ai memory-trigger-similarity SCOPE=namespace:docs
+
+# Preview similarity matches without applying changes (recommended first)
+make -f Makefile.ai memory-trigger-similarity SCOPE=all DRY_RUN=true
+
+# Fine-tuned similarity detection with custom thresholds
+make -f Makefile.ai memory-trigger-similarity SCOPE=new \
+  VECTOR_THRESHOLD=0.95 \
+  CONTENT_THRESHOLD=0.90 \
+  TAG_THRESHOLD=0.80
+
+# Monitor worker logs during similarity processing
+make -f Makefile.ai memory-worker-logs
+
+# Check similarity processing status and queue
+make -f Makefile.ai memory-status-report
+```
+
+**Best Practice:** Always run with `DRY_RUN=true` first to preview which nodes will be merged or linked before applying changes.
+
 ## Related
 - [Memory Enrichment Worker](memory_enrichment_worker.md)
 - [Memory Cleanup Worker](memory_cleanup_worker.md)

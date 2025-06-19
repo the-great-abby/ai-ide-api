@@ -37,7 +37,7 @@ def get_onboarding_path(path_name: str):
 
 @router.get("/scripts/onboard_external.py", response_class=PlainTextResponse)
 def get_onboard_external_py():
-    script_path = os.path.join(os.path.dirname(__file__), "../scripts/onboard_external.py")
+    script_path = os.path.join(os.path.dirname(__file__), "../scripts/onboard_external_june2025.py")
     with open(script_path, "r") as f:
         return f.read()
 
