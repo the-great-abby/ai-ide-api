@@ -330,7 +330,7 @@ async def update_rule(
     except Exception:
         raw_payload = None
     logger.debug(f"[UPDATE-DEBUG] Raw incoming payload: {raw_payload}")
-    # Allowed fields for update (now includes 'rule_type')
+    # Allowed fields for update (rule_type is immutable)
     allowed_fields = {
         "description",
         "diff",
@@ -345,10 +345,9 @@ async def update_rule(
         "submitted_by",
         "reason_for_change",
         "references",
-        "rule_type",
     }
-    # Only version and id are immutable now
-    immutable_fields = {"version", "id"}
+    # Only version, id, and rule_type are immutable now
+    immutable_fields = {"version", "id", "rule_type"}
     if raw_payload:
         for key in raw_payload:
             if key not in allowed_fields:

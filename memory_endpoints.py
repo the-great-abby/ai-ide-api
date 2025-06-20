@@ -317,26 +317,28 @@ def update_memory_node(
     if not db_node:
         session.close()
         raise HTTPException(status_code=404, detail="Memory node not found")
-    # Only allow updating content, meta, and confidence
+    # Only allow updating content, meta, and categories/tags
     if "content" in payload:
         db_node.content = payload["content"]
     if "meta" in payload:
         db_node.meta = payload["meta"]
-    if "confidence" in payload:
-        db_node.confidence = payload["confidence"]
-    session.commit()
-    session.refresh(db_node)
-    result = {
-        "id": str(db_node.id),
+    if "categories" in payload:
+        db_node.categories = payload["categories"]
+    if "tags" in payload:
+        db_node.tags = payload["tags"]
+
+    db.commit()
+    db.refresh(db_node)
+
+    return {
+        "id": db_node.id,
         "namespace": db_node.namespace,
         "content": db_node.content,
-        "embedding": db_node.embedding,
         "meta": db_node.meta,
+        "categories": db_node.categories,
+        "tags": db_node.tags,
         "created_at": db_node.created_at,
-        "confidence": db_node.confidence,
     }
-    session.close()
-    return result
 
 
 @router.delete("/nodes/{id}")
@@ -435,7 +437,7 @@ async def search_memory_nodes(
                 "embedding": row_dict["embedding"],
                 "meta": row_dict["meta"],
                 "created_at": row_dict["created_at"],
-                "confidence": row_dict.get("confidence"),
+                "confidence": similarity,  # Confidence is based on similarity score
                 "similarity": similarity,
             }
         )
@@ -525,7 +527,7 @@ def rag_search(
             "namespace": n["namespace"],
             "meta": n["meta"],
             "created_at": n["created_at"],
-            "confidence": n.get("confidence"),
+            "confidence": n.get("similarity"),  # Use similarity as confidence
         }
         if source["confidence"] is not None and source["confidence"] < 0.5:
             source[
