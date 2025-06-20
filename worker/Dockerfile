@@ -7,4 +7,4 @@ COPY scripts ./scripts
 RUN pip install -r requirements.txt
 ENV PYTHONPATH=/app:/app/scripts:/app/utils
 RUN pip install pika requests
-CMD ["python", "scripts/git_history_worker.py"] 
+CMD ["python", "worker/main.py"] 

@@ -132,10 +132,36 @@ memory-trigger-enrichment:
 		exit 1; \
 	fi
 	@if [ "$(DRY_RUN)" = "true" ]; then \
-		docker compose exec misc-scripts python3 /scripts/publish_memory_enrichment_job.py --scope $(SCOPE) --dry-run; \
+		docker compose exec misc-scripts python3 /code/scripts/publish_memory_enrichment_job.py --scope $(SCOPE) --dry-run; \
 	else \
-		docker compose exec misc-scripts python3 /scripts/publish_memory_enrichment_job.py --scope $(SCOPE); \
+		docker compose exec misc-scripts python3 /code/scripts/publish_memory_enrichment_job.py --scope $(SCOPE); \
 	fi
+
+## Memory Enrichment Scheduler (Nightly 10pm-2am)
+memory-enrichment-scheduler:
+	@echo "[memory-enrichment-scheduler] Starting nightly enrichment scheduler..."
+	@docker compose exec misc-scripts sh -c 'python3 /code/scripts/memory_enrichment_scheduler.py --scope "$${SCOPE:-all}" $(if $(DRY_RUN),--dry-run,) --similarity-threshold "$${SIMILARITY_THRESHOLD:-0.85}" --max-tags "$${MAX_TAGS:-5}" --batch-size "$${BATCH_SIZE:-50}" --priority "$${PRIORITY:-normal}"'
+
+memory-enrichment-run-now:
+	@echo "[memory-enrichment-run-now] Running enrichment job immediately..."
+	@docker compose exec misc-scripts sh -c 'python3 /code/scripts/memory_enrichment_scheduler.py --run-now --scope "$${SCOPE:-all}" $(if $(DRY_RUN),--dry-run,) --similarity-threshold "$${SIMILARITY_THRESHOLD:-0.85}" --max-tags "$${MAX_TAGS:-5}" --batch-size "$${BATCH_SIZE:-50}" --priority "$${PRIORITY:-normal}"'
+
+memory-enrichment-scheduler-bg:
+	@echo "[memory-enrichment-scheduler-bg] Starting enrichment scheduler in background..."
+	@docker compose exec -d misc-scripts sh -c 'python3 /code/scripts/memory_enrichment_scheduler.py --scope "$${SCOPE:-all}" $(if $(DRY_RUN),--dry-run,) --similarity-threshold "$${SIMILARITY_THRESHOLD:-0.85}" --max-tags "$${MAX_TAGS:-5}" --batch-size "$${BATCH_SIZE:-50}" --priority "$${PRIORITY:-normal}" --check-interval "$${CHECK_INTERVAL:-300}"'
+
+memory-enrichment-scheduler-logs:
+	@echo "[memory-enrichment-scheduler-logs] Recent scheduler activity..."
+	@docker compose logs misc-scripts | grep -i "enrichment\|scheduler" | tail -n 20
+
+memory-enrichment-status:
+	@echo "[memory-enrichment-status] Enrichment system status..."
+	@echo "\n=== Queue Status ==="
+	@docker compose exec rabbitmq rabbitmqctl list_queues | grep "memory.enrichment" || echo "No enrichment queue found"
+	@echo "\n=== Recent Enrichment Jobs ==="
+	@docker compose logs worker | grep -i "enrichment" | tail -n 10 || echo "No recent enrichment activity"
+	@echo "\n=== Scheduler Status ==="
+	@docker compose logs misc-scripts | grep -i "scheduler\|nightly" | tail -n 5 || echo "No scheduler activity found"
 
 ## Memory Similarity Worker
 memory-trigger-similarity:

@@ -141,6 +141,7 @@ services:
       - ./worker:/app/worker
       - ./utils:/app/utils
       - ./scripts:/app/scripts
+      - ./misc_scripts:/app/misc_scripts
       - .:/code
       - ./.git:/code/.git
       - ./.apitoken:/code/.apitoken

@@ -1,3 +1,7 @@
+print('=== WORKER MAIN.PY EXECUTING (print) ===')
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger('worker').info('=== WORKER MAIN.PY EXECUTING (logger) ===')
 # Worker job dispatch pattern:
 # To add a new job type:
 # 1. Implement an async handler (e.g., process_new_job) in a module.
@@ -10,8 +14,7 @@ import time
 import asyncio
 from utils.message_broker import RealRabbitMQClient, MessageBrokerBase
 import requests
-import logging
-from progress_report_worker import process_progress_report_job
+from worker.progress_report_worker import process_progress_report_job
 from scripts.memory_cleanup_worker import process_memory_cleanup_job
 from scripts.memory_enrichment_worker import process_enrichment_job
 from scripts.memory_similarity_pruning_worker import process_similarity_pruning_job
@@ -79,27 +82,43 @@ async def main(broker: MessageBrokerBase = None):
     print("Worker started, polling for jobs...")
 
     while True:
-        for queue, handler in JOB_HANDLERS.items():
-            logger.debug(f"About to poll queue: {queue}")
-            body = await broker.consume(queue)
-            logger.debug(f"Polled queue {queue}, got body: {body}")
-            logger.debug(f"Body type: {type(body)}")
-            if body:
+        for queue_name, handler in JOB_HANDLERS.items():
+            logger.debug(f"About to poll queue: {queue_name}")
+            try:
+                # Consume from queue
+                body = await broker.consume(queue_name)
+                logger.debug(f"Polled queue {queue_name}, got body: {body}")
+                logger.debug(f"Body type: {type(body)}")
+                
+                if body is None:
+                    logger.debug(f"No message in queue {queue_name}, sleeping...")
+                    await asyncio.sleep(1)
+                    continue
+                
+                # Parse job data
                 try:
-                    logger.info(
-                        f"Processing job from queue {queue} with handler {handler.__name__}"
-                    )
-                    logger.debug(
-                        f"Job body content: {json.dumps(body, indent=2) if isinstance(body, dict) else str(body)}"
-                    )
-                    await handler(body)
-                    logger.info(f"Job from queue {queue} completed successfully")
+                    # The message broker already returns parsed JSON, so body is already a dict
+                    if isinstance(body, str):
+                        job_data = json.loads(body)
+                    else:
+                        job_data = body
+                    logger.info(f"🎯 Processing job from queue {queue_name}: {job_data}")
+                    print(f"=== JOB DEQUEUED FROM {queue_name} ===")
+                    logger.critical(f"=== JOB DEQUEUED FROM {queue_name} (CRITICAL) ===")
+                    
+                    # Call handler
+                    logger.info(f"🚀 Calling handler for {queue_name}")
+                    result = await handler(job_data)
+                    logger.info(f"✅ Handler for {queue_name} completed: {result}")
+                    
+                except json.JSONDecodeError as e:
+                    logger.error(f"❌ Failed to parse job data from {queue_name}: {e}")
+                    logger.error(f"Raw body: {body}")
                 except Exception as e:
-                    logger.error(f"Error processing job from {queue}: {e}")
-                    logger.exception(f"Full traceback for job error in {queue}:")
-                    print(f"Error processing job from {queue}:", e)
-            else:
-                logger.debug(f"No message in queue {queue}, sleeping...")
+                    logger.error(f"❌ Handler error for {queue_name}: {e}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error polling queue {queue_name}: {e}")
                 await asyncio.sleep(1)
 
 
