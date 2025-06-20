@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import requests
 import os
+import random
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +33,13 @@ GIT_DIFF_SUMMARY_URL = os.environ.get(
 OLLAMA_URL = os.environ.get(
     "OLLAMA_URL", "http://host.docker.internal:11434/api/generate"
 )
+
+# Throttling and retry configuration
+DEFAULT_BATCH_SIZE = 3  # Reduced from 5
+DEFAULT_BATCH_DELAY = 5  # Increased from 2 seconds
+DEFAULT_RETRY_ATTEMPTS = 3
+DEFAULT_RETRY_DELAY = 10  # seconds
+DEFAULT_MAX_RETRIES = 5
 
 
 class GitCommit:
@@ -151,33 +159,57 @@ def get_parent_commit(commit_hash: str) -> Optional[str]:
 def summarize_diff(
     diff: str, commit_message: str, author: str, concise: bool = True
 ) -> Dict[str, Any]:
-    """Summarize a git diff using the LLM service."""
+    """Summarize a git diff using the LLM service with retry logic."""
     if not diff.strip():
         return {"summary": "No changes detected", "categories": [], "tags": []}
 
-    try:
-        payload = {
-            "diff": diff,
-            "commit_msg": commit_message,
-            "author": author,
-            "concise": concise,
-        }
+    payload = {
+        "diff": diff,
+        "commit_msg": commit_message,
+        "author": author,
+        "concise": concise,
+    }
 
-        response = requests.post(GIT_DIFF_SUMMARY_URL, json=payload, timeout=120)
-        response.raise_for_status()
+    # Retry logic for connection issues
+    for attempt in range(DEFAULT_RETRY_ATTEMPTS):
+        try:
+            logger.info(f"Attempting LLM summarization (attempt {attempt + 1}/{DEFAULT_RETRY_ATTEMPTS})")
+            response = requests.post(GIT_DIFF_SUMMARY_URL, json=payload, timeout=120)
+            response.raise_for_status()
 
-        result = response.json()
+            result = response.json()
 
-        # Extract categories and tags if available
-        categories = result.get("categories", [])
-        tags = result.get("tags", [])
-        summary = result.get("combined", result.get("summary", "No summary available"))
+            # Extract categories and tags if available
+            categories = result.get("categories", [])
+            tags = result.get("tags", [])
+            summary = result.get("combined", result.get("summary", "No summary available"))
 
-        return {"summary": summary, "categories": categories, "tags": tags}
+            logger.info(f"✅ LLM summarization successful on attempt {attempt + 1}")
+            return {"summary": summary, "categories": categories, "tags": tags}
 
-    except Exception as e:
-        logger.error(f"Failed to summarize diff: {e}")
-        return {"summary": f"Error summarizing diff: {e}", "categories": [], "tags": []}
+        except requests.exceptions.ConnectionError as e:
+            logger.warning(f"Connection error on attempt {attempt + 1}: {e}")
+            if attempt < DEFAULT_RETRY_ATTEMPTS - 1:
+                delay = DEFAULT_RETRY_DELAY * (attempt + 1) + random.uniform(1, 3)  # Exponential backoff with jitter
+                logger.info(f"Retrying in {delay:.1f} seconds...")
+                time.sleep(delay)
+            else:
+                logger.error(f"Failed to connect to LLM service after {DEFAULT_RETRY_ATTEMPTS} attempts")
+                return {"summary": f"Error: Could not connect to LLM service", "categories": [], "tags": []}
+        
+        except requests.exceptions.Timeout as e:
+            logger.warning(f"Timeout error on attempt {attempt + 1}: {e}")
+            if attempt < DEFAULT_RETRY_ATTEMPTS - 1:
+                delay = DEFAULT_RETRY_DELAY * (attempt + 1)
+                logger.info(f"Retrying in {delay} seconds...")
+                time.sleep(delay)
+            else:
+                logger.error(f"LLM service timeout after {DEFAULT_RETRY_ATTEMPTS} attempts")
+                return {"summary": f"Error: LLM service timeout", "categories": [], "tags": []}
+        
+        except Exception as e:
+            logger.error(f"Unexpected error during LLM summarization: {e}")
+            return {"summary": f"Error summarizing diff: {e}", "categories": [], "tags": []}
 
 
 def analyze_commit(
@@ -209,22 +241,42 @@ def analyze_commit_range(
     commits: List[GitCommit],
     include_diff: bool = True,
     summarize: bool = True,
-    batch_size: int = 5,
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> List[GitCommit]:
-    """Analyze a range of commits with optional batching."""
+    """Analyze a range of commits with improved throttling and error handling."""
     analyzed_commits = []
+    total_commits = len(commits)
+    
+    logger.info(f"Starting analysis of {total_commits} commits with batch_size={batch_size}")
 
     for i, commit in enumerate(commits):
-        logger.info(f"Processing commit {i+1}/{len(commits)}: {commit.commit_hash[:8]}")
+        logger.info(f"Processing commit {i+1}/{total_commits}: {commit.commit_hash[:8]}")
 
-        analyzed_commit = analyze_commit(commit, include_diff, summarize)
-        analyzed_commits.append(analyzed_commit)
+        try:
+            analyzed_commit = analyze_commit(commit, include_diff, summarize)
+            analyzed_commits.append(analyzed_commit)
+            
+            # Progress tracking
+            if (i + 1) % 10 == 0:
+                logger.info(f"Progress: {i+1}/{total_commits} commits processed ({((i+1)/total_commits)*100:.1f}%)")
+
+        except Exception as e:
+            logger.error(f"Error analyzing commit {commit.commit_hash[:8]}: {e}")
+            # Continue with next commit instead of failing completely
+            analyzed_commits.append(commit)
 
         # Add delay between batches to avoid overwhelming the LLM service
-        if (i + 1) % batch_size == 0 and i < len(commits) - 1:
-            logger.info(f"Processed {i+1} commits, pausing...")
-            time.sleep(2)
+        if (i + 1) % batch_size == 0 and i < total_commits - 1:
+            logger.info(f"Processed {i+1} commits, pausing for {DEFAULT_BATCH_DELAY} seconds...")
+            time.sleep(DEFAULT_BATCH_DELAY)
+            
+            # Add a small random delay to prevent thundering herd
+            jitter = random.uniform(0.5, 2.0)
+            if jitter > 0:
+                logger.info(f"Additional jitter delay: {jitter:.1f} seconds")
+                time.sleep(jitter)
 
+    logger.info(f"✅ Completed analysis of {len(analyzed_commits)}/{total_commits} commits")
     return analyzed_commits
 
 
@@ -365,6 +417,26 @@ def generate_report(commits: List[GitCommit], output_format: str = "json") -> st
         raise ValueError(f"Unsupported output format: {output_format}")
 
 
+def check_llm_service_health() -> bool:
+    """Check if the LLM service is available and responding."""
+    try:
+        logger.info(f"Checking LLM service health at {GIT_DIFF_SUMMARY_URL}")
+        response = requests.get(GIT_DIFF_SUMMARY_URL.replace("/summarize-git-diff", "/health"), timeout=10)
+        if response.status_code == 200:
+            logger.info("✅ LLM service is healthy and responding")
+            return True
+        else:
+            logger.warning(f"LLM service returned status {response.status_code}")
+            return False
+    except requests.exceptions.ConnectionError:
+        logger.error(f"❌ Cannot connect to LLM service at {GIT_DIFF_SUMMARY_URL}")
+        logger.error("Make sure the ollama-functions service is running")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error checking LLM service health: {e}")
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Analyze git history and summarize changes"
@@ -404,7 +476,7 @@ def main():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=5,
+        default=DEFAULT_BATCH_SIZE,
         help="Number of commits to process before pausing",
     )
     parser.add_argument(
@@ -446,14 +518,31 @@ def main():
             print(f"  {commit.commit_hash[:8]} - {commit.author} - {commit.message}")
         return
 
+    # Check LLM service health if summarization is enabled
+    if args.summarize:
+        if not check_llm_service_health():
+            logger.error("❌ LLM service is not available. Cannot proceed with summarization.")
+            logger.error("Options:")
+            logger.error("  1. Start the ollama-functions service")
+            logger.error("  2. Run with --no-summarize to skip LLM processing")
+            logger.error("  3. Wait for the service to become available and retry")
+            sys.exit(1)
+
     # Analyze commits
     logger.info("Starting commit analysis...")
-    analyzed_commits = analyze_commit_range(
-        commits,
-        include_diff=args.include_diff,
-        summarize=args.summarize,
-        batch_size=args.batch_size,
-    )
+    try:
+        analyzed_commits = analyze_commit_range(
+            commits,
+            include_diff=args.include_diff,
+            summarize=args.summarize,
+            batch_size=args.batch_size,
+        )
+    except KeyboardInterrupt:
+        logger.info("Analysis interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Analysis failed: {e}")
+        sys.exit(1)
 
     # Generate report
     logger.info("Generating report...")

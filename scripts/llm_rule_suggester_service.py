@@ -24,7 +24,7 @@ OLLAMA_URL = os.environ.get(
     "OLLAMA_URL",
     get_default_url(11434, "/api/generate")
 )
-MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:latest")
+MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b-instruct-q6_K")
 
 
 class SuggestRequest(BaseModel):
@@ -35,6 +35,21 @@ class SuggestRequest(BaseModel):
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
+
+@app.get("/health")
+def health_check():
+    # Check Ollama backend
+    try:
+        # Try a minimal POST to the Ollama backend (since /api/generate is POST)
+        payload = {"model": MODEL, "prompt": "ping", "stream": False}
+        response = requests.post(OLLAMA_URL, json=payload, timeout=5)
+        if response.status_code == 200 and "response" in response.json():
+            return {"status": "ok", "ollama_backend": "ok"}
+        else:
+            return {"status": "degraded", "ollama_backend": f"bad status {response.status_code}"}
+    except Exception as e:
+        return {"status": "error", "ollama_backend": f"unreachable: {e}"}
 
 
 def run_static_checker(target="."):

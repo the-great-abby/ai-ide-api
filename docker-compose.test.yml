@@ -179,7 +179,9 @@ services:
     #   - change-this-env.api-test.example  # Uncomment if you want to template test-api env
     profiles: ["test"]
 
-volumes: {}
+volumes:
+  rules_postgres_data_test_fresh:
+    external: false
 
 networks:
   testnet: 

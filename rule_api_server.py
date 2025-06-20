@@ -52,6 +52,7 @@ from db import get_db, resolve_project_id, resolve_team_id, project_defaults_fro
 from utils.serialization import serialize_uuids
 from onboarding import router as onboarding_router
 from api.onboarding_endpoints import router as api_onboarding_router
+from api.external_onboarding_endpoints import router as external_onboarding_router
 from rules import router as rules_router
 from tokens import router as tokens_router
 from rule_proposals import (
@@ -229,6 +230,7 @@ app.include_router(onboarding_router)  # prefix='/onboarding' in onboarding.py
 app.include_router(
     api_onboarding_router
 )  # prefix='/api' in api/onboarding_endpoints.py
+app.include_router(external_onboarding_router)  # prefix='/external' in external_onboarding_endpoints.py
 app.include_router(rules_router)  # prefix='/rules' in rules.py
 app.include_router(tokens_router)  # prefix='/admin' in tokens.py
 app.include_router(
