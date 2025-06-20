@@ -251,7 +251,6 @@ memory-rag-search:
 	fi
 	@echo "[memory-rag-search] Searching: $(QUERY)"
 	@TOP_K_VALUE=$${TOP_K:-5}; \
-	NAMESPACE_VALUE=$${NAMESPACE:-progress_reports}; \
 	if [ -z "$(AUTH_TOKEN)" ]; then \
 		if [ -f .api_admin_token ]; then \
 			TOKEN=$$(cat .api_admin_token); \
@@ -264,10 +263,17 @@ memory-rag-search:
 	else \
 		TOKEN="$(AUTH_TOKEN)"; \
 	fi; \
-	curl -s -X POST http://localhost:9103/memory/rag_search \
-		-H "Content-Type: application/json" \
-		-H "Authorization: Bearer $$TOKEN" \
-		-d "{\"question\": \"$(QUERY)\", \"namespace\": \"$$NAMESPACE_VALUE\", \"top_k\": $$TOP_K_VALUE}" | jq '.'
+	if [ -n "$(NAMESPACE)" ]; then \
+		curl -s -X POST http://localhost:9103/memory/rag_search \
+			-H "Content-Type: application/json" \
+			-H "Authorization: Bearer $$TOKEN" \
+			-d "{\"question\": \"$(QUERY)\", \"namespace\": \"$(NAMESPACE)\", \"top_k\": $$TOP_K_VALUE}" | jq '.'; \
+	else \
+		curl -s -X POST http://localhost:9103/memory/rag_search \
+			-H "Content-Type: application/json" \
+			-H "Authorization: Bearer $$TOKEN" \
+			-d "{\"question\": \"$(QUERY)\", \"top_k\": $$TOP_K_VALUE}" | jq '.'; \
+	fi
 
 memory-rag-search-similar:
 	@if [ -z "$(NODE_ID)" ]; then \
