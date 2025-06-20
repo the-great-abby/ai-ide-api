@@ -233,6 +233,8 @@ async def process_similarity_pruning_job(job_config: Dict[str, Any]) -> Dict[str
     - content_similarity_threshold: float 0-1
     - tag_overlap_threshold: float 0-1
     """
+    logger.critical("=== MEMORY SIMILARITY JOB STARTED (CRITICAL) ===")
+    print("=== MEMORY SIMILARITY JOB STARTED (print) ===")
     stats = {
         "total_nodes": 0,
         "similar_groups": 0,

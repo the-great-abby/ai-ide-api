@@ -128,8 +128,27 @@ async def retry_with_backoff(func, *args, max_retries=MAX_RETRIES, delay=RETRY_D
     )
 
 
-async def extract_tags_llm(content: str, max_tags: int = 5) -> List[str]:
-    """Extract tags using LLM with retry logic."""
+def clean_llm_list_output(text: str) -> list[str]:
+    """Extract only the actual tags/categories from LLM output, removing boilerplate."""
+    # Split into lines, ignore lines that look like instructions
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    # Remove lines that are instructions or explanations
+    filtered = []
+    for line in lines:
+        # Skip lines that look like instructions
+        if re.search(r"here (are|is) (the|a|up to)? ?(extracted|relevant|top|high-level)? ?(tags|categories|list|comma-separated|that|best|describe|classify|as|in|to|of|for|with|by|\d+|:|,|\.|\n)*", line, re.IGNORECASE):
+            continue
+        filtered.append(line)
+    # If nothing left, fallback to all lines
+    if not filtered:
+        filtered = lines
+    # Join and split by comma
+    joined = ", ".join(filtered)
+    items = [t.strip() for t in joined.split(",") if t.strip()]
+    return items
+
+
+async def extract_tags_llm(content: str, max_tags: int = 5) -> list[str]:
     logger.info(f"[ENRICHMENT] 🏷️ Extracting tags from content (max: {max_tags})")
     prompt = (
         f"Extract up to {max_tags} relevant tags (single words or short phrases) "
@@ -142,7 +161,7 @@ async def extract_tags_llm(content: str, max_tags: int = 5) -> List[str]:
         async def call_llm():
             return await asyncio.to_thread(call_ollama_llm, prompt)
         response = await retry_with_backoff(call_llm)
-        tags = [t.strip() for t in response.split(",") if t.strip()]
+        tags = clean_llm_list_output(response)
         tags = tags[:max_tags]
         logger.info(f"[ENRICHMENT] ✅ LLM extracted tags: {tags}")
         return tags
@@ -151,8 +170,7 @@ async def extract_tags_llm(content: str, max_tags: int = 5) -> List[str]:
         return []
 
 
-async def extract_categories_llm(content: str, max_tags: int = 5) -> List[str]:
-    """Extract categories using LLM with retry logic."""
+async def extract_categories_llm(content: str, max_tags: int = 5) -> list[str]:
     logger.info(f"[ENRICHMENT] 📂 Extracting categories from content (max: {max_tags})")
     prompt = (
         f"Extract up to {max_tags} high-level categories (single words or short phrases) "
@@ -165,7 +183,7 @@ async def extract_categories_llm(content: str, max_tags: int = 5) -> List[str]:
         async def call_llm():
             return await asyncio.to_thread(call_ollama_llm, prompt)
         response = await retry_with_backoff(call_llm)
-        cats = [c.strip() for c in response.split(",") if c.strip()]
+        cats = clean_llm_list_output(response)
         cats = cats[:max_tags]
         logger.info(f"[ENRICHMENT] ✅ LLM extracted categories: {cats}")
         return cats

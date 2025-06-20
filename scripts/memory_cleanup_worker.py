@@ -69,6 +69,8 @@ async def process_memory_cleanup_job(body: Dict[str, Any]):
       - dry_run: bool
       - age_days: int
     """
+    logger.critical("=== MEMORY CLEANUP JOB STARTED (CRITICAL) ===")
+    print("=== MEMORY CLEANUP JOB STARTED (print) ===")
     dry_run = body.get("dry_run", False)
     age_days = body.get("age_days", default_age_days)
     logger.info(
