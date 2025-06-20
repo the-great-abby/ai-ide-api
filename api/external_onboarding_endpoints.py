@@ -15,93 +15,95 @@ import io
 from auth import require_api_token
 from db import ApiAccessToken, get_db
 from sqlalchemy.orm import Session
+from scripts.generate_external_makefile import generate_makefile
 
 router = APIRouter(prefix="/external", tags=["external-onboarding"])
 
 # Configuration
 SCRIPTS_DIR = "scripts"
 GENERATED_DIR = "."
+
+# Files that are part of the onboarding package
 ONBOARDING_FILES = [
-    "generate_external_makefile.py",
-    "onboard_external_updated.py", 
-    "onboard_external.sh"
+    "onboard_external.sh",
+    "onboard_external_updated.py",
+    "generate_external_makefile.py"
 ]
 
 @router.get("/health")
 async def health_check() -> Dict[str, Any]:
     """
-    Simple health check for the external onboarding endpoints.
+    Health check endpoint for external onboarding.
     This endpoint is public and does not require authentication.
     """
     return {
         "status": "healthy",
-        "service": "external_onboarding",
-        "timestamp": datetime.now().isoformat(),
-        "endpoints": {
-            "health": "/external/health",
-            "files": "/external/onboarding/files",
-            "quick_start": "/external/onboarding/quick-start",
-            "download": "/external/onboarding/download/{file_type}"
-        }
+        "service": "external-onboarding",
+        "message": "External onboarding service is running"
     }
 
 @router.get("/onboarding/files")
 async def list_onboarding_files() -> Dict[str, Any]:
     """
-    List available onboarding files and their descriptions.
+    List all available onboarding files.
     This endpoint is public and does not require authentication.
     """
-    files_info = {
+    files = {
         "scripts": {
-            "generate_external_makefile.py": {
-                "description": "Core Makefile generator for AI-IDE-API",
-                "type": "python_script",
-                "usage": "python3 generate_external_makefile.py --help"
+            "onboard_external.sh": {
+                "description": "Shell script for external project onboarding",
+                "size": "~3KB",
+                "usage": "chmod +x onboard_external.sh && ./onboard_external.sh"
             },
             "onboard_external_updated.py": {
-                "description": "Complete interactive onboarding process",
-                "type": "python_script", 
-                "usage": "python3 onboard_external_updated.py --help"
+                "description": "Python script for external project onboarding",
+                "size": "~15KB", 
+                "usage": "python onboard_external_updated.py"
             },
-            "onboard_external.sh": {
-                "description": "Shell wrapper for easy onboarding execution",
-                "type": "shell_script",
-                "usage": "./onboard_external.sh"
+            "generate_external_makefile.py": {
+                "description": "Generator for custom external project Makefiles",
+                "size": "~8KB",
+                "usage": "python generate_external_makefile.py --api-base <url> --output <filename>"
             }
         },
         "generated": {
             "Makefile.external": {
-                "description": "Comprehensive Makefile with all API operations",
-                "type": "makefile",
-                "targets": 40,
+                "description": "Generated Makefile for external project operations",
+                "size": "~2KB",
                 "usage": "make -f Makefile.external help"
             },
             "README.external.md": {
-                "description": "Complete usage documentation",
-                "type": "markdown",
-                "usage": "Read for setup and usage instructions"
+                "description": "Documentation for external project usage",
+                "size": "~3KB",
+                "usage": "cat README.external.md"
             }
         },
         "examples": {
             "example_memory.txt": {
-                "description": "Sample memory content for testing",
-                "type": "text",
+                "description": "Example memory content for testing",
+                "size": "~1KB",
                 "usage": "make -f Makefile.external memory-create FILE=example_memory.txt"
             },
             "example_rule.mdc": {
-                "description": "Sample rule file for testing",
-                "type": "mdc",
+                "description": "Example rule file for testing",
+                "size": "~1KB", 
                 "usage": "make -f Makefile.external rule-propose FILE=example_rule.mdc"
             }
         }
     }
     
     return {
-        "message": "External onboarding files available",
-        "files": files_info,
-        "timestamp": datetime.now().isoformat(),
-        "api_base": "http://localhost:9103",
-        "memory_api_base": "http://localhost:9103/memory"
+        "title": "AI-IDE-API External Onboarding Files",
+        "description": "Available files for external project onboarding",
+        "files": files,
+        "download_endpoints": {
+            "scripts": "/external/onboarding/download/scripts",
+            "makefile": "/external/onboarding/download/makefile", 
+            "readme": "/external/onboarding/download/readme",
+            "examples": "/external/onboarding/download/examples",
+            "all": "/external/onboarding/download/all"
+        },
+        "generator_endpoint": "/external/onboarding/generate"
     }
 
 @router.get("/onboarding/download/{file_type}")
@@ -110,17 +112,9 @@ async def download_onboarding_file(
     current_user: ApiAccessToken = Depends(require_api_token)
 ):
     """
-    Download individual onboarding files.
-    This endpoint requires authentication.
-    
-    file_type options:
-    - scripts: Download all script files as a zip
-    - makefile: Download the generated Makefile
-    - readme: Download the README
-    - examples: Download example files
-    - all: Download everything as a complete package
+    Download onboarding files by type.
+    Requires authentication.
     """
-    
     if file_type == "scripts":
         return await _download_scripts_zip()
     elif file_type == "makefile":
@@ -169,7 +163,7 @@ async def get_quick_start_guide() -> Dict[str, Any]:
             },
             {
                 "step": 4,
-                "title": "Use the Makefile",
+                "title": "Use the Generated Makefile",
                 "description": "Start using the generated Makefile",
                 "command": "make -f Makefile.external help",
                 "api_endpoint": None
@@ -179,13 +173,46 @@ async def get_quick_start_guide() -> Dict[str, Any]:
             "list_files": "/external/onboarding/files",
             "download_all": "/external/onboarding/download/all",
             "download_scripts": "/external/onboarding/download/scripts",
-            "download_makefile": "/external/onboarding/download/makefile"
+            "download_makefile": "/external/onboarding/download/makefile",
+            "generate_custom": "/external/onboarding/generate"
         },
         "configuration": {
             "default_api_base": "http://localhost:9103",
             "default_memory_api_base": "http://localhost:9103/memory"
         }
     }
+
+@router.post("/onboarding/generate")
+async def generate_custom_makefile(
+    api_base: str = "http://localhost:9103",
+    output_name: str = "Makefile.external",
+    current_user: ApiAccessToken = Depends(require_api_token)
+) -> Dict[str, Any]:
+    """
+    Generate a custom Makefile for external project usage.
+    This creates a focused, project-specific Makefile instead of the complex generic one.
+    """
+    try:
+        # Generate the custom Makefile
+        makefile_content = generate_makefile(api_base, f"{api_base}/memory", output_name)
+        
+        # Save the generated Makefile
+        makefile_path = os.path.join(GENERATED_DIR, output_name)
+        with open(makefile_path, "w") as f:
+            f.write(makefile_content)
+        
+        return {
+            "status": "success",
+            "message": f"Generated custom Makefile: {output_name}",
+            "file_path": makefile_path,
+            "api_base": api_base,
+            "usage": f"make -f {output_name} help"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate Makefile: {str(e)}"
+        )
 
 async def _download_scripts_zip():
     """Download all script files as a zip."""
@@ -211,7 +238,7 @@ async def _download_makefile():
     if not os.path.exists(makefile_path):
         raise HTTPException(
             status_code=404,
-            detail="Makefile.external not found. Run the onboarding script first."
+            detail="Makefile.external not found. Run the onboarding script first or use /external/onboarding/generate to create one."
         )
     
     return FileResponse(
@@ -265,14 +292,14 @@ async def _download_complete_package():
             if os.path.exists(script_path):
                 zipf.write(script_path, f"scripts/{script}")
         
-        # Add generated files
+        # Add generated files (if they exist)
         generated_files = ["Makefile.external", "README.external.md"]
         for file in generated_files:
             file_path = os.path.join(GENERATED_DIR, file)
             if os.path.exists(file_path):
                 zipf.write(file_path, file)
         
-        # Add example files
+        # Add example files (if they exist)
         example_files = ["example_memory.txt", "example_rule.mdc"]
         for example in example_files:
             example_path = os.path.join(GENERATED_DIR, example)
@@ -296,10 +323,22 @@ async def _download_complete_package():
    make -f Makefile.external help
    ```
 
+## Alternative: Generate Custom Makefile
+
+For a more focused, project-specific Makefile:
+
+```bash
+# Generate custom Makefile
+curl -X POST "http://localhost:9103/external/onboarding/generate" \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"api_base": "http://localhost:9103", "output_name": "Makefile.custom"}'
+```
+
 ## Files Included
 
 - `scripts/` - Onboarding scripts
-- `Makefile.external` - Generated Makefile with all API operations
+- `Makefile.external` - Generated Makefile with essential operations
 - `README.external.md` - Complete documentation
 - `examples/` - Example files for testing
 
@@ -307,7 +346,7 @@ async def _download_complete_package():
 
 - List files: GET /external/onboarding/files
 - Download package: GET /external/onboarding/download/all
-- Generate custom: GET /external/onboarding/generate
+- Generate custom: POST /external/onboarding/generate
 
 ## Support
 

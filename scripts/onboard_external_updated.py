@@ -24,6 +24,10 @@ class ExternalOnboarding:
         self.memory_api_base = memory_api_base
         self.token = None
         self.project_name = None
+        self.team_name = None
+        self.user_email = None
+        self.project_id = None
+        self.team_id = None
         
     def print_banner(self):
         """Print the onboarding banner."""
@@ -40,11 +44,31 @@ class ExternalOnboarding:
         print("📋 Project Information")
         print("-" * 40)
         
-        self.project_name = input("Project name (for namespace): ").strip()
+        # Use provided values or prompt for them
         if not self.project_name:
-            self.project_name = "external"
+            self.project_name = input("Project name (for namespace): ").strip()
+            if not self.project_name:
+                self.project_name = "external"
+        else:
+            print(f"✅ Project name: {self.project_name}")
+            
+        if not self.team_name:
+            self.team_name = input("Team/Organization name: ").strip()
+            if not self.team_name:
+                self.team_name = "external-team"
+        else:
+            print(f"✅ Team name: {self.team_name}")
+            
+        if not self.user_email:
+            self.user_email = input("Your email address: ").strip()
+            if not self.user_email:
+                self.user_email = "user@example.com"
+        else:
+            print(f"✅ User email: {self.user_email}")
             
         print(f"✅ Project name: {self.project_name}")
+        print(f"✅ Team name: {self.team_name}")
+        print(f"✅ User email: {self.user_email}")
         print()
         
     def check_dependencies(self):
@@ -115,40 +139,117 @@ class ExternalOnboarding:
             print(f"❌ API connection error: {e}")
             return False
             
-    def get_api_token(self):
-        """Get API token from user."""
-        print("🔑 API Authentication")
+    def initialize_onboarding(self):
+        """Initialize onboarding and get API token automatically."""
+        print("🚀 Initializing Onboarding")
         print("-" * 40)
         
-        # Check if token file exists
-        if os.path.exists('.apitoken'):
-            with open('.apitoken', 'r') as f:
-                existing_token = f.read().strip()
-            if existing_token:
-                use_existing = input(f"Found existing token: {existing_token[:8]}... Use it? (y/n): ").lower()
-                if use_existing == 'y':
-                    self.token = existing_token
-                    print("✅ Using existing token")
+        try:
+            # Call onboarding/init endpoint
+            init_payload = {
+                "project_name": self.project_name,
+                "team_name": self.team_name,
+                "user": self.user_email,
+                "journey": "external_project"
+            }
+            
+            result = subprocess.run([
+                'curl', '-s', '-X', 'POST',
+                f'{self.api_base}/onboarding/init',
+                '-H', 'Content-Type: application/json',
+                '-d', json.dumps(init_payload)
+            ], capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                response_data = json.loads(result.stdout)
+                
+                # Extract project info first (always available)
+                self.project_id = response_data.get('project_id')
+                self.team_id = response_data.get('team_id')
+                
+                print(f"✅ Project ID: {self.project_id}")
+                print(f"✅ Team ID: {self.team_id}")
+                
+                # Extract token if available
+                if 'token' in response_data:
+                    self.token = response_data['token']
+                    print("✅ API token generated automatically")
+                    
+                    # Save token
+                    with open('.apitoken', 'w') as f:
+                        f.write(self.token)
+                        
+                    print("✅ Token saved to .apitoken")
                     print()
                     return True
-                    
-        # Get new token
-        print("Please provide your API token:")
-        print("(You can get this from the AI-IDE-API admin interface)")
-        self.token = input("API Token: ").strip()
-        
-        if not self.token:
-            print("❌ No token provided")
+                else:
+                    # For non-test paths, we need to generate a token separately
+                    print("⚠️  No token returned from onboarding/init")
+                    print("   This is normal for production paths")
+                    return self.generate_api_token_manually()
+                
+            else:
+                print(f"❌ Onboarding initialization failed: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Onboarding initialization error: {e}")
             return False
             
-        # Save token
-        with open('.apitoken', 'w') as f:
-            f.write(self.token)
-            
-        print("✅ Token saved to .apitoken")
-        print()
-        return True
+    def generate_api_token_manually(self):
+        """Generate API token manually if not provided by onboarding/init."""
+        print("🔑 Generating API Token")
+        print("-" * 40)
         
+        try:
+            # Call admin/generate-token endpoint
+            token_payload = {
+                "description": f"First user token for {self.project_name}",
+                "role": "user",
+                "project_id": self.project_id,
+                "user": self.user_email
+            }
+            
+            result = subprocess.run([
+                'curl', '-s', '-X', 'POST',
+                f'{self.api_base}/admin/generate-token',
+                '-H', 'Content-Type: application/json',
+                '-d', json.dumps(token_payload)
+            ], capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                try:
+                    response_data = json.loads(result.stdout)
+                    self.token = response_data.get('token')
+                    
+                    if self.token:
+                        print("✅ API token generated successfully")
+                        print(f"   Token: {self.token[:8]}...")
+                        
+                        # Save token
+                        with open('.apitoken', 'w') as f:
+                            f.write(self.token)
+                            
+                        print("✅ Token saved to .apitoken")
+                        print()
+                        return True
+                    else:
+                        print("❌ No token in response")
+                        print(f"   Response: {result.stdout}")
+                        return False
+                except json.JSONDecodeError as e:
+                    print(f"❌ Invalid JSON response: {e}")
+                    print(f"   Response: {result.stdout}")
+                    return False
+            else:
+                print(f"❌ Token generation failed: {result.stderr}")
+                print(f"   Response: {result.stdout}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Token generation error: {e}")
+            return False
+            
     def test_authentication(self):
         """Test the API token."""
         print("🔐 Testing Authentication")
@@ -186,14 +287,56 @@ class ExternalOnboarding:
             makefile_content = generate_makefile(self.api_base, self.memory_api_base, "Makefile.external")
             with open("Makefile.external", "w") as f:
                 f.write(makefile_content)
-                
-            # Generate README
-            readme_content = generate_readme(self.api_base, self.memory_api_base)
-            with open("README.external.md", "w") as f:
-                f.write(readme_content)
-                
+            
+            # Create simple usage guide
+            usage_guide = f"""# AI-IDE-API External Project Setup
+
+## Quick Start
+
+1. **Test your connection:**
+   ```bash
+   make -f Makefile.external test-connection
+   ```
+
+2. **Check LLM access:**
+   ```bash
+   make -f Makefile.external check-llm-access
+   ```
+
+3. **Request LLM access if needed:**
+   ```bash
+   make -f Makefile.external request-llm-access
+   ```
+
+4. **Start using the API:**
+   ```bash
+   make -f Makefile.external help
+   ```
+
+## Configuration
+
+- API Base: {self.api_base}
+- Project: {self.project_name}
+- Token: Stored in `.apitoken` file
+
+## Available Commands
+
+- `test-connection` - Test API connection and authentication
+- `check-llm-access` - Check if project has LLM access enabled  
+- `request-llm-access` - Show instructions for requesting LLM access
+- `health` - Check API health status
+- `help` - Show all available commands
+
+## Support
+
+For additional operations, use the API directly or contact the administrator.
+"""
+            
+            with open("USAGE.md", "w") as f:
+                f.write(usage_guide)
+            
             print("✅ Generated Makefile.external")
-            print("✅ Generated README.external.md")
+            print("✅ Generated USAGE.md")
             print()
             return True
             
@@ -386,11 +529,12 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
             print("❌ API connection failed. Please ensure the AI-IDE-API is running.")
             return False
             
-        # Get and test authentication
-        if not self.get_api_token():
-            print("❌ Authentication setup failed.")
+        # Initialize onboarding
+        if not self.initialize_onboarding():
+            print("❌ Onboarding initialization failed.")
             return False
             
+        # Test authentication
         if not self.test_authentication():
             print("❌ Authentication test failed.")
             return False
@@ -419,18 +563,24 @@ def main():
     parser.add_argument("--api-base", default=DEFAULT_API_BASE, help="API base URL")
     parser.add_argument("--memory-api-base", default=DEFAULT_MEMORY_API_BASE, help="Memory API base URL")
     parser.add_argument("--project", help="Project name (for namespace)")
-    parser.add_argument("--token", help="API token (will prompt if not provided)")
+    parser.add_argument("--team", help="Team/Organization name")
+    parser.add_argument("--user", help="User email address")
+    parser.add_argument("--token", help="API token (will generate automatically if not provided)")
     
     args = parser.parse_args()
     
     # Create onboarding instance
     onboarding = ExternalOnboarding(args.api_base, args.memory_api_base)
     
-    # Set project name if provided
+    # Set project info if provided
     if args.project:
         onboarding.project_name = args.project
+    if args.team:
+        onboarding.team_name = args.team
+    if args.user:
+        onboarding.user_email = args.user
         
-    # Set token if provided
+    # Set token if provided (skip automatic generation)
     if args.token:
         onboarding.token = args.token
         with open('.apitoken', 'w') as f:

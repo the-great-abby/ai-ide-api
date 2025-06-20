@@ -1,5 +1,9 @@
 # Admin/Frontend-related targets extracted from Makefile.ai
 
+# External Project Management
+ADMIN_TOKEN ?= $(shell cat .admin_token 2>/dev/null || echo "")
+API_BASE ?= http://localhost:9103
+
 admin-frontend-restart:
 	docker compose restart frontend
 
@@ -35,6 +39,108 @@ admin-onboarding-help:
 	@echo "5. Use Docker service names and internal ports for all connections."
 	@echo "\n==== End Onboarding Quick Start ===="
 
+# External Project Management Targets
+admin-external-list:
+	@echo "📋 Listing all external projects..."
+	@if [ -z "$(ADMIN_TOKEN)" ]; then \
+		echo "❌ Error: ADMIN_TOKEN not set. Create .admin_token file or set ADMIN_TOKEN env var."; \
+		echo "   Example: echo 'your-admin-token' > .admin_token"; \
+		exit 1; \
+	fi
+	@python scripts/admin_external_projects.py list --admin-token "$(ADMIN_TOKEN)" --api-base "$(API_BASE)"
+
+admin-external-enable-llm:
+	@echo "🤖 Enabling LLM access for project $(PROJECT_ID_OR_NAME)..."
+	@if [ -z "$(ADMIN_TOKEN)" ]; then \
+		echo "❌ Error: ADMIN_TOKEN not set. Create .admin_token file or set ADMIN_TOKEN env var."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PROJECT_ID_OR_NAME)" ]; then \
+		echo "❌ Error: PROJECT_ID_OR_NAME not set. Usage: make -f Makefile.ai-admin admin-external-enable-llm PROJECT_ID_OR_NAME=<project_id_or_name>"; \
+		echo "   Examples:"; \
+		echo "     make -f Makefile.ai-admin admin-external-enable-llm PROJECT_ID_OR_NAME=abc123-def4-5678-90ab-cdef12345678"; \
+		echo "     make -f Makefile.ai-admin admin-external-enable-llm PROJECT_ID_OR_NAME=team-xyz-project"; \
+		exit 1; \
+	fi
+	@python scripts/admin_external_projects.py enable-llm "$(PROJECT_ID_OR_NAME)" --admin-token "$(ADMIN_TOKEN)" --api-base "$(API_BASE)"
+
+admin-external-disable-llm:
+	@echo "🚫 Disabling LLM access for project $(PROJECT_ID_OR_NAME)..."
+	@if [ -z "$(ADMIN_TOKEN)" ]; then \
+		echo "❌ Error: ADMIN_TOKEN not set. Create .admin_token file or set ADMIN_TOKEN env var."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PROJECT_ID_OR_NAME)" ]; then \
+		echo "❌ Error: PROJECT_ID_OR_NAME not set. Usage: make -f Makefile.ai-admin admin-external-disable-llm PROJECT_ID_OR_NAME=<project_id_or_name>"; \
+		echo "   Examples:"; \
+		echo "     make -f Makefile.ai-admin admin-external-disable-llm PROJECT_ID_OR_NAME=abc123-def4-5678-90ab-cdef12345678"; \
+		echo "     make -f Makefile.ai-admin admin-external-disable-llm PROJECT_ID_OR_NAME=team-xyz-project"; \
+		exit 1; \
+	fi
+	@python scripts/admin_external_projects.py disable-llm "$(PROJECT_ID_OR_NAME)" --admin-token "$(ADMIN_TOKEN)" --api-base "$(API_BASE)"
+
+admin-external-generate-token:
+	@echo "🔑 Generating API token for project $(PROJECT_ID_OR_NAME)..."
+	@if [ -z "$(ADMIN_TOKEN)" ]; then \
+		echo "❌ Error: ADMIN_TOKEN not set. Create .admin_token file or set ADMIN_TOKEN env var."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PROJECT_ID_OR_NAME)" ]; then \
+		echo "❌ Error: PROJECT_ID_OR_NAME not set. Usage: make -f Makefile.ai-admin admin-external-generate-token PROJECT_ID_OR_NAME=<project_id_or_name> [DESCRIPTION='token description'] [ROLE=user|admin]"; \
+		echo "   Examples:"; \
+		echo "     make -f Makefile.ai-admin admin-external-generate-token PROJECT_ID_OR_NAME=abc123-def4-5678-90ab-cdef12345678"; \
+		echo "     make -f Makefile.ai-admin admin-external-generate-token PROJECT_ID_OR_NAME=team-xyz-project DESCRIPTION='Team XYZ external token'"; \
+		exit 1; \
+	fi
+	@python scripts/admin_external_projects.py generate-token "$(PROJECT_ID_OR_NAME)" \
+		--admin-token "$(ADMIN_TOKEN)" \
+		--api-base "$(API_BASE)" \
+		--description "$(DESCRIPTION)" \
+		--role "$(ROLE)"
+
+admin-external-project-info:
+	@echo "📊 Getting project information for $(PROJECT_ID_OR_NAME)..."
+	@if [ -z "$(ADMIN_TOKEN)" ]; then \
+		echo "❌ Error: ADMIN_TOKEN not set. Create .admin_token file or set ADMIN_TOKEN env var."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PROJECT_ID_OR_NAME)" ]; then \
+		echo "❌ Error: PROJECT_ID_OR_NAME not set. Usage: make -f Makefile.ai-admin admin-external-project-info PROJECT_ID_OR_NAME=<project_id_or_name>"; \
+		echo "   Examples:"; \
+		echo "     make -f Makefile.ai-admin admin-external-project-info PROJECT_ID_OR_NAME=abc123-def4-5678-90ab-cdef12345678"; \
+		echo "     make -f Makefile.ai-admin admin-external-project-info PROJECT_ID_OR_NAME=team-xyz-project"; \
+		exit 1; \
+	fi
+	@python scripts/admin_external_projects.py project-info "$(PROJECT_ID_OR_NAME)" --admin-token "$(ADMIN_TOKEN)" --api-base "$(API_BASE)"
+
+admin-external-help:
+	@echo "\n==== External Project Management ===="
+	@echo "Prerequisites:"
+	@echo "  1. Create .admin_token file with your admin token:"
+	@echo "     echo 'your-admin-token' > .admin_token"
+	@echo "  2. Or set ADMIN_TOKEN environment variable"
+	@echo ""
+	@echo "Available commands:"
+	@echo "  admin-external-list                                    - List all external projects"
+	@echo "  admin-external-enable-llm PROJECT_ID_OR_NAME=id_or_name - Enable LLM access for project"
+	@echo "  admin-external-disable-llm PROJECT_ID_OR_NAME=id_or_name - Disable LLM access for project"
+	@echo "  admin-external-generate-token PROJECT_ID_OR_NAME=id_or_name [DESCRIPTION='desc'] [ROLE=user|admin]"
+	@echo "                                                          - Generate API token for project"
+	@echo "  admin-external-project-info PROJECT_ID_OR_NAME=id_or_name - Get detailed project information"
+	@echo ""
+	@echo "Project Identification:"
+	@echo "  You can use either project IDs (UUIDs) or project names:"
+	@echo "  - Project ID: abc123-def4-5678-90ab-cdef12345678"
+	@echo "  - Project Name: team-xyz-project"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make -f Makefile.ai-admin admin-external-list"
+	@echo "  make -f Makefile.ai-admin admin-external-enable-llm PROJECT_ID_OR_NAME=abc123-def4-5678-90ab-cdef12345678"
+	@echo "  make -f Makefile.ai-admin admin-external-enable-llm PROJECT_ID_OR_NAME=team-xyz-project"
+	@echo "  make -f Makefile.ai-admin admin-external-generate-token PROJECT_ID_OR_NAME=team-xyz-project DESCRIPTION='Team XYZ token'"
+	@echo "  make -f Makefile.ai-admin admin-external-project-info PROJECT_ID_OR_NAME=team-xyz-project"
+	@echo "\n==== End External Project Management ===="
+
 admin-port-3000-procs:
 	@echo "Processes using port 3000:"
 	lsof -i :3000 || echo "No process found on port 3000."
@@ -63,4 +169,4 @@ admin-logs-db:
 admin-logs-frontend:
 	docker compose logs --tail=100 frontend || docker compose logs --tail=100 frontend
 
-.PHONY: admin-frontend-restart admin-frontend-nocache-restart admin-docs admin-open-docs admin-open-admin admin-playwright-test admin-playwright-build-nocache admin-onboarding-help admin-port-3000-procs admin-docker-stop-all admin-kill-port-3000 admin-frontend-volumes admin-logs admin-logs-api admin-logs-db admin-logs-frontend 
+.PHONY: admin-frontend-restart admin-frontend-nocache-restart admin-docs admin-open-docs admin-open-admin admin-playwright-test admin-playwright-build-nocache admin-onboarding-help admin-port-3000-procs admin-docker-stop-all admin-kill-port-3000 admin-frontend-volumes admin-logs admin-logs-api admin-logs-db admin-logs-frontend admin-external-list admin-external-enable-llm admin-external-disable-llm admin-external-generate-token admin-external-project-info admin-external-help 

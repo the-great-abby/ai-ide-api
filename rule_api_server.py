@@ -35,6 +35,7 @@ from fastapi.exception_handlers import (
     RequestValidationError as FastAPIRequestValidationError,
 )
 from fastapi.staticfiles import StaticFiles
+from fastapi.routing import APIRoute
 
 import scripts.suggest_rules as suggest_rules
 from db import BugReport as DBBugReport
@@ -70,6 +71,7 @@ from misc_endpoints import router as misc_router
 from memory_endpoints import router as memory_router
 from db import RuleVersion
 from projects import router as projects_router
+from api.basic_endpoints import router as basic_router
 
 logging.getLogger("examples_normalization").setLevel(logging.DEBUG)
 
@@ -239,6 +241,9 @@ app.include_router(
 app.include_router(misc_router)
 app.include_router(memory_router)
 app.include_router(projects_router)
+
+# Register basic endpoints last to avoid conflicts
+app.include_router(basic_router)
 
 """
 CORS Configuration via Environment Variables:
@@ -1351,3 +1356,11 @@ curl -X POST http://localhost:9103/memory/nodes \\
             "external_onboarding": "http://localhost:9103/docs/external-onboarding",
         },
     }
+
+
+@app.get("/routes")
+def list_routes():
+    return [
+        {"path": route.path, "name": route.name, "methods": list(route.methods)}
+        for route in app.routes if isinstance(route, APIRoute)
+    ]

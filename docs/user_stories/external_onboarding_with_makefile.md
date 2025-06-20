@@ -1,5 +1,5 @@
 ---
-title: "External Onboarding with Makefile Generation"
+title: "External Project Onboarding with Makefile"
 description: "Complete external onboarding experience with automated Makefile generation for AI-IDE-API integration"
 actors: ["External Developer", "System Administrator"]
 preconditions: ["AI-IDE-API is running and accessible", "External user has basic development environment"]
@@ -8,7 +8,7 @@ priority: "High"
 tags: ["onboarding", "external", "makefile", "automation"]
 ---
 
-# External Onboarding with Makefile Generation
+# External Project Onboarding with Makefile
 
 ## Motivation
 
@@ -16,153 +16,96 @@ External developers need a streamlined way to integrate with the AI-IDE-API syst
 
 ## User Story
 
-As an **External Developer**, I want to **run a single onboarding script** so that I can **quickly set up API integration with a comprehensive Makefile** that provides easy access to all common operations.
+**As an** external project developer  
+**I want to** easily onboard my project to the AI-IDE-API system  
+**So that** I can integrate AI-powered development tools into my workflow
 
 ## Acceptance Criteria
 
-- [ ] Single command onboarding process
-- [ ] Automatic dependency checking and installation
-- [ ] API connection testing
-- [ ] Token management and authentication
-- [ ] Comprehensive Makefile generation
-- [ ] Example files creation
-- [ ] Initial workflow testing
-- [ ] Clear next steps documentation
+- [x] External projects can download onboarding package
+- [x] Onboarding script creates project, team, and API token
+- [x] Generated Makefile provides essential operations
+- [x] Authentication works immediately after onboarding
+- [x] LLM access can be requested through Makefile
+- [x] Simple, focused interface for common operations
 
 ## Implementation
 
-### Scripts Created
+### Onboarding Process
 
-1. **`scripts/generate_external_makefile.py`** - Core Makefile generator
-2. **`scripts/onboard_external_updated.py`** - Complete onboarding process
-3. **`scripts/onboard_external.sh`** - Shell wrapper for easy execution
+1. **Download Package**
+   ```bash
+   curl -H 'Authorization: Bearer YOUR_TOKEN' \
+     http://localhost:9103/external/onboarding/download/all \
+     -o ai-ide-api-onboarding.zip
+   ```
+
+2. **Extract and Run**
+   ```bash
+   unzip ai-ide-api-onboarding.zip
+   chmod +x onboard_external.sh
+   ./onboard_external.sh
+   ```
+
+3. **Use Generated Makefile**
+   ```bash
+   make -f Makefile.external test-connection
+   make -f Makefile.external check-llm-access
+   make -f Makefile.external help
+   ```
 
 ### Generated Files
 
-- `Makefile.external` - Comprehensive Makefile with all API operations
-- `README.external.md` - Complete usage documentation
-- `example_memory.txt` - Sample memory content
-- `example_rule.mdc` - Sample rule file
-- `.apitoken` - API authentication token
+- `Makefile.external` - Focused Makefile with essential operations
+- `USAGE.md` - Simple usage guide
+- `.apitoken` - API token for authentication
 
-### Makefile Features
+### Makefile Operations
 
-The generated Makefile includes targets for:
+The generated Makefile provides these essential operations:
 
-#### Memory Operations
-- `memory-search` - Search memories with RAG
-- `memory-create` - Create new memory nodes
-- `memory-list` - List all namespaces
-- `memory-nodes` - List nodes in namespace
-
-#### Rule Operations
-- `rule-propose` - Propose new rules
-- `rule-list` - List all rules
-- `rule-get` - Get specific rule
-- `rule-update` - Update existing rule
-- `rule-delete` - Delete rule
-- `rule-feedback` - Submit rule feedback
-
-#### Git History Operations
-- `git-history` - Analyze recent commits
-- `git-history-full` - Full repository analysis
-- `git-history-summary` - Get analysis summary
-
-#### Worker Operations
-- `worker-trigger-enrichment` - Trigger memory enrichment
-- `worker-trigger-cleanup` - Trigger memory cleanup
-- `worker-trigger-similarity` - Trigger similarity analysis
-- `worker-status` - Get worker status
-- `worker-logs` - Get worker logs
-
-#### System Operations
-- `health-check` - Check system health
-- `api-status` - Get detailed status
-- `system-info` - Get system information
-
-#### Backup and Restore
-- `backup-memories` - Backup all memories
-- `backup-rules` - Backup all rules
-- `restore-memories` - Restore from backup
-- `restore-rules` - Restore rules from backup
-
-#### Export and Import
-- `export-rules` - Export to portable format
-- `import-rules` - Import from portable format
-
-#### Testing and Utilities
-- `test-connection` - Test API connectivity
-- `test-memory` - Test memory API
-- `test-rules` - Test rules API
-- `test-workers` - Test worker API
-- `install-deps` - Install dependencies
-- `clean` - Clean temporary files
-
-## Usage Examples
-
-### Quick Start
 ```bash
-# Run onboarding
-./scripts/onboard_external.sh
+# Test connection and authentication
+make -f Makefile.external test-connection
 
-# Use the generated Makefile
+# Check LLM access status
+make -f Makefile.external check-llm-access
+
+# Get instructions for requesting LLM access
+make -f Makefile.external request-llm-access
+
+# Check API health
+make -f Makefile.external health
+
+# Show all available commands
 make -f Makefile.external help
-make -f Makefile.external memory-search QUERY="docker configuration"
-make -f Makefile.external memory-create FILE=content.txt NAMESPACE=myproject
 ```
 
-### Advanced Usage
+### API Endpoints
+
+- `GET /external/onboarding/files` - List available files
+- `GET /external/onboarding/download/{type}` - Download files
+- `POST /external/onboarding/generate` - Generate custom Makefile
+- `GET /external/onboarding/quick-start` - Quick start guide
+
+### Custom Makefile Generation
+
+For project-specific needs, generate a custom Makefile:
+
 ```bash
-# Custom API endpoints
-./scripts/onboard_external.sh --api-base http://my-api:9103 --project myproject
-
-# With existing token
-./scripts/onboard_external.sh --token my-existing-token
-
-# Full git history analysis
-make -f Makefile.external git-history-full
-
-# Trigger worker jobs
-make -f Makefile.external worker-trigger-enrichment SCOPE=all
-make -f Makefile.external worker-trigger-cleanup SCOPE=all
-```
-
-## Workflow Diagram
-
-```mermaid
-graph TD
-    A[External Developer] --> B[Run onboarding script]
-    B --> C{Check dependencies}
-    C -->|Missing| D[Install dependencies]
-    C -->|OK| E[Test API connection]
-    D --> E
-    E --> F{Connection OK?}
-    F -->|No| G[Show error and exit]
-    F -->|Yes| H[Get API token]
-    H --> I[Test authentication]
-    I --> J{Auth OK?}
-    J -->|No| K[Show error and exit]
-    J -->|Yes| L[Generate Makefile]
-    L --> M[Create example files]
-    M --> N[Run initial tests]
-    N --> O[Execute example workflow]
-    O --> P[Show next steps]
-    P --> Q[Onboarding complete]
-    
-    style A fill:#e1f5fe
-    style Q fill:#c8e6c9
-    style G fill:#ffcdd2
-    style K fill:#ffcdd2
+curl -X POST "http://localhost:9103/external/onboarding/generate" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"api_base": "http://localhost:9103", "output_name": "Makefile.custom"}'
 ```
 
 ## Benefits
 
-1. **Reduced Friction** - Single command setup
-2. **Comprehensive Coverage** - All API operations included
-3. **Self-Documenting** - Clear help and examples
-4. **Error Handling** - Robust error checking and recovery
-5. **Extensible** - Easy to add new operations
-6. **Consistent** - Standardized interface across users
+- **Simplified**: Focused on essential operations only
+- **Custom**: Generated per project with specific configuration
+- **Immediate**: Works right after onboarding
+- **Extensible**: Can be customized for specific needs
+- **Maintainable**: Simple, clean interface
 
 ## Success Metrics
 
@@ -183,7 +126,33 @@ graph TD
 
 ## Related Documentation
 
-- [API Documentation](../api_access.md)
-- [Memory System](../onboarding/MEMORY_SYSTEM.md)
-- [Rule Management](../onboarding/EXPANDING_MEMORY_SYSTEM.md)
-- [Git History Analysis](../git_history_analysis_process.md) 
+- [External Project Management](admin_external_projects.md)
+- [API Authentication](AUTHENTICATION_AUTHORIZATION.md)
+- [Memory System](MEMORY_SYSTEM.md)
+
+## Workflow Diagram
+
+```mermaid
+graph TD
+    A[External Developer] --> B[Run onboarding script]
+    B --> C{Check dependencies}
+    C -->|Missing| D[Install dependencies]
+    C -->|OK| E[Test API connection]
+    D --> E
+    E --> F{Connection OK?}
+    F -->|No| G[Show error and exit]
+    F -->|Yes| H[Get API token]
+    I --> J{Auth OK?}
+    J -->|No| K[Show error and exit]
+    J -->|Yes| L[Generate Makefile]
+    L --> M[Create example files]
+    M --> N[Run initial tests]
+    N --> O[Execute example workflow]
+    O --> P[Show next steps]
+    P --> Q[Onboarding complete]
+    
+    style A fill:#e1f5fe
+    style Q fill:#c8e6c9
+    style G fill:#ffcdd2
+    style K fill:#ffcdd2
+``` 
