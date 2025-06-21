@@ -72,6 +72,7 @@ from memory_endpoints import router as memory_router
 from db import RuleVersion
 from projects import router as projects_router
 from api.basic_endpoints import router as basic_router
+from auth import require_api_token
 
 logging.getLogger("examples_normalization").setLevel(logging.DEBUG)
 
