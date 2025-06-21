@@ -24,6 +24,7 @@ def generate_makefile(api_base: str, memory_api_base: str, output_file: str = "M
     
     # Use placeholder for API token that users need to replace
     api_token = "$(shell cat .apitoken 2>/dev/null || echo 'YOUR_API_TOKEN_HERE')"
+    admin_token = "$(shell cat .api_admin_token 2>/dev/null || echo '')"
     
     makefile_content = f'''# External Project Makefile for AI IDE API Integration
 # Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -32,6 +33,7 @@ def generate_makefile(api_base: str, memory_api_base: str, output_file: str = "M
 # Configuration
 API_BASE_URL = {api_base}
 API_TOKEN = {api_token}
+ADMIN_TOKEN = {admin_token}
 
 # Colors for output
 GREEN = \\033[0;32m
@@ -47,7 +49,20 @@ help:
 	@echo "  $(YELLOW)check-llm-access$(NC)     - Check if project has LLM access enabled"
 	@echo "  $(YELLOW)request-llm-access$(NC)   - Show instructions for requesting LLM access"
 	@echo "  $(YELLOW)health$(NC)               - Check API health status"
+	@echo "  $(YELLOW)memory-create$(NC)        - Create a memory node in project namespace"
+	@echo "  $(YELLOW)memory-list$(NC)          - List memory nodes in project namespace"
+	@echo "  $(YELLOW)summarize-git-diff$(NC)   - Summarize a git diff using LLM"
 	@echo "  $(YELLOW)help$(NC)                 - Show this help message"
+	@if [ -f .api_admin_token ]; then \\
+		echo ""; \\
+		echo "$(GREEN)Admin commands (available with admin token):$(NC)"; \\
+		echo "  $(YELLOW)admin-enable-llm$(NC)   - Enable LLM access for this project"; \\
+		echo "  $(YELLOW)admin-disable-llm$(NC)  - Disable LLM access for this project"; \\
+		echo "  $(YELLOW)admin-generate-token$(NC) - Generate new token for this project"; \\
+		echo "  $(YELLOW)admin-project-info$(NC) - Show project information"; \\
+		echo "  $(YELLOW)admin-grant-read-permission$(NC) - Grant read permission to project namespace"; \\
+		echo "  $(YELLOW)admin-grant-write-permission$(NC) - Grant write permission to project namespace"; \\
+	fi
 
 # Test API connection and authentication
 .PHONY: test-connection
@@ -61,7 +76,12 @@ test-connection:
 check-llm-access:
 	@echo "$(GREEN)Checking LLM access status...$(NC)"
 	@curl -s -H "Authorization: Bearer $(API_TOKEN)" \\
-		"$(API_BASE_URL)/memory/admin/project/llm-access" | jq . || echo "$(RED)Failed to check LLM access$(NC)"
+		"$(API_BASE_URL)/protected" | jq -r '.token_info.has_llm_access' | \\
+		if [ "$$(cat)" = "1" ]; then \\
+			echo "$(GREEN)✅ LLM access is ENABLED$(NC)"; \\
+		else \\
+			echo "$(RED)❌ LLM access is DISABLED$(NC)"; \\
+		fi
 
 # Show instructions for requesting LLM access
 .PHONY: request-llm-access
@@ -78,6 +98,121 @@ request-llm-access:
 health:
 	@echo "$(GREEN)Checking API health...$(NC)"
 	@curl -s "$(API_BASE_URL)/health" | jq . || echo "$(RED)Health check failed$(NC)"
+
+# Admin commands (only available if .api_admin_token exists)
+.PHONY: admin-enable-llm
+admin-enable-llm:
+	@if [ ! -f .api_admin_token ]; then \\
+		echo "$(RED)Admin token not found. Create .api_admin_token file first.$(NC)"; \\
+		exit 1; \\
+	fi
+	@echo "$(GREEN)Enabling LLM access for this project...$(NC)"
+	@curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
+		-H "Content-Type: application/json" \\
+		"$(API_BASE_URL)/memory/admin/project/llm-access" \\
+		-d '{{"project_id": "$$(curl -s -H \\"Authorization: Bearer $(API_TOKEN)\\" \\"$(API_BASE_URL)/protected\\" | jq -r \\".token_info.project_id\\")", "has_llm_access": true}}' | jq .
+
+.PHONY: admin-disable-llm
+admin-disable-llm:
+	@if [ ! -f .api_admin_token ]; then \\
+		echo "$(RED)Admin token not found. Create .api_admin_token file first.$(NC)"; \\
+		exit 1; \\
+	fi
+	@echo "$(GREEN)Disabling LLM access for this project...$(NC)"
+	@curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
+		-H "Content-Type: application/json" \\
+		"$(API_BASE_URL)/memory/admin/project/llm-access" \\
+		-d '{{"project_id": "$$(curl -s -H \\"Authorization: Bearer $(API_TOKEN)\\" \\"$(API_BASE_URL)/protected\\" | jq -r \\".token_info.project_id\\")", "has_llm_access": false}}' | jq .
+
+.PHONY: admin-generate-token
+admin-generate-token:
+	@if [ ! -f .api_admin_token ]; then \\
+		echo "$(RED)Admin token not found. Create .api_admin_token file first.$(NC)"; \\
+		exit 1; \\
+	fi
+	@echo "$(GREEN)Generating new token for this project...$(NC)"
+	@echo "Usage: make admin-generate-token DESCRIPTION='token description' ROLE=user|admin"
+	@if [ -n "$(DESCRIPTION)" ]; then \\
+		curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
+			-H "Content-Type: application/json" \\
+			"$(API_BASE_URL)/admin/generate-token" \\
+			-d '{{"description": "$(DESCRIPTION)", "role": "$(ROLE)", "project_id": "$$(curl -s -H \\"Authorization: Bearer $(API_TOKEN)\\" \\"$(API_BASE_URL)/protected\\" | jq -r \\".token_info.project_id\\")"}}' | jq .; \\
+	else \\
+		echo "$(YELLOW)Example: make admin-generate-token DESCRIPTION='New user token' ROLE=user$(NC)"; \\
+	fi
+
+.PHONY: admin-project-info
+admin-project-info:
+	@if [ ! -f .api_admin_token ]; then \\
+		echo "$(RED)Admin token not found. Create .api_admin_token file first.$(NC)"; \\
+		exit 1; \\
+	fi
+	@echo "$(GREEN)Getting project information...$(NC)"
+	@echo "$(YELLOW)Note: Direct project info endpoint not available. Use test-connection to see token info.$(NC)"
+	@curl -s -H "Authorization: Bearer $(API_TOKEN)" \\
+		"$(API_BASE_URL)/protected" | jq .
+
+# Grant read permission to project namespace
+.PHONY: admin-grant-read-permission
+admin-grant-read-permission:
+	@if [ ! -f .api_admin_token ]; then \\
+		echo "$(RED)Admin token not found. Create .api_admin_token file first.$(NC)"; \\
+		exit 1; \\
+	fi
+	@echo "$(GREEN)Granting READ permission for project namespace...$(NC)"
+	@curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
+		-H "Content-Type: application/json" \\
+		"$(API_BASE_URL)/memory/admin/namespace-permissions" \\
+		-d '{{"namespace": "$(PROJECT_ID)", "project_id": "$(PROJECT_ID)", "permission_type": "read"}}' | jq .
+
+# Grant write permission to project namespace
+.PHONY: admin-grant-write-permission
+admin-grant-write-permission:
+	@if [ ! -f .api_admin_token ]; then \\
+		echo "$(RED)Admin token not found. Create .api_admin_token file first.$(NC)"; \\
+		exit 1; \\
+	fi
+	@echo "$(GREEN)Granting WRITE permission for project namespace...$(NC)"
+	@curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
+		-H "Content-Type: application/json" \\
+		"$(API_BASE_URL)/memory/admin/namespace-permissions" \\
+		-d '{{"namespace": "$(PROJECT_ID)", "project_id": "$(PROJECT_ID)", "permission_type": "write"}}' | jq .
+
+# User target: create a memory node in the project namespace
+.PHONY: memory-create
+memory-create:
+	@if [ -z "$(CONTENT)" ]; then \\
+		echo "$(YELLOW)Usage: make memory-create CONTENT='your text' [META='meta info']$(NC)"; \\
+		exit 1; \\
+	fi
+	@echo "$(GREEN)Creating memory node in project namespace...$(NC)"
+	@curl -s -X POST -H "Authorization: Bearer $(API_TOKEN)" \\
+		-H "Content-Type: application/json" \\
+		"$(API_BASE_URL)/memory/nodes" \\
+		-d '{{"content": "$(CONTENT)", "namespace": "$(PROJECT_ID)", "meta": "$(META)"}}' | jq .
+
+# User target: list memory nodes in the project namespace
+.PHONY: memory-list
+memory-list:
+	@echo "$(GREEN)Listing memory nodes in project namespace...$(NC)"
+	@curl -s -H "Authorization: Bearer $(API_TOKEN)" \\
+		"$(API_BASE_URL)/memory/nodes?namespace=$(PROJECT_ID)" | jq .
+
+# User target: summarize a git diff using LLM
+.PHONY: summarize-git-diff
+summarize-git-diff:
+	@if [ -z "$(DIFF)" ]; then \\
+		echo "$(YELLOW)Usage: make summarize-git-diff DIFF='your git diff' [CONCISE=true|false]$(NC)"; \\
+		exit 1; \\
+	fi
+	@echo "$(GREEN)Summarizing git diff using LLM...$(NC)"
+	@curl -s -X POST -H "Authorization: Bearer $(API_TOKEN)" \\
+		-H "Content-Type: application/json" \\
+		"$(API_BASE_URL)/summarize-git-diff" \\
+		-d '{{"diff": "$(DIFF)", "concise": $(CONCISE)}}' | jq .
+
+# Add PROJECT_ID variable for convenience
+PROJECT_ID = $(shell curl -s -H 'Authorization: Bearer $(API_TOKEN)' '$(API_BASE_URL)/protected' | jq -r '.token_info.project_id')
 '''
     
     return makefile_content

@@ -1159,10 +1159,13 @@ def deactivate_rule(rule_id: str, db: Session = Depends(get_db)):
 
 @app.post("/summarize-git-diff")
 def summarize_git_diff_passthrough(
-    diff: str = Body(..., embed=True), concise: bool = Body(False, embed=True)
+    diff: str = Body(..., embed=True), 
+    concise: bool = Body(False, embed=True),
+    token: ApiAccessToken = Depends(require_api_token)
 ):
     """
     Passthrough endpoint to ollama-functions /summarize-git-diff
+    Requires authentication for external project access
     """
     try:
         resp = requests.post(

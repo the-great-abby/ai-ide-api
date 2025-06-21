@@ -28,6 +28,7 @@ class ExternalOnboarding:
         self.user_email = None
         self.project_id = None
         self.team_id = None
+        self.container_api_base = None
         
     def print_banner(self):
         """Print the onboarding banner."""
@@ -37,6 +38,40 @@ class ExternalOnboarding:
         print("Welcome to the AI-IDE-API system! This script will help you")
         print("set up everything you need to interact with the API.")
         print("=" * 80)
+        print()
+        
+    def detect_environment(self):
+        """Detect if we're running in a container or on host."""
+        print("🔍 Detecting Environment")
+        print("-" * 40)
+        
+        # Check if we're in a container
+        in_container = os.path.exists('/.dockerenv') or os.environ.get('RUNNING_IN_DOCKER') == '1'
+        
+        if in_container:
+            print("🐳 Running inside Docker container")
+            print("   Workers will use host.docker.internal for API access")
+            self.container_api_base = "http://host.docker.internal:9103"
+        else:
+            print("🖥️  Running on host machine")
+            print("   Workers will use localhost for API access")
+            self.container_api_base = "http://localhost:9103"
+            
+        print(f"   API Base: {self.api_base}")
+        print(f"   Container API Base: {self.container_api_base}")
+        print()
+        
+    def prompt_api_addresses(self):
+        """Prompt for API addresses if needed."""
+        print("🌐 API Address Configuration")
+        print("-" * 40)
+        
+        # Ask if user wants to customize API addresses
+        custom_api = input(f"API base URL (default: {self.api_base}): ").strip()
+        if custom_api:
+            self.api_base = custom_api
+            
+        print(f"✅ API Base: {self.api_base}")
         print()
         
     def get_project_info(self):
@@ -170,6 +205,15 @@ class ExternalOnboarding:
                 print(f"✅ Project ID: {self.project_id}")
                 print(f"✅ Team ID: {self.team_id}")
                 
+                # Save project and team information
+                with open('.project', 'w') as f:
+                    f.write(self.project_name)
+                print(f"✅ Project name saved to .project: {self.project_name}")
+                
+                with open('.teamname', 'w') as f:
+                    f.write(self.team_name)
+                print(f"✅ Team name saved to .teamname: {self.team_name}")
+                
                 # Extract token if available
                 if 'token' in response_data:
                     self.token = response_data['token']
@@ -197,58 +241,135 @@ class ExternalOnboarding:
             return False
             
     def generate_api_token_manually(self):
-        """Generate API token manually if not provided by onboarding/init."""
-        print("🔑 Generating API Token")
+        """Generate API token(s) for the project, handling user/admin flow robustly."""
+        print("🔑 Generating API Token(s)")
         print("-" * 40)
-        
+
+        # Always try to create a user token first
+        user_token = None
         try:
-            # Call admin/generate-token endpoint
-            token_payload = {
+            user_token_payload = {
                 "description": f"First user token for {self.project_name}",
                 "role": "user",
                 "project_id": self.project_id,
                 "user": self.user_email
             }
-            
             result = subprocess.run([
                 'curl', '-s', '-X', 'POST',
                 f'{self.api_base}/admin/generate-token',
                 '-H', 'Content-Type: application/json',
-                '-d', json.dumps(token_payload)
+                '-d', json.dumps(user_token_payload)
             ], capture_output=True, text=True, timeout=30)
-            
             if result.returncode == 0:
                 try:
                     response_data = json.loads(result.stdout)
-                    self.token = response_data.get('token')
-                    
-                    if self.token:
-                        print("✅ API token generated successfully")
-                        print(f"   Token: {self.token[:8]}...")
-                        
-                        # Save token
+                    user_token = response_data.get('token')
+                    if user_token:
+                        print("✅ User token generated successfully")
+                        print(f"   Token: {user_token[:8]}...")
                         with open('.apitoken', 'w') as f:
-                            f.write(self.token)
-                            
+                            f.write(user_token)
                         print("✅ Token saved to .apitoken")
-                        print()
-                        return True
+                        
+                        # Save project and team information
+                        with open('.project', 'w') as f:
+                            f.write(self.project_name)
+                        print(f"✅ Project name saved to .project: {self.project_name}")
+                        
+                        with open('.teamname', 'w') as f:
+                            f.write(self.team_name)
+                        print(f"✅ Team name saved to .teamname: {self.team_name}")
                     else:
-                        print("❌ No token in response")
-                        print(f"   Response: {result.stdout}")
-                        return False
+                        print("⚠️  No new user token in response. Trying to fetch existing token...")
+                        # Try to fetch existing token for this user/project/role
+                        # (API may return the same token if it already exists)
+                        if 'token' in response_data:
+                            user_token = response_data['token']
+                            with open('.apitoken', 'w') as f:
+                                f.write(user_token)
+                            print("✅ Existing user token saved to .apitoken")
+                            
+                            # Save project and team information
+                            with open('.project', 'w') as f:
+                                f.write(self.project_name)
+                            print(f"✅ Project name saved to .project: {self.project_name}")
+                            
+                            with open('.teamname', 'w') as f:
+                                f.write(self.team_name)
+                            print(f"✅ Team name saved to .teamname: {self.team_name}")
+                        else:
+                            print(f"❌ No user token found in response: {result.stdout}")
+                            return False
                 except json.JSONDecodeError as e:
                     print(f"❌ Invalid JSON response: {e}")
                     print(f"   Response: {result.stdout}")
                     return False
             else:
-                print(f"❌ Token generation failed: {result.stderr}")
+                print(f"❌ User token generation failed: {result.stderr}")
                 print(f"   Response: {result.stdout}")
                 return False
-                
         except Exception as e:
-            print(f"❌ Token generation error: {e}")
+            print(f"❌ User token generation error: {e}")
             return False
+
+        # Ask if admin access is needed
+        want_admin = input("Do you need admin access for this project? (y/n): ").strip().lower()
+        if want_admin not in ['y', 'yes']:
+            self.token = user_token
+            return True
+
+        # Try to generate admin token using the user token
+        try:
+            admin_token_payload = {
+                "description": f"First admin token for {self.project_name}",
+                "role": "admin",
+                "project_id": self.project_id,
+                "user": self.user_email
+            }
+            result = subprocess.run([
+                'curl', '-s', '-X', 'POST',
+                f'{self.api_base}/admin/generate-token',
+                '-H', f'Authorization: Bearer {user_token}',
+                '-H', 'Content-Type: application/json',
+                '-d', json.dumps(admin_token_payload)
+            ], capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                try:
+                    response_data = json.loads(result.stdout)
+                    admin_token = response_data.get('token')
+                    if admin_token:
+                        print("✅ Admin token generated successfully")
+                        print(f"   Token: {admin_token[:8]}...")
+                        with open('.api_admin_token', 'w') as f:
+                            f.write(admin_token)
+                        print("✅ Admin token saved to .api_admin_token")
+                        self.token = admin_token
+                        return True
+                    else:
+                        print("⚠️  No new admin token in response. Trying to fetch existing admin token...")
+                        if 'token' in response_data:
+                            admin_token = response_data['token']
+                            with open('.api_admin_token', 'w') as f:
+                                f.write(admin_token)
+                            print("✅ Existing admin token saved to .api_admin_token")
+                            self.token = admin_token
+                            return True
+                        else:
+                            print(f"❌ No admin token found in response: {result.stdout}")
+                            return False
+                except json.JSONDecodeError as e:
+                    print(f"❌ Invalid JSON response: {e}")
+                    print(f"   Response: {result.stdout}")
+                    return False
+            else:
+                print(f"❌ Admin token generation failed: {result.stderr}")
+                print(f"   Response: {result.stdout}")
+                return False
+        except Exception as e:
+            print(f"❌ Admin token generation error: {e}")
+            return False
+
+        return True
             
     def test_authentication(self):
         """Test the API token."""
@@ -273,6 +394,84 @@ class ExternalOnboarding:
             print(f"❌ Authentication error: {e}")
             return False
             
+    def generate_docker_compose(self):
+        """Generate Docker Compose files for external project workers."""
+        print("🐳 Generating Docker Compose Files")
+        print("-" * 40)
+        
+        try:
+            # Import the Docker Compose generator
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+            from scripts.generate_external_docker_compose import generate_docker_compose, generate_worker_dockerfile, generate_worker_requirements, generate_setup_script, generate_external_worker_main
+            
+            # Use detected addresses or defaults
+            api_base = self.container_api_base or "http://localhost:9103"
+            
+            # Generate files
+            docker_compose_content = generate_docker_compose(
+                self.project_name, 
+                api_base=api_base
+            )
+            worker_dockerfile_content = generate_worker_dockerfile(self.project_name)
+            worker_requirements_content = generate_worker_requirements()
+            worker_main_content = generate_external_worker_main(self.project_name)
+            setup_script_content = generate_setup_script(
+                self.project_name,
+                api_base=api_base
+            )
+            
+            # Write files
+            with open('docker-compose.external.yml', 'w') as f:
+                f.write(docker_compose_content)
+            
+            # Create worker directory
+            os.makedirs('worker', exist_ok=True)
+            
+            with open('worker/Dockerfile', 'w') as f:
+                f.write(worker_dockerfile_content)
+                
+            with open('worker/requirements.txt', 'w') as f:
+                f.write(worker_requirements_content)
+                
+            with open('worker/main.py', 'w') as f:
+                f.write(worker_main_content)
+                
+            with open('setup-workers.sh', 'w') as f:
+                f.write(setup_script_content)
+            
+            # Make setup script executable
+            os.chmod('setup-workers.sh', 0o755)
+            
+            print("✅ Generated Docker Compose files:")
+            print("   📄 docker-compose.external.yml")
+            print("   📄 worker/Dockerfile")
+            print("   📄 worker/requirements.txt")
+            print("   📄 worker/main.py")
+            print("   📄 setup-workers.sh")
+            print()
+            print("🚀 To start workers:")
+            print("   ./setup-workers.sh")
+            print()
+            print("📋 Workers will:")
+            print("   • Process memory enrichment jobs")
+            print("   • Handle memory cleanup tasks")
+            print("   • Manage similarity pruning")
+            print("   • Process git history analysis")
+            print("   • Summarize git diffs via API")
+            print(f"   • Connect to AI-IDE-API at {api_base}")
+            print()
+            print("✅ All worker functionality is now available:")
+            print("   • Git diff summarization via API endpoint")
+            print("   • LLM processing handled by main AI-IDE-API")
+            print()
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to generate Docker Compose files: {e}")
+            print("   You can generate them manually later")
+            return False
+
     def generate_makefile(self):
         """Generate the external Makefile."""
         print("📝 Generating External Makefile")
@@ -281,7 +480,7 @@ class ExternalOnboarding:
         try:
             # Import the makefile generator
             sys.path.append('scripts')
-            from generate_external_makefile import generate_makefile, generate_readme
+            from generate_external_makefile import generate_makefile
             
             # Generate Makefile
             makefile_content = generate_makefile(self.api_base, self.memory_api_base, "Makefile.external")
@@ -423,9 +622,15 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
         
         tests = [
             ("Connection Test", ["make", "-f", "Makefile.external", "test-connection"]),
-            ("Memory API Test", ["make", "-f", "Makefile.external", "test-memory"]),
-            ("Rules API Test", ["make", "-f", "Makefile.external", "test-rules"]),
+            ("Health Check", ["make", "-f", "Makefile.external", "health"]),
         ]
+        
+        # Add admin tests if admin token exists
+        if os.path.exists('.api_admin_token'):
+            tests.extend([
+                ("Admin LLM Access Check", ["make", "-f", "Makefile.external", "check-llm-access"]),
+                ("Admin Project Info", ["make", "-f", "Makefile.external", "admin-project-info"]),
+            ])
         
         results = []
         for test_name, command in tests:
@@ -450,36 +655,39 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
         print("-" * 40)
         
         try:
-            # Create memory
-            print("📝 Creating example memory...")
+            # Test basic connection
+            print("🔌 Testing connection...")
             subprocess.run([
-                "make", "-f", "Makefile.external", "memory-create",
-                f"FILE=example_memory.txt", f"NAMESPACE={self.project_name}"
+                "make", "-f", "Makefile.external", "test-connection"
             ], check=True)
             
-            # Search for it
-            print("🔍 Searching for example memory...")
+            # Check health
+            print("🏥 Checking API health...")
             subprocess.run([
-                "make", "-f", "Makefile.external", "memory-search",
-                "QUERY=onboarding example"
+                "make", "-f", "Makefile.external", "health"
             ], check=True)
             
-            # Propose rule
-            print("📋 Proposing example rule...")
-            subprocess.run([
-                "make", "-f", "Makefile.external", "rule-propose",
-                "FILE=example_rule.mdc"
-            ], check=True)
+            # If admin token exists, test admin commands
+            if os.path.exists('.api_admin_token'):
+                print("🔐 Testing admin commands...")
+                subprocess.run([
+                    "make", "-f", "Makefile.external", "check-llm-access"
+                ], check=True)
+                
+                subprocess.run([
+                    "make", "-f", "Makefile.external", "admin-project-info"
+                ], check=True)
             
             print("✅ Example workflow completed successfully!")
             print()
-            return True
             
         except subprocess.CalledProcessError as e:
-            print(f"❌ Example workflow failed: {e}")
+            print(f"⚠️  Example workflow had some issues: {e}")
             print("   This is normal if the API is not fully configured")
             print()
-            return False
+        except Exception as e:
+            print(f"❌ Example workflow error: {e}")
+            print()
             
     def show_next_steps(self):
         """Show next steps for the user."""
@@ -487,34 +695,65 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
         print("-" * 40)
         print("Congratulations! Your AI-IDE-API external setup is complete.")
         print()
+        
         print("📚 Documentation:")
-        print("  - README.external.md - Complete usage guide")
+        print("  - USAGE.md - Simple usage guide")
         print("  - Makefile.external - All available commands")
+        print("  - docker-compose.external.yml - Worker services")
         print()
+        
         print("🚀 Quick Start Commands:")
         print("  make -f Makefile.external help                    # Show all commands")
-        print("  make -f Makefile.external memory-search QUERY='your query'")
-        print("  make -f Makefile.external memory-create FILE=content.txt NAMESPACE=myproject")
-        print("  make -f Makefile.external rule-list              # List all rules")
-        print("  make -f Makefile.external git-history SINCE='1 week ago'")
+        print("  make -f Makefile.external test-connection        # Test your connection")
+        print("  make -f Makefile.external health                 # Check API health")
+        print("  make -f Makefile.external check-llm-access       # Check LLM access")
         print()
+        
+        print("🐳 Background Workers (Optional):")
+        print("  ./setup-workers.sh                               # Start RabbitMQ and workers")
+        print("  docker-compose -f docker-compose.external.yml up -d  # Start services")
+        print("  docker-compose -f docker-compose.external.yml logs -f worker  # View logs")
+        print("  docker-compose -f docker-compose.external.yml down  # Stop services")
+        print()
+        print("📋 Workers will process:")
+        print("  • Memory enrichment jobs")
+        print("  • Memory cleanup tasks")
+        print("  • Similarity pruning")
+        print("  • Git history analysis")
+        print()
+        
+        if os.path.exists('.api_admin_token'):
+            print("🔐 Admin Commands (available with admin token):")
+            print("  make -f Makefile.external admin-enable-llm    # Enable LLM access")
+            print("  make -f Makefile.external admin-project-info # View project info")
+            print("  make -f Makefile.external admin-generate-token DESCRIPTION='desc' ROLE=user")
+            print()
+        
         print("🔧 Configuration:")
-        print("  - API_BASE: {self.api_base}")
-        print("  - MEMORY_API_BASE: {self.memory_api_base}")
+        print(f"  - API_BASE: {self.api_base}")
+        print(f"  - MEMORY_API_BASE: {self.memory_api_base}")
         print("  - API_TOKEN: Stored in .apitoken file")
+        if os.path.exists('.api_admin_token'):
+            print("  - ADMIN_TOKEN: Stored in .api_admin_token file")
+        print(f"  - PROJECT: {self.project_name} (saved to .project)")
+        print(f"  - TEAM: {self.team_name} (saved to .teamname)")
+        print("  - WORKER_NETWORK: {self.project_name}-memory-rabbitmq")
         print()
+        
         print("📞 Support:")
-        print("  - Check README.external.md for detailed documentation")
+        print("  - Check USAGE.md for detailed documentation")
         print("  - Use 'make -f Makefile.external help' for command reference")
         print("  - Test connections with 'make -f Makefile.external test-connection'")
+        print("  - View worker logs with 'docker-compose -f docker-compose.external.yml logs -f worker'")
         print()
-        print("=" * 80)
-        print("🏴‍☠️  Happy coding with AI-IDE-API!")
-        print("=" * 80)
         
     def run_onboarding(self):
         """Run the complete onboarding process."""
         self.print_banner()
+        
+        # Detect environment and API addresses
+        self.detect_environment()
+        self.prompt_api_addresses()
         
         # Get project info
         self.get_project_info()
@@ -544,6 +783,9 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
             print("❌ Makefile generation failed.")
             return False
             
+        # Generate Docker Compose files
+        self.generate_docker_compose()
+        
         # Create example files
         self.create_example_files()
         

@@ -12,6 +12,38 @@ To make onboarding smooth and easy, you can download and run our automated onboa
 2. Run the script and follow the prompts (API URL, project name, onboarding path).
 3. The script will generate your API token, register your project, and guide you to the next steps.
 4. Your token will be saved in `.apitoken` for use in future API calls.
+5. **Optional**: The script will also generate Docker Compose files for background workers.
+
+**Generated Files:**
+- `Makefile.external` - All API interaction commands
+- `docker-compose.external.yml` - RabbitMQ and worker services
+- `worker/Dockerfile` - Worker container configuration
+- `worker/requirements.txt` - Python dependencies for workers
+- `setup-workers.sh` - Automated worker setup script
+
+**Background Workers (Optional):**
+The onboarding script generates Docker Compose files that set up:
+- **RabbitMQ** for message queuing
+- **Worker containers** for background processing
+- **Project-specific network** (`{project-name}-memory-rabbitmq`)
+
+Workers handle:
+- Memory enrichment and cleanup
+- Similarity pruning
+- Git history analysis
+- Progress reporting
+- **Git diff summarization** (via API endpoint)
+
+**Note:** External workers access LLM functionality through the main AI-IDE-API endpoints, ensuring secure and controlled access to Ollama Functions.
+
+To start workers:
+```bash
+./setup-workers.sh
+# or manually:
+docker-compose -f docker-compose.external.yml up -d
+```
+
+Workers connect to the AI-IDE-API at `host.docker.internal:9103` and process jobs from the RabbitMQ queues.
 
 If your workflow or features require the memorydb, make sure to run its migrations:
 ```bash

@@ -108,12 +108,11 @@ async def list_onboarding_files() -> Dict[str, Any]:
 
 @router.get("/onboarding/download/{file_type}")
 async def download_onboarding_file(
-    file_type: str,
-    current_user: ApiAccessToken = Depends(require_api_token)
+    file_type: str
 ):
     """
     Download onboarding files by type.
-    Requires authentication.
+    This endpoint is public and does not require authentication.
     """
     if file_type == "scripts":
         return await _download_scripts_zip()
@@ -144,7 +143,7 @@ async def get_quick_start_guide() -> Dict[str, Any]:
                 "step": 1,
                 "title": "Download Onboarding Package",
                 "description": "Download the complete onboarding package",
-                "command": "curl -H 'Authorization: Bearer YOUR_TOKEN' http://localhost:9103/external/onboarding/download/all -o ai-ide-api-onboarding.zip",
+                "command": "curl http://localhost:9103/external/onboarding/download/all -o ai-ide-api-onboarding.zip",
                 "api_endpoint": "/external/onboarding/download/all"
             },
             {
