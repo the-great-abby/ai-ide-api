@@ -104,4 +104,14 @@ migrations-cleanup:
 	find migrations_memorydb/ -name '__pycache__' -type d -exec rm -rf {} +
 	find migrations_memorydb/ -name '*.pyc' -delete
 
+# --- Generic DB Query Targets ---
+# Usage:
+#   make -f Makefile.ai-db db-query QUERY="SELECT * FROM projects;"
+#   make -f Makefile.ai-db db-test-query QUERY="SELECT * FROM projects;"
+db-query:
+	docker compose exec db psql -U postgres -d rulesdb -c "$(QUERY)" | cat
+
+db-test-query:
+	docker compose -f docker-compose.test.yml exec test-db psql -U postgres -d rulesdb -c "$(QUERY)" | cat
+
 .PHONY: db-test-migrate db-test-revision db-test-heads db-test-history db-test-stamp-head db-test-memorydb-revision db-test-backup-data-only db-test-backup-all db-test-restore-data db-test-restore-all db-test-enable-fdw db-migrate db-revision db-heads db-history db-stamp-head db-backup-data-only db-backup-all db-restore-data db-restore-all db-enable-fdw 

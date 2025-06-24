@@ -14,6 +14,34 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Pirate Buddy System
+BUDDIES=("Patch McDebug" "Captain Abby" "Doc Testwell" "Dave the Database Deckhand" "Maple Cartwright" "Bosun Riggs" "Random")
+declare -A BUDDY_INTROS
+BUDDY_INTROS["Patch McDebug"]="Arrr, I be Patch McDebug, yer relentless bug-hunter! Let's get ye shipshape."
+BUDDY_INTROS["Captain Abby"]="Welcome aboard! Captain Abby here to chart your course to greatness."
+BUDDY_INTROS["Doc Testwell"]="Ahoy! Doc Testwell at your service—let's keep things healthy and well-tested."
+BUDDY_INTROS["Dave the Database Deckhand"]="Dave here! I'll help you wrangle the data seas."
+BUDDY_INTROS["Maple Cartwright"]="Maple Cartwright, navigator extraordinaire—let's find your way."
+BUDDY_INTROS["Bosun Riggs"]="Bosun Riggs reporting! Automation and efficiency be my game."
+ENCOURAGEMENTS=(
+  "Well done, matey!"
+  "Onward to the next step!"
+  "If ye get stuck, don't hesitate to ask for help."
+)
+
+# Buddy selection
+printf "\nChoose yer buddy for this voyage:\n"
+for i in "${!BUDDIES[@]}"; do
+  printf "%d) %s\n" $((i+1)) "${BUDDIES[$i]}"
+done
+read -p "> " BUDDY_INDEX
+BUDDY_INDEX=$((BUDDY_INDEX-1))
+SELECTED_BUDDY="${BUDDIES[$BUDDY_INDEX]}"
+if [ "$SELECTED_BUDDY" == "Random" ]; then
+  SELECTED_BUDDY="${BUDDIES[$((RANDOM % (${#BUDDIES[@]}-1)))]}"
+fi
+printf "\n%s\n\n" "${BUDDY_INTROS[$SELECTED_BUDDY]}"
+
 echo -e "${GREEN}🏴‍☠️  AI-IDE-API External Onboarding${NC}"
 echo "=========================================="
 echo "This script will help you set up external access to the AI-IDE-API."

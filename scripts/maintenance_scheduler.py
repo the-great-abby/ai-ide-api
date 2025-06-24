@@ -153,9 +153,31 @@ scheduler.add_job(
     hour=9,
 )
 
-if __name__ == "__main__":
+async def main():
+    """Main async function to run the scheduler."""
     logger.info("Starting maintenance scheduler...")
     try:
-        asyncio.run(scheduler.start())
-    except (KeyboardInterrupt, SystemExit):
+        # Start the scheduler
+        scheduler.start()
+        logger.info("Maintenance scheduler started successfully!")
+        
+        # Keep the scheduler running
+        while True:
+            await asyncio.sleep(1)
+            
+    except KeyboardInterrupt:
+        logger.info("Received interrupt signal, shutting down...")
+    except Exception as e:
+        logger.error(f"Scheduler error: {e}")
+        raise
+    finally:
+        scheduler.shutdown()
         logger.info("Scheduler stopped.")
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {e}")
+        raise

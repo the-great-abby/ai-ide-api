@@ -67,10 +67,8 @@ llm-up-ollama-functions:
 	docker-compose up -d ollama-functions
 
 llm-restart-ollama-functions:
-#	docker-compose build test-ollama-functions
-#	docker-compose up -d test-ollama-functions
-	docker-compose build ollama-functions
-	docker-compose up -d ollama-functions
+	docker compose --profile llm --profile dev build ollama-functions
+	docker compose --profile llm --profile dev up -d ollama-functions
 
 llm-ollama-functions-health:
 	curl -s http://localhost:9103/healthz || echo '{"error": "API not running"}'
@@ -119,13 +117,27 @@ llm-down-ollama-functions:
 
 .PHONY: llm-test-ollama-pull-model llm-test-build-ollama-functions-service llm-test-ollama-serve-docker-gateway llm-test-ollama-logs llm-test-ollama-kill llm-test-ollama-restart-docker-gateway llm-test-ollama-serve-docker-gateway-bg llm-ollama-pull-model llm-build-ollama-functions-service llm-ollama-serve-docker-gateway llm-ollama-logs llm-ollama-kill llm-ollama-restart-docker-gateway llm-ollama-serve-docker-gateway-bg llm-build-ollama-functions llm-up-ollama-functions llm-restart-ollama-functions llm-ollama-functions-health llm-ollama-functions-logs llm-suggest-rules llm-suggest-rules-docker llm-setup llm-scan-memory-nodes llm-stop-ollama-functions llm-down-ollama-functions enable-llm-access
 
-# Usage: make -f Makefile.ai-llm enable-llm-access PROJECT_ID=<project_id> ADMIN_TOKEN=<admin_token>
+# Usage: make -f Makefile.ai-llm enable-llm-access [PROJECT_ID=<project_id>] [ADMIN_TOKEN=<admin_token>]
+ADMIN_TOKEN ?= $(shell cat .api_admin_token 2>/dev/null || echo "")
+PROJECT_ID ?= $(shell cat .projectname 2>/dev/null || echo "")
+
 enable-llm-access:
 	@if [ -z "$(PROJECT_ID)" ] || [ -z "$(ADMIN_TOKEN)" ]; then \
 		echo "Usage: make -f Makefile.ai-llm enable-llm-access PROJECT_ID=<project_id> ADMIN_TOKEN=<admin_token>"; \
+		echo "  (Defaults: .projectname and .api_admin_token if present)"; \
 		exit 1; \
 	fi
-	curl -X PUT http://localhost:9103/projects/$(PROJECT_ID) \
+	@echo "Enabling LLM access for project: $(PROJECT_ID) using admin token: $$(echo $${ADMIN_TOKEN} | cut -c1-6)******"
+	RESPONSE=$$(curl -s -w '\n%{{http_code}}' -X PUT http://localhost:9103/projects/$(PROJECT_ID) \
 	  -H "Authorization: Bearer $(ADMIN_TOKEN)" \
 	  -H "Content-Type: application/json" \
-	  -d '{"has_llm_access": true}' 
+	  -d '{"name": "$(PROJECT_ID)", "has_llm_access": true}'); \
+	BODY=$$(echo "$$RESPONSE" | head -n-1); \
+	CODE=$$(echo "$$RESPONSE" | tail -n1); \
+	if [ "$$CODE" = "200" ]; then \
+		echo "✅ LLM access enabled for project $(PROJECT_ID)."; \
+		echo "Response: $$BODY"; \
+	else \
+		echo "❌ Failed to enable LLM access (HTTP $$CODE): $$BODY"; \
+		exit 1; \
+	fi 

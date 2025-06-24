@@ -1,12 +1,13 @@
-print('=== WORKER MAIN.PY EXECUTING (print) ===')
+#!/usr/bin/env python3
+# External Project Worker Main
+# Generated on 2025-06-23 09:24:11
+# Project: ai-ide-api_internal
+# Note: External workers use API endpoints instead of direct Ollama Functions access
+
+print('=== EXTERNAL WORKER MAIN.PY EXECUTING ===')
 import logging
 logging.basicConfig(level=logging.DEBUG)
-logging.getLogger('worker').info('=== WORKER MAIN.PY EXECUTING (logger) ===')
-# Worker job dispatch pattern:
-# To add a new job type:
-# 1. Implement an async handler (e.g., process_new_job) in a module.
-# 2. Add the queue name and handler to JOB_HANDLERS.
-# 3. Ensure the queue is published to by the relevant producer.
+logging.getLogger('worker').info('=== EXTERNAL WORKER MAIN.PY EXECUTING ===')
 
 import json
 import os
@@ -14,24 +15,54 @@ import time
 import asyncio
 from utils.message_broker import RealRabbitMQClient, MessageBrokerBase
 import requests
-from worker.progress_report_worker import process_progress_report_job
-from scripts.memory_cleanup_worker import process_memory_cleanup_job
-from scripts.memory_enrichment_worker import process_enrichment_job
-from scripts.memory_similarity_pruning_worker import process_similarity_pruning_job
-from scripts.git_history_worker import process_git_history_analysis_job
+
+# Import worker modules (these should be copied from the main project)
+process_progress_report_job = None
+process_memory_cleanup_job = None
+process_enrichment_job = None
+process_similarity_pruning_job = None
+process_git_history_analysis_job = None
+missing_handlers = []
+try:
+    from worker.progress_report_worker import process_progress_report_job
+except ImportError as e:
+    print(f"Warning: Could not import process_progress_report_job: {e}")
+    missing_handlers.append("process_progress_report_job")
+try:
+    from scripts.memory_cleanup_worker import process_memory_cleanup_job
+except ImportError as e:
+    print(f"Warning: Could not import process_memory_cleanup_job: {e}")
+    missing_handlers.append("process_memory_cleanup_job")
+try:
+    from scripts.memory_enrichment_worker import process_enrichment_job
+except ImportError as e:
+    print(f"Warning: Could not import process_enrichment_job: {e}")
+    missing_handlers.append("process_enrichment_job")
+try:
+    from scripts.memory_similarity_pruning_worker import process_similarity_pruning_job
+except ImportError as e:
+    print(f"Warning: Could not import process_similarity_pruning_job: {e}")
+    missing_handlers.append("process_similarity_pruning_job")
+try:
+    from scripts.git_history_worker import process_git_history_analysis_job
+except ImportError as e:
+    print(f"Warning: Could not import process_git_history_analysis_job: {e}")
+    missing_handlers.append("process_git_history_analysis_job")
+if missing_handlers:
+    print(f"Some worker functionality may not be available: {', '.join(missing_handlers)}")
 
 RABBITMQ_URL = os.environ.get("RABBITMQ_URL", "amqp://user:password@rabbitmq:5672/")
-QUEUE_NAME = "memory.update"
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:9103")
+MEMORY_API_TOKEN = os.environ.get("MEMORY_API_TOKEN", "")
+
 PROGRESS_QUEUE = "progress.report"
 MEMORY_CLEANUP_QUEUE = "memory.cleanup"
 MEMORY_ENRICHMENT_QUEUE = "memory.enrichment"
 MEMORY_SIMILARITY_QUEUE = "memory.similarity"
 GIT_HISTORY_QUEUE = "git.history.analysis"
-OLLAMA_FUNCTIONS_URL = os.environ.get(
-    "OLLAMA_FUNCTIONS_URL", "http://ollama-functions:8000"
-)
+MEMORY_UPDATE_QUEUE = "memory.update"
 
-logger = logging.getLogger("worker")
+logger = logging.getLogger("external_worker")
 if not logger.hasHandlers():
     handler = logging.StreamHandler()
     handler.setFormatter(
@@ -40,46 +71,61 @@ if not logger.hasHandlers():
     logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
-
-async def process_job(body):
+# External workers can now process git diff summarization via API
+async def process_git_diff_job(body):
+    """Process git diff summarization using the API endpoint."""
     if "diff" not in body:
         logger.info("No 'diff' field found in job")
-        return
+        return {"status": "error", "reason": "missing_diff_field"}
+    
     concise = body.get("concise", True)
     payload = {"diff": body["diff"], "concise": concise}
+    
     try:
+        # Use the API endpoint instead of direct Ollama Functions access
+        headers = {"Authorization": f"Bearer {MEMORY_API_TOKEN}", "Content-Type": "application/json"}
         response = requests.post(
-            f"{OLLAMA_FUNCTIONS_URL}/summarize-git-diff", json=payload, timeout=60
+            f"{API_BASE_URL}/summarize-git-diff", 
+            json=payload, 
+            headers=headers,
+            timeout=180
         )
         response.raise_for_status()
         summary = response.json()
-        logger.info("Summary response: %s", json.dumps(summary, indent=2))
+        logger.info("Git diff summary response: %s", json.dumps(summary, indent=2))
+        return {"status": "success", "summary": summary}
     except Exception as e:
-        logger.error("Error calling Ollama Functions API: %s", e)
+        logger.error("Error calling git diff summarization API: %s", e)
+        return {"status": "error", "reason": str(e)}
 
-
-JOB_HANDLERS = {
-    QUEUE_NAME: process_job,
-    PROGRESS_QUEUE: process_progress_report_job,
-    MEMORY_CLEANUP_QUEUE: process_memory_cleanup_job,
-    MEMORY_ENRICHMENT_QUEUE: process_enrichment_job,
-    MEMORY_SIMILARITY_QUEUE: process_similarity_pruning_job,
-    GIT_HISTORY_QUEUE: process_git_history_analysis_job,
-}
-
+# Available job handlers for external workers (now including git diff summarization)
+JOB_HANDLERS = {}
+if process_git_diff_job is not None:
+    JOB_HANDLERS[MEMORY_UPDATE_QUEUE] = process_git_diff_job
+if process_progress_report_job is not None:
+    JOB_HANDLERS[PROGRESS_QUEUE] = process_progress_report_job
+if process_memory_cleanup_job is not None:
+    JOB_HANDLERS[MEMORY_CLEANUP_QUEUE] = process_memory_cleanup_job
+if process_enrichment_job is not None:
+    JOB_HANDLERS[MEMORY_ENRICHMENT_QUEUE] = process_enrichment_job
+if process_similarity_pruning_job is not None:
+    JOB_HANDLERS[MEMORY_SIMILARITY_QUEUE] = process_similarity_pruning_job
+if process_git_history_analysis_job is not None:
+    JOB_HANDLERS[GIT_HISTORY_QUEUE] = process_git_history_analysis_job
 
 async def main(broker: MessageBrokerBase = None):
-    logger.info("=== WORKER STARTING ===")
-    logger.info(f"Job handlers configured: {list(JOB_HANDLERS.keys())}")
+    logger.info("=== EXTERNAL WORKER STARTING ===")
+    logger.info(f"Available job handlers: {list(JOB_HANDLERS.keys())}")
+    logger.info("✅ Git diff summarization available via API endpoint")
+    logger.info(f"API Base URL: {API_BASE_URL}")
 
     if broker is None:
         logger.info("Creating new RabbitMQ client...")
         broker = RealRabbitMQClient(RABBITMQ_URL)
 
     logger.info(f"Broker instance type: {type(broker).__name__}")
-    logger.info(f"Broker instance: {broker}")
-    logger.info("Worker started, polling for jobs...")
-    print("Worker started, polling for jobs...")
+    logger.info("External worker started, polling for jobs...")
+    print("External worker started, polling for jobs...")
 
     while True:
         for queue_name, handler in JOB_HANDLERS.items():
@@ -88,7 +134,6 @@ async def main(broker: MessageBrokerBase = None):
                 # Consume from queue
                 body = await broker.consume(queue_name)
                 logger.debug(f"Polled queue {queue_name}, got body: {body}")
-                logger.debug(f"Body type: {type(body)}")
                 
                 if body is None:
                     logger.debug(f"No message in queue {queue_name}, sleeping...")
@@ -97,14 +142,12 @@ async def main(broker: MessageBrokerBase = None):
                 
                 # Parse job data
                 try:
-                    # The message broker already returns parsed JSON, so body is already a dict
                     if isinstance(body, str):
                         job_data = json.loads(body)
                     else:
                         job_data = body
                     logger.info(f"🎯 Processing job from queue {queue_name}: {job_data}")
                     print(f"=== JOB DEQUEUED FROM {queue_name} ===")
-                    logger.critical(f"=== JOB DEQUEUED FROM {queue_name} (CRITICAL) ===")
                     
                     # Call handler
                     logger.info(f"🚀 Calling handler for {queue_name}")
@@ -120,7 +163,6 @@ async def main(broker: MessageBrokerBase = None):
             except Exception as e:
                 logger.error(f"❌ Error polling queue {queue_name}: {e}")
                 await asyncio.sleep(1)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -2,29 +2,27 @@
 
 ## 🏴‍☠️ Quickstart (For New Crew)
 
-1. Clone the repo:
-   ```bash
-   git clone <repo-url>
-   cd ai-ide-api
-   ```
-2. Start the environment:
-   ```bash
-   make -f Makefile.ai ai-env-up
-   ```
-3. Run the database migrations:
-   ```bash
-   make -f Makefile.ai ai-db-migrate
-   make -f Makefile.ai ai-memorydb-migrate
-   ```
-4. Run the tests:
-   ```bash
-   make -f Makefile.ai ai-test
-   ```
-5. Or, run everything in one go:
+Welcome aboard, matey! Follow these two steps to get your development environment shipshape and start your first adventure.
+
+### Step 1: Set Up Your Development Environment
+
+This command will prepare all the necessary services, databases, and configurations. It's your go-to command for a fresh start.
+
    ```bash
    make -f Makefile.ai quickstart
    ```
-6. If you see green, you're ready to code! If not, see Troubleshooting below or ask a senior pirate.
+
+This process might take a few minutes. If you see green, you're ready for the next step! If not, see the Troubleshooting section below.
+
+### Step 2: Begin Your Interactive Onboarding
+
+Now that your environment is ready, it's time to begin your guided tour. This interactive script will introduce you to the key concepts and workflows.
+
+```bash
+make -f Makefile.ai onboard
+```
+
+Follow the prompts from your chosen crewmate to complete your first quest!
 
 ---
 

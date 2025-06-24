@@ -99,7 +99,7 @@ services:
       - PGPASSWORD=postgres
       - PGHOST=test-db
       - PGPORT=5432
-      - MEMORY_API_URL=http://test-api:8000/memory/nodes
+      - MEMORY_API_URL=http://test-api:8000/memory
       - OLLAMA_URL=http://host.docker.internal:11434/api/generate
       - GIT_DIFF_SUMMARY_URL=http://test-ollama-functions:8000/summarize-git-diff
       - OLLAMA_MODEL=llama3.1:8b-instruct-q6_K
@@ -118,7 +118,7 @@ services:
       dockerfile: Dockerfile.ollama_functions
     environment:
       - RUNNING_IN_DOCKER=1
-      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434/api/generate}
+      - OLLAMA_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3:8b}
     depends_on:
       - test
@@ -129,7 +129,9 @@ services:
     profiles: ["llm-test"]
 
   test-worker:
-    build: ./worker
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
     environment:
       - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
       - OLLAMA_FUNCTIONS_URL=http://test-ollama-functions:8000

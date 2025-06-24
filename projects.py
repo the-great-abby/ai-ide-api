@@ -109,7 +109,7 @@ def update_project(
         raise HTTPException(status_code=404, detail="Project not found")
     db_project.name = project.name
     db_project.description = project.description
-    db_project.has_llm_access = project.has_llm_access
+    db_project.has_llm_access = 1 if project.has_llm_access else 0
     db.commit()
     db.refresh(db_project)
     return serialize_uuids(db_project.__dict__.copy())

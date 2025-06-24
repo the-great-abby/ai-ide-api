@@ -25,7 +25,7 @@
 ## Configuration
 
 - API Base: http://localhost:9103
-- Project: test-onboard-project-2
+- Project: ai-ide-api_internal
 - Token: Stored in `.apitoken` file
 
 ## Available Commands

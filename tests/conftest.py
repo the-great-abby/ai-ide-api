@@ -208,10 +208,11 @@ def fail_if_tokens_exist():
     db.close()
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def ensure_token_bootstrap(client):
     """
     Ensure that after DB reset, the token bootstrap flow is run and a valid admin token exists.
+    Only runs when explicitly requested by tests that need API tokens.
     """
     # Clean up any tokens
     db = TestingSessionLocal()
@@ -248,6 +249,8 @@ def ensure_token_bootstrap(client):
     assert (
         token_obj is not None
     ), "Admin token not present or not active in DB after creation."
+    
+    return admin_token
 
 
 # ARR! Pirate UUID guard: fail any test that passes a uuid.UUID object to a query!
@@ -286,3 +289,13 @@ def pytest_runtest_protocol(item, nextitem):
     log_rules_table_columns(f"test_start: {item.name}")
     outcome = yield
     log_rules_table_columns(f"test_end: {item.name}")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    """Handle tests marked with no_token_bootstrap."""
+    for item in items:
+        if item.get_closest_marker("no_token_bootstrap"):
+            # For these tests, we don't need to do anything special
+            # They just won't request the ensure_token_bootstrap fixture
+            pass

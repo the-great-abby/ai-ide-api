@@ -9,21 +9,6 @@ import os
 API_URL = "http://api:8000/memory/nodes"
 
 
-def get_auth_token():
-    """Get API token from /code/.api_admin_token or /code/.apitoken file"""
-    token_paths = [
-        "/code/.api_admin_token",
-        "/code/.apitoken",
-        ".api_admin_token",
-        ".apitoken",
-    ]
-    for path in token_paths:
-        if os.path.exists(path):
-            with open(path, "r") as f:
-                return f.read().strip()
-    return None
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Create a new memory node via the API."
@@ -72,11 +57,11 @@ def main():
     if meta:
         node["meta"] = json.dumps(meta)
 
-    # Get API token
-    token = get_auth_token()
+    # Get API token from environment
+    token = os.environ.get("MEMORY_API_TOKEN")
     if not token:
         print(
-            "[ERROR] No API token found. Please ensure /code/.apitoken exists.",
+            "[ERROR] No API token found. Please ensure MEMORY_API_TOKEN is set.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -89,12 +74,19 @@ def main():
         }
         resp = requests.post(API_URL, json=node, headers=headers)
         resp.raise_for_status()
-    except Exception as e:
+    except requests.exceptions.HTTPError as e:
         print(
-            f"[ERROR] Failed to create memory: {e}\n{getattr(e, 'response', None) and e.response.text}",
+            f"[ERROR] Failed to create memory: {e}\n{e.response.text if e.response else 'No response body'}",
             file=sys.stderr,
         )
         sys.exit(1)
+    except Exception as e:
+        print(
+            f"[ERROR] Failed to create memory: {e}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
 
     print("[SUCCESS] Memory node created:")
     print(json.dumps(resp.json(), indent=2))

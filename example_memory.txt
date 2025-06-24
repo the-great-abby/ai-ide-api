@@ -1,0 +1,17 @@
+# Example Memory for ai-ide-api_internal
+
+This is an example memory node created during onboarding.
+
+## Project Details
+- Project: ai-ide-api_internal
+- Created: 2025-06-23 09:24:11
+- Type: Onboarding Example
+
+## Content
+This memory demonstrates how to create and store information in the AI-IDE-API system.
+You can search for this content later using the memory-search command.
+
+## Usage Examples
+- Search: make memory-search QUERY="onboarding example"
+- List namespaces: make memory-list
+- View nodes: make memory-nodes NAMESPACE=ai-ide-api_internal

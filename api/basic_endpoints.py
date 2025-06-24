@@ -7,6 +7,14 @@ from db import ApiAccessToken, get_db
 
 router = APIRouter(tags=["basic"])
 
+# Include predictive analytics endpoints
+try:
+    from .predictive_endpoints import router as predictive_router
+    router.include_router(predictive_router)
+except ImportError:
+    # Predictive analytics not available
+    pass
+
 
 @router.get("/")
 def root():

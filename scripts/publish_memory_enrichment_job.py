@@ -12,7 +12,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 # Add the current directory to the path so we can import utils
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -34,7 +34,9 @@ DEFAULT_CONFIG = {
     "max_tags": 5,
     "batch_size": 50,
     "target_batch_tokens": 12000,
-    "priority": "normal"
+    "priority": "normal",
+    "create_edges": True,  # Enable edge creation by default
+    "edge_types": ["tag_based", "content_ref"]  # Types of edges to create
 }
 
 def create_enrichment_job(
@@ -44,9 +46,14 @@ def create_enrichment_job(
     max_tags: int = 5,
     batch_size: int = 50,
     target_batch_tokens: int = 12000,
-    priority: str = "normal"
+    priority: str = "normal",
+    create_edges: bool = True,
+    edge_types: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """Create an enrichment job payload."""
+    
+    if edge_types is None:
+        edge_types = ["tag_based", "content_ref"]
     
     job = {
         "scope": scope,
@@ -56,9 +63,11 @@ def create_enrichment_job(
         "batch_size": batch_size,
         "target_batch_tokens": target_batch_tokens,
         "priority": priority,
+        "create_edges": create_edges,
+        "edge_types": edge_types,
         "created_at": datetime.utcnow().isoformat(),
         "job_type": "memory_enrichment",
-        "version": "1.0"
+        "version": "1.1"  # Updated version for edge creation feature
     }
     
     return job
@@ -136,11 +145,32 @@ def main():
         help="Job priority"
     )
     parser.add_argument(
+        "--create-edges",
+        action="store_true",
+        default=True,
+        help="Create edges between related nodes after enrichment"
+    )
+    parser.add_argument(
+        "--no-create-edges",
+        action="store_true",
+        help="Disable edge creation"
+    )
+    parser.add_argument(
+        "--edge-types",
+        nargs="+",
+        choices=["tag_based", "content_ref"],
+        default=["tag_based", "content_ref"],
+        help="Types of edges to create"
+    )
+    parser.add_argument(
         "--rabbitmq-url",
         help="RabbitMQ connection URL"
     )
     
     args = parser.parse_args()
+    
+    # Determine edge creation setting
+    create_edges = args.create_edges and not args.no_create_edges
     
     # Create job configuration
     job_config = create_enrichment_job(
@@ -150,7 +180,9 @@ def main():
         max_tags=args.max_tags,
         batch_size=args.batch_size,
         target_batch_tokens=args.target_batch_tokens,
-        priority=args.priority
+        priority=args.priority,
+        create_edges=create_edges,
+        edge_types=args.edge_types
     )
     
     logger.info(f"Publishing enrichment job with config: {json.dumps(job_config, indent=2)}")

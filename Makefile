@@ -1,6 +1,8 @@
 .PHONY: help onboard build up up-detached test test-json test-one coverage export-rules lint-rule lint-rules down frontend generate-knowledge-graph simulate-onboarding create-user-story-memory setup-memory-hook clean-pycache ai-test-cleanup
 
 PORT ?= 9103
+-include .env
+export
 
 help:
 	@echo "Available targets:"
@@ -35,10 +37,10 @@ build:
 	docker-compose build
 
 up:
-	PORT=$(PORT) docker-compose up db api ollama-functions misc-scripts
+	PORT=$(PORT) docker-compose up db api ollama-functions misc-scripts maintenance-scheduler
 
 up-detached:
-	PORT=$(PORT) docker-compose up -d db api ollama-functions misc-scripts
+	PORT=$(PORT) docker-compose up -d db api ollama-functions misc-scripts maintenance-scheduler
 
 test:
 	docker-compose run --rm test pytest tests/
@@ -64,9 +66,23 @@ lint-rules:
 down:
 	docker-compose down
 
+# ADMIN_API_TOKEN=$(cat .api_admin_token) make frontend
 # Launch the admin frontend as a Docker container
 frontend:
-	docker-compose up frontend
+#	ADMIN_API_TOKEN=$(cat .api_admin_token) 
+	docker-compose up --build frontend
+
+# ADMIN_API_TOKEN=$(cat .api_admin_token) make frontend-dev
+# Launch the admin frontend as a Docker container
+frontend-dev:
+#	ADMIN_API_TOKEN=$(cat .api_admin_token) 
+	docker-compose up --build frontend-dev
+
+logs-api:
+	docker-compose logs api -f
+
+logs-frontend:
+	docker-compose logs frontend -f
 
 generate-knowledge-graph:
 	docker compose exec api python /code/scripts/generate_knowledge_graph.py

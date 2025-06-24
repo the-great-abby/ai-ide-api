@@ -41,15 +41,35 @@ services:
   frontend:
     build:
       context: ./admin-frontend
+      dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: "http://localhost:${PORT:-9103}"
+        - VITE_API_TOKEN=${ADMIN_API_TOKEN}
+        - VITE_API_BASE_URL=/api
     ports:
       - "${ADMIN_FRONTEND_PORT:-3000}:80"
+#    environment:
+#      - VITE_API_BASE_URL=http://api:8000
+#      - VITE_API_TOKEN=${ADMIN_API_TOKEN}
     depends_on:
       - api
-    environment:
-      - VITE_API_BASE_URL=http://localhost:${PORT:-9103}
     profiles: ["dev"]
+
+
+  frontend-dev:
+    build:
+      context: ./admin-frontend
+      dockerfile: Dockerfile.dev
+      args:
+        - VITE_API_TOKEN=${ADMIN_API_TOKEN}
+        - VITE_API_BASE_URL=/api
+    ports:
+      - "${ADMIN_FRONTEND_PORT:-2999}:5173"
+    depends_on:
+      - api
+    profiles: ["dev"]
+    environment:
+      - VITE_API_BASE_URL=http://localhost:9103
+      - VITE_API_TOKEN=${ADMIN_API_TOKEN}
 
   db:
     build:
@@ -147,6 +167,26 @@ services:
       - ./.apitoken:/code/.apitoken
       - ./.api_admin_token:/code/.api_admin_token
       - ./.git:/app/.git
+
+  maintenance-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.misc-scripts
+    environment:
+      - RUNNING_IN_DOCKER=1
+      - RABBITMQ_URL=amqp://user:password@rabbitmq:5672/
+      - PYTHONPATH=/code
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./scripts:/code/scripts
+      - ./utils:/code/utils
+      - .:/code
+      - ./.git:/code/.git
+    working_dir: /code
+    command: ["python3", "scripts/maintenance_scheduler.py"]
+    profiles: ["dev"]
+    restart: unless-stopped
 
   valkey:
     image: valkey/valkey:latest

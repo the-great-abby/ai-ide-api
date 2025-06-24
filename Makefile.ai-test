@@ -67,15 +67,68 @@ test-api-logs:
 test-db-logs:
 	docker compose -f docker-compose.test.yml logs --tail=100 test-db | cat
 
-test-ollama-functions-logs:
-	docker compose -f docker-compose.test.yml logs --tail=100 test-ollama-functions | cat
-
 # --- Ollama Functions Test Service Targets ---
 test-ollama-functions-up:
-	docker compose -f docker-compose.test.yml up -d test-ollama-functions
+	docker compose -f docker-compose.test.yml --profile llm-test up -d test-ollama-functions
+	@echo "[test-ollama-functions-up] Test Ollama Functions service started!"
+	@echo "[test-ollama-functions-up] Use 'make -f Makefile.ai-test test-ollama-functions-logs' to view logs"
+	@echo "[test-ollama-functions-up] Use 'make -f Makefile.ai-test test-ollama-functions-debug' to follow logs"
 
 test-ollama-functions-down:
 	docker compose -f docker-compose.test.yml stop test-ollama-functions
+	@echo "[test-ollama-functions-down] Test Ollama Functions service stopped!"
+
+test-ollama-functions-restart:
+	docker compose -f docker-compose.test.yml restart test-ollama-functions
+	@echo "[test-ollama-functions-restart] Test Ollama Functions service restarted!"
+
+test-ollama-functions-logs:
+	@echo "[test-ollama-functions-logs] Recent logs from test-ollama-functions:"
+	docker compose -f docker-compose.test.yml --profile test --profile llm-test logs --tail=50 test-ollama-functions | cat
+
+test-ollama-functions-debug:
+	@echo "[test-ollama-functions-debug] Following logs from test-ollama-functions (Ctrl+C to stop):"
+	docker compose -f docker-compose.test.yml --profile test --profile llm-test logs -f test-ollama-functions
+
+test-ollama-functions-status:
+	@echo "[test-ollama-functions-status] Container status:"
+	docker compose -f docker-compose.test.yml --profile test --profile llm-test ps test-ollama-functions
+	@echo ""
+	@echo "[test-ollama-functions-status] Health check:"
+	@curl -s http://localhost:8000/health || echo "Service not responding on port 8000"
+	@echo ""
+
+test-ollama-functions-test:
+	@echo "[test-ollama-functions-test] Testing semantic search functionality..."
+	@docker compose -f docker-compose.test.yml --profile test --profile llm-test exec test-api curl -s -X POST http://test-ollama-functions:8000/embed-text \
+		-H "Content-Type: application/json" \
+		-d '{"text": "test query"}' || echo "Embedding service not responding from within Docker network"
+	@echo ""
+
+# Start test-ollama-functions with full environment for semantic search tests
+test-up-with-ollama:
+	docker compose -f docker-compose.test.yml --profile test --profile llm-test up -d test-db test-api test test-ollama-functions
+	@echo "[test-up-with-ollama] Test environment with Ollama Functions started!"
+	@echo "[test-up-with-ollama] Use 'make -f Makefile.ai-test test-ollama-functions-logs' to view logs"
+	@echo "[test-up-with-ollama] Use 'make -f Makefile.ai-test test-ollama-functions-debug' to follow logs"
+
+# Test semantic search functionality specifically
+test-semantic-search:
+	@echo "[test-semantic-search] Running semantic search tests..."
+	$(MAKE) -f Makefile.ai-test test-up-with-ollama
+	@echo "[test-semantic-search] Waiting for services to be ready..."
+	@sleep 5
+	$(MAKE) -f Makefile.ai-test test-test PYTEST_ARGS="tests/test_memory_search.py::TestSemanticSearch -v"
+	@echo "[test-semantic-search] Semantic search tests completed!"
+
+# Test advanced search functionality specifically
+test-advanced-search:
+	@echo "[test-advanced-search] Running advanced search tests..."
+	$(MAKE) -f Makefile.ai-test test-up-with-ollama
+	@echo "[test-advanced-search] Waiting for services to be ready..."
+	@sleep 5
+	$(MAKE) -f Makefile.ai-test test-test PYTEST_ARGS="tests/test_memory_search.py -v"
+	@echo "[test-advanced-search] Advanced search tests completed!"
 
 # --- Alembic Utility Targets for Test DB ---
 test-db-current:
@@ -93,18 +146,14 @@ test-pg-query:
 # Example:
 #   make -f Makefile.ai-test test-pg-query QUERY='SELECT * FROM api_access_tokens LIMIT 5;'
 
-# Start the test ollama functions server (required for LLM-related tests)
-test-up-ollama-functions:
-	docker compose -f docker-compose.test.yml up -d test-ollama-functions
-
-# Stop the test ollama functions server
-test-down-ollama-functions:
-	docker compose -f docker-compose.test.yml down test-ollama-functions
-
 # Note: LLM-related tests require the ollama functions server to be running.
 # See docs/llm_testing.md (Doc the Medic maintains this doc)
 
 test-test:
+	@echo "[test-test] Running test suite..."
+	@echo "[test-test] Note: Semantic search tests require test-ollama-functions to be running."
+	@echo "[test-test] Use 'make -f Makefile.ai-test test-up-with-ollama' to start full environment."
+	@echo "[test-test] Use 'make -f Makefile.ai-test test-ollama-functions-status' to check service status."
 	docker compose -f docker-compose.test.yml run --rm -e SKIP_TOKEN_POLLUTION_GUARD=1 -e ENVIRONMENT=test -e PYTHONPATH=/app test pytest tests/ --disable-warnings --tb=short $(PYTEST_ARGS)
 
 # Compose file override (default to test)
@@ -199,4 +248,29 @@ test: test-test
 test-frontend-up:
 	docker compose -f docker-compose.test.yml up -d test-frontend
 
-.PHONY: test-up test-down test-json test-one test-unit test-integration test-network test-cli test-coverage test-rebuild test-rebuild-with-setup test-db-migrate test-db-revision test-db-heads test-db-history test-db-stamp-head test-memorydb-revision test-api-logs test-db-logs test-ollama-functions-up test-ollama-functions-down test-ollama-functions-logs test-db-current test-pg-query test-up-ollama-functions test-down-ollama-functions test-test test-quickstart test-db-nuke 
+.PHONY: test-up test-down test-json test-one test-unit test-integration test-network test-cli test-coverage test-rebuild test-rebuild-with-setup test-db-migrate test-db-revision test-db-heads test-db-history test-db-stamp-head test-memorydb-revision test-api-logs test-db-logs test-ollama-functions-up test-ollama-functions-down test-ollama-functions-logs test-db-current test-pg-query test-up-ollama-functions test-down-ollama-functions test-test test-quickstart test-db-nuke
+
+## Test Memory Enrichment Worker
+test-memory-enrichment-worker:
+	@echo "[test-memory-enrichment-worker] Running memory enrichment worker unit tests..."
+	@docker compose exec test-api python -m pytest tests/unit/test_memory_enrichment_worker.py -v
+
+## Test Memory Similarity Pruning Worker  
+test-memory-similarity-worker:
+	@echo "[test-memory-similarity-worker] Running memory similarity pruning worker unit tests..."
+	@docker compose exec test-api python -m pytest tests/unit/test_memory_similarity_pruning_worker.py -v
+
+## Test Progress Report Worker
+test-progress-report-worker:
+	@echo "[test-progress-report-worker] Running progress report worker unit tests..."
+	@docker compose exec test-api python -m pytest tests/unit/test_progress_report_worker.py -v
+
+## Test All Workers
+test-all-workers:
+	@echo "[test-all-workers] Running all worker unit tests..."
+	@docker compose exec test-api python -m pytest tests/unit/test_memory_enrichment_worker.py tests/unit/test_memory_similarity_pruning_worker.py tests/unit/test_progress_report_worker.py -v
+
+## Test Memory System (All Memory-Related Tests)
+test-memory-system:
+	@echo "[test-memory-system] Running all memory system tests..."
+	@docker compose exec test-api python -m pytest tests/unit/test_memory_cleanup_worker.py tests/unit/test_memory_enrichment_worker.py tests/unit/test_memory_similarity_pruning_worker.py tests/unit/test_progress_report_worker.py tests/integration/test_memory_endpoints.py -v 

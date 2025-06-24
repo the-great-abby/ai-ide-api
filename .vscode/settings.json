@@ -1,0 +1,23 @@
+{
+  "ai-ide.projectName": "ai-ide-api_internal",
+  "ai-ide.namespace": "ai-ide-api_internal/private",
+  "ai-ide.suggestionTypes": [
+    "rules",
+    "patterns",
+    "memory"
+  ],
+  "ai-ide.languageFocus": [
+    "python",
+    "javascript"
+  ],
+  "ai-ide.framework": "fastapi",
+  "ai-ide.apiUrl": "http://localhost:9103",
+  "ai-ide.enableRealTime": true,
+  "ai-ide.autoApply": false,
+  "ai-ide.workspaceDetection": true,
+  "ai-ide.projectConfigFiles": [
+    ".projectname",
+    ".apitoken",
+    ".teamname"
+  ]
+}

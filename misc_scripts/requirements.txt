@@ -2,4 +2,5 @@ requests>=2.31.0
 pyyaml
 tqdm
 psycopg2-binary
-pika 
+pika
+apscheduler 

@@ -12,7 +12,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import List, Optional, Dict, Any
 import requests
 import os
 import random
@@ -35,11 +35,14 @@ OLLAMA_URL = os.environ.get(
 )
 
 # Throttling and retry configuration
-DEFAULT_BATCH_SIZE = 3  # Reduced from 5
-DEFAULT_BATCH_DELAY = 5  # Increased from 2 seconds
+DEFAULT_BATCH_SIZE = 2  # Reduced from 3 to be more conservative
+DEFAULT_BATCH_DELAY = 8  # Increased from 5 seconds
 DEFAULT_RETRY_ATTEMPTS = 3
-DEFAULT_RETRY_DELAY = 10  # seconds
+DEFAULT_RETRY_DELAY = 15  # Increased base delay from 10 seconds
 DEFAULT_MAX_RETRIES = 5
+DEFAULT_REQUEST_TIMEOUT = 180  # Increased timeout from 120 seconds
+DEFAULT_JITTER_MIN = 2.0  # Minimum jitter in seconds
+DEFAULT_JITTER_MAX = 8.0  # Maximum jitter in seconds
 
 
 class GitCommit:
@@ -103,28 +106,46 @@ def get_commit_list(
         )
         lines = result.stdout.strip().split("\n")
 
-        current_commit = None
         for line in lines:
             if "|" in line:  # This is a commit line
                 parts = line.split("|")
                 if len(parts) >= 4:
                     commit_hash, author_name, date, subject = parts[:4]
+                    
+                    # Get files changed for this commit
+                    files_changed = get_commit_files(commit_hash)
+                    
                     current_commit = GitCommit(
                         commit_hash=commit_hash,
                         author=author_name,
                         date=date,
                         message=subject,
-                        files_changed=[],
+                        files_changed=files_changed,
                     )
                     commits.append(current_commit)
-            elif line.strip() and current_commit:  # This is a file line
-                current_commit.files_changed.append(line.strip())
 
     except subprocess.CalledProcessError as e:
         logger.error(f"Git log failed: {e}")
         return []
 
     return commits
+
+
+def get_commit_files(commit_hash: str) -> List[str]:
+    """Get the list of files changed in a specific commit."""
+    try:
+        cmd = ["git", "show", "--name-only", "--pretty=format:", commit_hash]
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, check=True, cwd="."
+        )
+        
+        # Split output and filter out empty lines
+        files = [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
+        return files
+        
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Git show failed for commit {commit_hash}: {e}")
+        return []
 
 
 def get_commit_diff(commit_hash: str) -> str:
@@ -157,9 +178,9 @@ def get_parent_commit(commit_hash: str) -> Optional[str]:
 
 
 def summarize_diff(
-    diff: str, commit_message: str, author: str, concise: bool = True
+    diff: str, commit_message: str, author: str, concise: bool = True, health_data: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
-    """Summarize a git diff using the LLM service with retry logic."""
+    """Summarize a git diff using the LLM service with improved retry logic and adaptive timeouts."""
     if not diff.strip():
         return {"summary": "No changes detected", "categories": [], "tags": []}
 
@@ -170,69 +191,76 @@ def summarize_diff(
         "concise": concise,
     }
 
-    # Retry logic for connection issues
+    # Get adaptive timeout based on health data
+    if health_data:
+        timeout = get_adaptive_timeout(health_data)
+        logger.info(f"Using adaptive timeout: {timeout}s (load level: {health_data.get('load_level', 'unknown')})")
+    else:
+        timeout = DEFAULT_REQUEST_TIMEOUT
+        logger.info(f"Using default timeout: {timeout}s")
+
+    # Improved retry logic with exponential backoff and jitter
     for attempt in range(DEFAULT_RETRY_ATTEMPTS):
         try:
             logger.info(f"Attempting LLM summarization (attempt {attempt + 1}/{DEFAULT_RETRY_ATTEMPTS})")
-            response = requests.post(GIT_DIFF_SUMMARY_URL, json=payload, timeout=120)
-            response.raise_for_status()
-
-            result = response.json()
-
-            # Extract categories and tags if available
-            categories = result.get("categories", [])
-            tags = result.get("tags", [])
-            summary = result.get("combined", result.get("summary", "No summary available"))
-
-            logger.info(f"✅ LLM summarization successful on attempt {attempt + 1}")
-            return {"summary": summary, "categories": categories, "tags": tags}
-
-        except requests.exceptions.ConnectionError as e:
-            logger.warning(f"Connection error on attempt {attempt + 1}: {e}")
-            if attempt < DEFAULT_RETRY_ATTEMPTS - 1:
-                delay = DEFAULT_RETRY_DELAY * (attempt + 1) + random.uniform(1, 3)  # Exponential backoff with jitter
-                logger.info(f"Retrying in {delay:.1f} seconds...")
-                time.sleep(delay)
+            response = requests.post(GIT_DIFF_SUMMARY_URL, json=payload, timeout=timeout)
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"✅ LLM summarization successful (attempt {attempt + 1})")
+                return result
             else:
-                logger.error(f"Failed to connect to LLM service after {DEFAULT_RETRY_ATTEMPTS} attempts")
-                return {"summary": f"Error: Could not connect to LLM service", "categories": [], "tags": []}
-        
-        except requests.exceptions.Timeout as e:
-            logger.warning(f"Timeout error on attempt {attempt + 1}: {e}")
-            if attempt < DEFAULT_RETRY_ATTEMPTS - 1:
-                delay = DEFAULT_RETRY_DELAY * (attempt + 1)
-                logger.info(f"Retrying in {delay} seconds...")
-                time.sleep(delay)
-            else:
-                logger.error(f"LLM service timeout after {DEFAULT_RETRY_ATTEMPTS} attempts")
-                return {"summary": f"Error: LLM service timeout", "categories": [], "tags": []}
-        
+                logger.warning(f"HTTP {response.status_code} from LLM service")
+                
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout on attempt {attempt + 1} (timeout: {timeout}s)")
+            # Aggressive timeout handling - longer delays for timeouts
+            base_delay = DEFAULT_RETRY_DELAY * (3 ** attempt)  # Exponential backoff for timeouts
+            jitter = random.uniform(DEFAULT_JITTER_MIN, DEFAULT_JITTER_MAX)
+            delay = base_delay + jitter
+            logger.info(f"Waiting {delay:.1f}s before retry...")
+            time.sleep(delay)
+            continue
+            
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"Connection error on attempt {attempt + 1}")
+            # Moderate delays for connection errors
+            base_delay = DEFAULT_RETRY_DELAY * (2 ** attempt)
+            jitter = random.uniform(DEFAULT_JITTER_MIN, DEFAULT_JITTER_MAX)
+            delay = base_delay + jitter
+            logger.info(f"Waiting {delay:.1f}s before retry...")
+            time.sleep(delay)
+            continue
+            
         except Exception as e:
             logger.error(f"Unexpected error during LLM summarization: {e}")
             return {"summary": f"Error summarizing diff: {e}", "categories": [], "tags": []}
 
+    # Fallback return in case all attempts fail but loop exits without returning
+    logger.error("All LLM summarization attempts failed")
+    return {"summary": "Error: All summarization attempts failed", "categories": [], "tags": []}
+
 
 def analyze_commit(
-    commit: GitCommit, include_diff: bool = True, summarize: bool = True
+    commit: GitCommit, include_diff: bool = True, summarize: bool = True, health_data: Optional[Dict[str, Any]] = None
 ) -> GitCommit:
-    """Analyze a single commit by getting its diff and summary."""
-    logger.info(f"Analyzing commit {commit.commit_hash[:8]} by {commit.author}")
-
-    # Get parent commit
-    parent_hash = get_parent_commit(commit.commit_hash)
-
-    # Get diff
-    if include_diff:
+    """Analyze a single commit with optional health data for adaptive timeouts."""
+    if include_diff and commit.diff is None:
         commit.diff = get_commit_diff(commit.commit_hash)
 
-    # Summarize if requested
     if summarize and commit.diff:
-        summary_result = summarize_diff(
-            commit.diff, commit.message, commit.author, concise=True
-        )
-        commit.summary = summary_result["summary"]
-        commit.categories = summary_result["categories"]
-        commit.tags = summary_result["tags"]
+        try:
+            summary_result = summarize_diff(
+                commit.diff, commit.message, commit.author, concise=True, health_data=health_data
+            )
+            commit.summary = summary_result.get("summary", "")
+            commit.categories = summary_result.get("categories", [])
+            commit.tags = summary_result.get("tags", [])
+        except Exception as e:
+            logger.error(f"Failed to summarize commit {commit.commit_hash}: {e}")
+            commit.summary = f"Error: {e}"
+            commit.categories = []
+            commit.tags = []
 
     return commit
 
@@ -242,6 +270,7 @@ def analyze_commit_range(
     include_diff: bool = True,
     summarize: bool = True,
     batch_size: int = DEFAULT_BATCH_SIZE,
+    health_data: Optional[Dict[str, Any]] = None,
 ) -> List[GitCommit]:
     """Analyze a range of commits with improved throttling and error handling."""
     analyzed_commits = []
@@ -253,30 +282,38 @@ def analyze_commit_range(
         logger.info(f"Processing commit {i+1}/{total_commits}: {commit.commit_hash[:8]}")
 
         try:
-            analyzed_commit = analyze_commit(commit, include_diff, summarize)
+            analyzed_commit = analyze_commit(commit, include_diff, summarize, health_data)
             analyzed_commits.append(analyzed_commit)
             
             # Progress tracking
             if (i + 1) % 10 == 0:
-                logger.info(f"Progress: {i+1}/{total_commits} commits processed ({((i+1)/total_commits)*100:.1f}%)")
-
+                logger.info(f"Progress: {i+1}/{total_commits} commits processed")
+            
+            # Adaptive batch processing with jitter
+            if (i + 1) % batch_size == 0 and i < total_commits - 1:
+                # Get current health status for adaptive delays
+                current_health = check_ollama_health() if health_data else None
+                load_level = current_health.get("load_level", "normal") if current_health else "normal"
+                
+                if load_level == "high":
+                    base_delay = DEFAULT_BATCH_DELAY * 2  # Double delay when overloaded
+                elif load_level == "degraded":
+                    base_delay = DEFAULT_BATCH_DELAY * 1.5  # 1.5x delay when degraded
+                else:
+                    base_delay = DEFAULT_BATCH_DELAY
+                
+                jitter = random.uniform(DEFAULT_JITTER_MIN, DEFAULT_JITTER_MAX)
+                delay = base_delay + jitter
+                
+                logger.info(f"Batch complete. Waiting {delay:.1f}s before next batch (load: {load_level})...")
+                time.sleep(delay)
+                
         except Exception as e:
-            logger.error(f"Error analyzing commit {commit.commit_hash[:8]}: {e}")
+            logger.error(f"Failed to analyze commit {commit.commit_hash[:8]}: {e}")
             # Continue with next commit instead of failing completely
             analyzed_commits.append(commit)
 
-        # Add delay between batches to avoid overwhelming the LLM service
-        if (i + 1) % batch_size == 0 and i < total_commits - 1:
-            logger.info(f"Processed {i+1} commits, pausing for {DEFAULT_BATCH_DELAY} seconds...")
-            time.sleep(DEFAULT_BATCH_DELAY)
-            
-            # Add a small random delay to prevent thundering herd
-            jitter = random.uniform(0.5, 2.0)
-            if jitter > 0:
-                logger.info(f"Additional jitter delay: {jitter:.1f} seconds")
-                time.sleep(jitter)
-
-    logger.info(f"✅ Completed analysis of {len(analyzed_commits)}/{total_commits} commits")
+    logger.info(f"✅ Analysis complete: {len(analyzed_commits)}/{total_commits} commits processed")
     return analyzed_commits
 
 
@@ -418,7 +455,7 @@ def generate_report(commits: List[GitCommit], output_format: str = "json") -> st
 
 
 def check_llm_service_health() -> bool:
-    """Check if the LLM service is available and responding."""
+    """Check if the LLM service is healthy and responding."""
     try:
         logger.info(f"Checking LLM service health at {GIT_DIFF_SUMMARY_URL}")
         response = requests.get(GIT_DIFF_SUMMARY_URL.replace("/summarize-git-diff", "/health"), timeout=10)
@@ -428,13 +465,57 @@ def check_llm_service_health() -> bool:
         else:
             logger.warning(f"LLM service returned status {response.status_code}")
             return False
-    except requests.exceptions.ConnectionError:
-        logger.error(f"❌ Cannot connect to LLM service at {GIT_DIFF_SUMMARY_URL}")
-        logger.error("Make sure the ollama-functions service is running")
-        return False
     except Exception as e:
-        logger.error(f"❌ Error checking LLM service health: {e}")
+        logger.warning(f"LLM service health check failed: {e}")
         return False
+
+
+def check_ollama_health() -> Dict[str, Any]:
+    """Check Ollama health and get load information."""
+    try:
+        logger.info("Checking Ollama health before starting analysis...")
+        response = requests.get(f"{GIT_DIFF_SUMMARY_URL.replace('/summarize-git-diff', '/health')}", timeout=10)
+        if response.status_code == 200:
+            health_data = response.json()
+            logger.info(f"Ollama health: {health_data.get('status', 'unknown')}")
+            logger.info(f"Response time: {health_data.get('response_time', 'unknown')}s")
+            logger.info(f"Load level: {health_data.get('load_level', 'unknown')}")
+            return health_data
+        else:
+            logger.warning(f"Ollama health check returned status {response.status_code}")
+            return {"status": "error", "load_level": "unknown"}
+    except Exception as e:
+        logger.warning(f"Ollama health check failed: {e}")
+        return {"status": "error", "load_level": "unknown"}
+
+
+def get_adaptive_timeout(health_data: Dict[str, Any]) -> int:
+    """Get adaptive timeout based on Ollama health."""
+    load_level = health_data.get("load_level", "normal")
+    avg_response_time = health_data.get("avg_response_time", 0)
+    
+    if load_level == "high" or avg_response_time > 30:
+        return 300  # 5 minutes for high load
+    elif load_level == "degraded" or avg_response_time > 15:
+        return 240  # 4 minutes for degraded
+    else:
+        return 180  # 3 minutes for normal load
+
+
+def get_adaptive_batch_size(total_commits: int, health_data: Dict[str, Any]) -> int:
+    """Get an adaptive batch size based on total commits and Ollama health."""
+    load_level = health_data.get("load_level", "normal")
+    
+    if load_level == "high":
+        return 1  # Single commit batches when overloaded
+    elif load_level == "degraded":
+        return 2  # Small batches when degraded
+    elif total_commits > 50:
+        return 3  # Larger batches for big analysis
+    elif total_commits > 20:
+        return 2  # Medium batches for medium analysis
+    else:
+        return 1  # Single commits for small analysis
 
 
 def main():
@@ -531,11 +612,21 @@ def main():
     # Analyze commits
     logger.info("Starting commit analysis...")
     try:
+        # Use adaptive batch size if not explicitly specified
+        if args.batch_size == DEFAULT_BATCH_SIZE:
+            health_data = check_ollama_health()
+            adaptive_batch_size = get_adaptive_batch_size(len(commits), health_data)
+            logger.info(f"Using adaptive batch size: {adaptive_batch_size} (based on {len(commits)} commits)")
+            batch_size = adaptive_batch_size
+        else:
+            batch_size = args.batch_size
+            
         analyzed_commits = analyze_commit_range(
             commits,
             include_diff=args.include_diff,
             summarize=args.summarize,
-            batch_size=args.batch_size,
+            batch_size=batch_size,
+            health_data=health_data,
         )
     except KeyboardInterrupt:
         logger.info("Analysis interrupted by user")

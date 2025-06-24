@@ -5,10 +5,25 @@ import subprocess
 import json
 import requests
 import sys
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import re
+import time
 
 app = FastAPI()
+
+# Health check state tracking
+_health_state = {
+    "last_check": None,
+    "response_times": [],
+    "consecutive_failures": 0,
+    "is_overloaded": False
+}
+
+# Health check configuration
+HEALTH_CHECK_TIMEOUT = 30  # Increased from 5 seconds
+MAX_RESPONSE_TIME = 10  # Consider overloaded if response > 10 seconds
+MAX_CONSECUTIVE_FAILURES = 3
+RESPONSE_TIME_WINDOW = 10  # Track last 10 response times
 
 # Helper for Docker/host detection
 
@@ -37,19 +52,123 @@ def healthz():
     return {"status": "ok"}
 
 
+def update_health_state(response_time: float, success: bool):
+    """Update health state with response time and success/failure."""
+    global _health_state
+    
+    current_time = time.time()
+    _health_state["last_check"] = current_time
+    
+    if success:
+        _health_state["consecutive_failures"] = 0
+        _health_state["response_times"].append(response_time)
+        # Keep only last N response times
+        if len(_health_state["response_times"]) > RESPONSE_TIME_WINDOW:
+            _health_state["response_times"] = _health_state["response_times"][-RESPONSE_TIME_WINDOW:]
+    else:
+        _health_state["consecutive_failures"] += 1
+    
+    # Determine if overloaded based on response times
+    if _health_state["response_times"]:
+        avg_response_time = sum(_health_state["response_times"]) / len(_health_state["response_times"])
+        _health_state["is_overloaded"] = avg_response_time > MAX_RESPONSE_TIME
+    else:
+        _health_state["is_overloaded"] = False
+
+
 @app.get("/health")
 def health_check():
-    # Check Ollama backend
+    """Enhanced health check with load detection and response time monitoring."""
+    global _health_state
+    
+    start_time = time.time()
+    
     try:
-        # Try a minimal POST to the Ollama backend (since /api/generate is POST)
+        # Try a minimal POST to the Ollama backend
         payload = {"model": MODEL, "prompt": "ping", "stream": False}
-        response = requests.post(OLLAMA_URL, json=payload, timeout=5)
-        if response.status_code == 200 and "response" in response.json():
-            return {"status": "ok", "ollama_backend": "ok"}
+        response = requests.post(OLLAMA_URL, json=payload, timeout=HEALTH_CHECK_TIMEOUT)
+        
+        response_time = time.time() - start_time
+        success = response.status_code == 200 and "response" in response.json()
+        
+        update_health_state(response_time, success)
+        
+        if success:
+            avg_response_time = sum(_health_state["response_times"]) / len(_health_state["response_times"]) if _health_state["response_times"] else 0
+            
+            return {
+                "status": "ok" if not _health_state["is_overloaded"] else "degraded",
+                "ollama_backend": "ok",
+                "response_time": round(response_time, 2),
+                "avg_response_time": round(avg_response_time, 2),
+                "is_overloaded": _health_state["is_overloaded"],
+                "consecutive_failures": _health_state["consecutive_failures"],
+                "load_level": "high" if _health_state["is_overloaded"] else "normal"
+            }
         else:
-            return {"status": "degraded", "ollama_backend": f"bad status {response.status_code}"}
+            update_health_state(response_time, False)
+            return {
+                "status": "error",
+                "ollama_backend": f"bad status {response.status_code}",
+                "response_time": round(response_time, 2),
+                "consecutive_failures": _health_state["consecutive_failures"],
+                "is_overloaded": _health_state["is_overloaded"]
+            }
+            
+    except requests.exceptions.Timeout:
+        response_time = time.time() - start_time
+        update_health_state(response_time, False)
+        return {
+            "status": "error",
+            "ollama_backend": f"timeout after {HEALTH_CHECK_TIMEOUT}s",
+            "response_time": round(response_time, 2),
+            "consecutive_failures": _health_state["consecutive_failures"],
+            "is_overloaded": True
+        }
     except Exception as e:
-        return {"status": "error", "ollama_backend": f"unreachable: {e}"}
+        response_time = time.time() - start_time
+        update_health_state(response_time, False)
+        return {
+            "status": "error",
+            "ollama_backend": f"unreachable: {e}",
+            "response_time": round(response_time, 2),
+            "consecutive_failures": _health_state["consecutive_failures"],
+            "is_overloaded": _health_state["is_overloaded"]
+        }
+
+
+@app.get("/health/detailed")
+def detailed_health_check():
+    """Detailed health check with full load metrics."""
+    global _health_state
+    
+    basic_health = health_check()
+    
+    # Add additional metrics
+    detailed_health = {
+        **basic_health,
+        "metrics": {
+            "response_time_history": _health_state["response_times"][-5:],  # Last 5 response times
+            "total_checks": len(_health_state["response_times"]) + _health_state["consecutive_failures"],
+            "success_rate": len(_health_state["response_times"]) / max(1, len(_health_state["response_times"]) + _health_state["consecutive_failures"]),
+            "last_check_time": _health_state["last_check"],
+            "time_since_last_check": time.time() - _health_state["last_check"] if _health_state["last_check"] else None
+        },
+        "recommendations": []
+    }
+    
+    # Add recommendations based on health state
+    if _health_state["is_overloaded"]:
+        detailed_health["recommendations"].append("Consider reducing request frequency")
+        detailed_health["recommendations"].append("Increase timeouts for requests")
+    
+    if _health_state["consecutive_failures"] >= MAX_CONSECUTIVE_FAILURES:
+        detailed_health["recommendations"].append("Ollama may be down or severely overloaded")
+    
+    if _health_state["response_times"] and max(_health_state["response_times"]) > 30:
+        detailed_health["recommendations"].append("Response times are very high - consider restarting Ollama")
+    
+    return detailed_health
 
 
 def run_static_checker(target="."):
@@ -82,21 +201,60 @@ def build_llm_prompt(suggestions):
     return prompt
 
 
-def call_ollama(chunk, prompt=None):
+def call_ollama(chunk, prompt=None, timeout=None):
+    """Call Ollama with circuit breaker pattern and adaptive timeout."""
+    global _health_state
+    
+    # Circuit breaker: if overloaded, increase timeout or fail fast
+    if _health_state["is_overloaded"]:
+        if timeout is None:
+            timeout = 180  # 3 minutes when overloaded
+        elif timeout < 120:
+            timeout = 120  # Minimum 2 minutes when overloaded
+    
+    # Use default timeout if not specified
+    if timeout is None:
+        timeout = 120  # 2 minutes default
+    
     if prompt is not None:
         full_prompt = f"{prompt}\n\n{chunk}"
     else:
         full_prompt = chunk
+    
     payload = {"model": MODEL, "prompt": full_prompt, "stream": False}
-    print(
-        f"[DEBUG] Sending to Ollama: {OLLAMA_URL} with payload: {json.dumps(payload)[:200]}..."
-    )
-    resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
-    print(f"[DEBUG] Ollama response status: {resp.status_code}")
-    print(f"[DEBUG] Ollama response text: {resp.text[:500]}")
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("response", "")
+    
+    print(f"[DEBUG] Sending to Ollama: {OLLAMA_URL} with timeout={timeout}s")
+    print(f"[DEBUG] Payload preview: {json.dumps(payload)[:200]}...")
+    
+    start_time = time.time()
+    
+    try:
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=timeout)
+        response_time = time.time() - start_time
+        
+        print(f"[DEBUG] Ollama response status: {resp.status_code}")
+        print(f"[DEBUG] Ollama response time: {response_time:.2f}s")
+        print(f"[DEBUG] Ollama response preview: {resp.text[:500]}")
+        
+        resp.raise_for_status()
+        data = resp.json()
+        
+        # Update health state with success
+        update_health_state(response_time, True)
+        
+        return data.get("response", "")
+        
+    except requests.exceptions.Timeout:
+        response_time = time.time() - start_time
+        print(f"[ERROR] Ollama request timed out after {timeout}s")
+        update_health_state(response_time, False)
+        raise Exception(f"Ollama request timed out after {timeout}s")
+        
+    except Exception as e:
+        response_time = time.time() - start_time
+        print(f"[ERROR] Ollama request failed: {e}")
+        update_health_state(response_time, False)
+        raise
 
 
 def parse_llm_output(llm_output):

@@ -5,7 +5,7 @@ from datetime import datetime
 import json
 import time
 from sqlalchemy.exc import SQLAlchemyError
-from db import MemorySessionLocal, MemoryVector
+from db import MemorySessionLocal, MemoryVector, MemoryEdge
 from memory import call_ollama_llm
 import requests
 import re
@@ -18,6 +18,11 @@ DEFAULT_BATCH_SIZE = 50  # Default number of nodes per batch
 MAX_BATCH_SIZE = 100  # Maximum nodes in a batch
 MIN_BATCH_SIZE = 10  # Minimum nodes in a batch
 TARGET_BATCH_TOKENS = 12000  # Target total tokens per batch
+
+# Edge creation constants
+TAG_SIMILARITY_THRESHOLD = 0.3  # Minimum ratio of shared tags to create edge
+CONTENT_REFERENCE_PATTERN = r'[a-f0-9]{8,}'  # Pattern to match potential node IDs
+MAX_EDGES_PER_NODE = 20  # Maximum edges to create per node to avoid spam
 
 # Ollama endpoints
 OLLAMA_URL = "http://host.docker.internal:11434"
@@ -34,7 +39,9 @@ RETRY_DELAY = 1  # Seconds between retries
 #   "similarity_threshold": 0.85,
 #   "max_tags": 5,
 #   "batch_size": 50,        # override default batch size
-#   "target_batch_tokens": 12000  # override target tokens per batch
+#   "target_batch_tokens": 12000,  # override target tokens per batch
+#   "create_edges": true,    # whether to create edges after enrichment
+#   "edge_types": ["tag_based", "content_ref"]  # types of edges to create
 # }
 
 
@@ -209,6 +216,202 @@ def extract_keywords(content: str, max_tags: int = 5) -> List[str]:
         return []
 
 
+async def create_tag_based_edges(
+    enriched_nodes: List[MemoryVector], 
+    dry_run: bool = False
+) -> Dict[str, int]:
+    """Create edges between nodes that share tags."""
+    logger.info(f"[ENRICHMENT] 🔗 Creating tag-based edges for {len(enriched_nodes)} nodes")
+    stats = {"created": 0, "skipped": 0, "errors": 0}
+    
+    try:
+        # Group nodes by their tags
+        tag_groups = {}
+        for node in enriched_nodes:
+            if node.tags:
+                for tag in node.tags:
+                    if tag not in tag_groups:
+                        tag_groups[tag] = []
+                    tag_groups[tag].append(node)
+        
+        # Create edges for nodes sharing tags
+        created_edges = set()  # Track (from_id, to_id) pairs to avoid duplicates
+        
+        for tag, nodes in tag_groups.items():
+            if len(nodes) < 2:
+                continue
+                
+            # Create edges between all pairs of nodes with this tag
+            for i, node1 in enumerate(nodes):
+                edges_created = 0
+                for node2 in nodes[i+1:]:
+                    # Avoid self-loops and duplicate edges
+                    edge_key = tuple(sorted([str(node1.id), str(node2.id)]))
+                    if edge_key in created_edges:
+                        continue
+                    
+                    # Calculate tag similarity ratio
+                    shared_tags = set(node1.tags or []) & set(node2.tags or [])
+                    total_tags = set(node1.tags or []) | set(node2.tags or [])
+                    similarity_ratio = len(shared_tags) / len(total_tags) if total_tags else 0
+                    
+                    if similarity_ratio >= TAG_SIMILARITY_THRESHOLD:
+                        if not dry_run:
+                            try:
+                                session = MemorySessionLocal()
+                                edge = MemoryEdge(
+                                    from_id=str(node1.id),
+                                    to_id=str(node2.id),
+                                    relation_type="shared_tag",
+                                    meta=json.dumps({
+                                        "shared_tags": list(shared_tags),
+                                        "similarity_ratio": similarity_ratio,
+                                        "created_by": "memory_enrichment_worker"
+                                    })
+                                )
+                                session.add(edge)
+                                session.commit()
+                                session.close()
+                                
+                                logger.info(f"[ENRICHMENT] 🔗 Created edge {node1.id} → {node2.id} (shared tags: {list(shared_tags)})")
+                                stats["created"] += 1
+                                created_edges.add(edge_key)
+                                edges_created += 1
+                                
+                                # Limit edges per node to avoid spam
+                                if edges_created >= MAX_EDGES_PER_NODE:
+                                    break
+                                    
+                            except Exception as e:
+                                logger.error(f"[ENRICHMENT] ❌ Error creating edge {node1.id} → {node2.id}: {e}")
+                                stats["errors"] += 1
+                        else:
+                            logger.info(f"[ENRICHMENT] 🔍 DRY RUN - Would create edge {node1.id} → {node2.id} (shared tags: {list(shared_tags)})")
+                            stats["created"] += 1
+                    else:
+                        stats["skipped"] += 1
+        
+        logger.info(f"[ENRICHMENT] ✅ Tag-based edge creation complete: {stats}")
+        return stats
+        
+    except Exception as e:
+        logger.error(f"[ENRICHMENT] ❌ Error in tag-based edge creation: {e}")
+        stats["errors"] += 1
+        return stats
+
+
+async def create_content_reference_edges(
+    enriched_nodes: List[MemoryVector], 
+    all_nodes: List[MemoryVector],
+    dry_run: bool = False
+) -> Dict[str, int]:
+    """Create edges when one node's content references another node's ID."""
+    logger.info(f"[ENRICHMENT] 🔗 Creating content reference edges for {len(enriched_nodes)} nodes")
+    stats = {"created": 0, "skipped": 0, "errors": 0}
+    
+    try:
+        # Create lookup of all node IDs
+        node_ids = {str(node.id) for node in all_nodes}
+        created_edges = set()
+        
+        for node in enriched_nodes:
+            if not node.content:
+                continue
+                
+            # Find potential node ID references in content
+            potential_refs = re.findall(CONTENT_REFERENCE_PATTERN, node.content)
+            edges_created = 0
+            
+            for ref in potential_refs:
+                # Check if this reference matches an actual node ID
+                if ref in node_ids and ref != str(node.id):
+                    edge_key = tuple(sorted([str(node.id), ref]))
+                    if edge_key in created_edges:
+                        continue
+                        
+                    if not dry_run:
+                        try:
+                            session = MemorySessionLocal()
+                            edge = MemoryEdge(
+                                from_id=str(node.id),
+                                to_id=ref,
+                                relation_type="content_ref",
+                                meta=json.dumps({
+                                    "reference_type": "id_mention",
+                                    "matched_pattern": ref,
+                                    "created_by": "memory_enrichment_worker"
+                                })
+                            )
+                            session.add(edge)
+                            session.commit()
+                            session.close()
+                            
+                            logger.info(f"[ENRICHMENT] 🔗 Created content ref edge {node.id} → {ref}")
+                            stats["created"] += 1
+                            created_edges.add(edge_key)
+                            edges_created += 1
+                            
+                            if edges_created >= MAX_EDGES_PER_NODE:
+                                break
+                                
+                        except Exception as e:
+                            logger.error(f"[ENRICHMENT] ❌ Error creating content ref edge {node.id} → {ref}: {e}")
+                            stats["errors"] += 1
+                    else:
+                        logger.info(f"[ENRICHMENT] 🔍 DRY RUN - Would create content ref edge {node.id} → {ref}")
+                        stats["created"] += 1
+                else:
+                    stats["skipped"] += 1
+        
+        logger.info(f"[ENRICHMENT] ✅ Content reference edge creation complete: {stats}")
+        return stats
+        
+    except Exception as e:
+        logger.error(f"[ENRICHMENT] ❌ Error in content reference edge creation: {e}")
+        stats["errors"] += 1
+        return stats
+
+
+async def create_edges_after_enrichment(
+    enriched_nodes: List[MemoryVector],
+    all_nodes: List[MemoryVector],
+    job_config: Dict[str, Any]
+) -> Dict[str, int]:
+    """Create edges after enrichment based on job configuration."""
+    logger.info(f"[ENRICHMENT] 🔗 Starting edge creation phase")
+    
+    if not job_config.get("create_edges", False):
+        logger.info("[ENRICHMENT] ⏭️ Edge creation disabled in job config")
+        return {"created": 0, "skipped": 0, "errors": 0}
+    
+    edge_types = job_config.get("edge_types", ["tag_based", "content_ref"])
+    total_stats = {"created": 0, "skipped": 0, "errors": 0}
+    dry_run = job_config.get("dry_run", False)
+    
+    try:
+        # Create tag-based edges
+        if "tag_based" in edge_types:
+            logger.info("[ENRICHMENT] 🔗 Creating tag-based edges...")
+            tag_stats = await create_tag_based_edges(enriched_nodes, dry_run)
+            for key in total_stats:
+                total_stats[key] += tag_stats.get(key, 0)
+        
+        # Create content reference edges
+        if "content_ref" in edge_types:
+            logger.info("[ENRICHMENT] 🔗 Creating content reference edges...")
+            content_stats = await create_content_reference_edges(enriched_nodes, all_nodes, dry_run)
+            for key in total_stats:
+                total_stats[key] += content_stats.get(key, 0)
+        
+        logger.info(f"[ENRICHMENT] 🎉 Edge creation phase complete: {total_stats}")
+        return total_stats
+        
+    except Exception as e:
+        logger.error(f"[ENRICHMENT] ❌ Error in edge creation phase: {e}")
+        total_stats["errors"] += 1
+        return total_stats
+
+
 async def process_node_batch(
     nodes: List[MemoryVector], max_tags: int
 ) -> List[Dict[str, Any]]:
@@ -262,6 +465,8 @@ async def process_enrichment_job(job_config: Dict[str, Any]) -> Dict[str, Any]:
     - similarity_threshold: float 0-1
     - max_tags: int
     - batch_size: int (optional)
+    - create_edges: bool (whether to create edges after enrichment)
+    - edge_types: list of edge types to create
     """
     print("=== ENRICHMENT JOB STARTED ===")
     logger.critical("=== ENRICHMENT JOB STARTED (CRITICAL) ===")
@@ -297,9 +502,17 @@ async def process_enrichment_job(job_config: Dict[str, Any]) -> Dict[str, Any]:
                 logger.info("[ENRICHMENT] ✅ No memories to process, job complete")
                 return {"status": "success", "message": "No memories to process", **stats}
             
+            # Get all nodes for edge creation (if enabled)
+            all_nodes = []
+            if job_config.get("create_edges", False):
+                logger.info("[ENRICHMENT] 📋 Fetching all nodes for edge creation...")
+                all_nodes = session.query(MemoryVector).all()
+                logger.info(f"[ENRICHMENT] 📋 Found {len(all_nodes)} total nodes for edge creation")
+            
             # Process in batches
             batch_size = job_config.get('batch_size', 10)
             offset = 0
+            enriched_nodes = []  # Track enriched nodes for edge creation
             
             while offset < total_count:
                 logger.info(f"[ENRICHMENT] 🔄 Processing batch {stats['batches'] + 1} (offset: {offset}, batch_size: {batch_size})")
@@ -340,6 +553,8 @@ async def process_enrichment_job(job_config: Dict[str, Any]) -> Dict[str, Any]:
                             else:
                                 logger.info(f"[ENRICHMENT] 🔍 DRY RUN - Would update memory {memory.id} with tags: {tags}, categories: {categories}")
                             
+                            # Track enriched nodes for edge creation
+                            enriched_nodes.append(memory)
                             stats['processed'] += 1
                         else:
                             logger.warning(f"[ENRICHMENT] ⚠️ Memory {memory.id} has no content, skipping")
@@ -362,15 +577,25 @@ async def process_enrichment_job(job_config: Dict[str, Any]) -> Dict[str, Any]:
                 # Small delay between batches to be nice to the system
                 await asyncio.sleep(0.1)
             
+            # Edge creation phase
+            edge_stats = {"edges_created": 0, "edges_skipped": 0, "edge_errors": 0}
+            if job_config.get("create_edges", False) and enriched_nodes:
+                logger.info(f"[ENRICHMENT] 🔗 Starting edge creation phase for {len(enriched_nodes)} enriched nodes")
+                edge_stats = await create_edges_after_enrichment(enriched_nodes, all_nodes, job_config)
+                stats.update(edge_stats)
+            
             # Final stats
             duration = time.time() - stats['start_time']
-            logger.info(f"[ENRICHMENT] 🎉 Enrichment job completed! Processed: {stats['processed']}, Errors: {stats['errors']}, Batches: {stats['batches']}, Duration: {duration:.2f}s")
+            logger.info(f"[ENRICHMENT] 🎉 Enrichment job completed! Processed: {stats['processed']}, Errors: {stats['errors']}, Batches: {stats['batches']}, Edges Created: {stats.get('edges_created', 0)}, Duration: {duration:.2f}s")
             
             return {
                 "status": "success",
                 "processed": stats['processed'],
                 "errors": stats['errors'],
                 "batches": stats['batches'],
+                "edges_created": stats.get('edges_created', 0),
+                "edges_skipped": stats.get('edges_skipped', 0),
+                "edge_errors": stats.get('edge_errors', 0),
                 "duration": duration
             }
             

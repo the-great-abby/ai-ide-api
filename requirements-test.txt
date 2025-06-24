@@ -4,6 +4,7 @@ pytest
 httpx
 pytest-cov
 pytest-json-report
+pytest-asyncio
 sqlalchemy
 python-multipart
 alembic

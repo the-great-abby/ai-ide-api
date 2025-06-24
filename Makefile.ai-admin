@@ -11,6 +11,11 @@ admin-frontend-nocache-restart:
 	docker compose build --no-cache frontend
 	docker compose restart frontend
 
+admin-rebuild-all:
+	docker compose down -v
+	docker compose --profile dev --profile llm build
+	docker compose --profile dev --profile llm up -d
+
 admin-docs:
 	curl -s http://localhost:$(PORT)/docs || echo 'Could not fetch docs. Is the API running?'
 
@@ -113,6 +118,24 @@ admin-external-project-info:
 	fi
 	@python scripts/admin_external_projects.py project-info "$(PROJECT_ID_OR_NAME)" --admin-token "$(ADMIN_TOKEN)" --api-base "$(API_BASE)"
 
+admin-external-elevate-user:
+	@if [ -z "$(ADMIN_TOKEN)" ]; then \
+		echo "❌ Error: ADMIN_TOKEN not set. Create .admin_token file or set ADMIN_TOKEN env var."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PROJECT_ID_OR_NAME)" ]; then \
+		echo "❌ Error: PROJECT_ID_OR_NAME not set. Usage: make -f Makefile.ai-admin admin-external-elevate-user PROJECT_ID_OR_NAME=<project_id_or_name> USER_EMAIL=<user_email>"; \
+		echo "     make -f Makefile.ai-admin admin-external-elevate-user PROJECT_ID_OR_NAME=team-xyz-project USER_EMAIL=user@example.com"; \
+		exit 1; \
+	fi
+	@if [ -z "$(USER_EMAIL)" ]; then \
+		echo "❌ Error: USER_EMAIL not set. Usage: make -f Makefile.ai-admin admin-external-elevate-user PROJECT_ID_OR_NAME=<project_id_or_name> USER_EMAIL=<user_email>"; \
+		echo "     make -f Makefile.ai-admin admin-external-elevate-user PROJECT_ID_OR_NAME=team-xyz-project USER_EMAIL=user@example.com"; \
+		exit 1; \
+	fi
+	@echo "Elevating user $(USER_EMAIL) to admin for project $(PROJECT_ID_OR_NAME)..."
+	@python scripts/admin_external_projects.py generate-token "$(PROJECT_ID_OR_NAME)" --admin-token "$(ADMIN_TOKEN)" --api-base "$(API_BASE)" --role admin --user "$(USER_EMAIL)"
+
 admin-external-help:
 	@echo "\n==== External Project Management ===="
 	@echo "Prerequisites:"
@@ -127,6 +150,7 @@ admin-external-help:
 	@echo "  admin-external-generate-token PROJECT_ID_OR_NAME=id_or_name [DESCRIPTION='desc'] [ROLE=user|admin]"
 	@echo "                                                          - Generate API token for project"
 	@echo "  admin-external-project-info PROJECT_ID_OR_NAME=id_or_name - Get detailed project information"
+	@echo "  admin-external-elevate-user PROJECT_ID_OR_NAME=id_or_name USER_EMAIL=email - Generate admin token for user in project"
 	@echo ""
 	@echo "Project Identification:"
 	@echo "  You can use either project IDs (UUIDs) or project names:"
@@ -139,6 +163,7 @@ admin-external-help:
 	@echo "  make -f Makefile.ai-admin admin-external-enable-llm PROJECT_ID_OR_NAME=team-xyz-project"
 	@echo "  make -f Makefile.ai-admin admin-external-generate-token PROJECT_ID_OR_NAME=team-xyz-project DESCRIPTION='Team XYZ token'"
 	@echo "  make -f Makefile.ai-admin admin-external-project-info PROJECT_ID_OR_NAME=team-xyz-project"
+	@echo "  make -f Makefile.ai-admin admin-external-elevate-user PROJECT_ID_OR_NAME=team-xyz-project USER_EMAIL=user@example.com"
 	@echo "\n==== End External Project Management ===="
 
 admin-port-3000-procs:
@@ -169,4 +194,4 @@ admin-logs-db:
 admin-logs-frontend:
 	docker compose logs --tail=100 frontend || docker compose logs --tail=100 frontend
 
-.PHONY: admin-frontend-restart admin-frontend-nocache-restart admin-docs admin-open-docs admin-open-admin admin-playwright-test admin-playwright-build-nocache admin-onboarding-help admin-port-3000-procs admin-docker-stop-all admin-kill-port-3000 admin-frontend-volumes admin-logs admin-logs-api admin-logs-db admin-logs-frontend admin-external-list admin-external-enable-llm admin-external-disable-llm admin-external-generate-token admin-external-project-info admin-external-help 
+.PHONY: admin-frontend-restart admin-frontend-nocache-restart admin-docs admin-open-docs admin-open-admin admin-playwright-test admin-playwright-build-nocache admin-onboarding-help admin-port-3000-procs admin-docker-stop-all admin-kill-port-3000 admin-frontend-volumes admin-logs admin-logs-api admin-logs-db admin-logs-frontend admin-external-list admin-external-enable-llm admin-external-disable-llm admin-external-generate-token admin-external-project-info admin-external-elevate-user admin-external-help 

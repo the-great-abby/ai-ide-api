@@ -77,7 +77,11 @@ memory-create:
 		exit 1; \
 	fi
 	@echo "[memory-create] Creating memory: $(NAME)"
-	@docker compose exec misc-scripts python3 /code/scripts/create_memory.py --name "$(NAME)" --observation "$(OBSERVATION)" --project "$(PROJECT)" --namespace "$(NAMESPACE)"
+	@TOKEN=$$(echo $$MEMORY_API_TOKEN); \
+	if [ -z "$$TOKEN" ]; then \
+		TOKEN=$$(cat .apitoken); \
+	fi; \
+	docker compose exec -e MEMORY_API_TOKEN="$$TOKEN" misc-scripts python3 /code/scripts/create_memory.py --name "$(NAME)" --observation "$(OBSERVATION)" --project "$(PROJECT)" --namespace "$(NAMESPACE)"
 
 memory-log-git-diff:
 	@DIFF_RANGE=$${DIFF_RANGE:-HEAD~1..HEAD}; \
@@ -128,14 +132,20 @@ memory-trigger-cleanup:
 ## Memory Enrichment Worker
 memory-trigger-enrichment:
 	@if [ -z "$(SCOPE)" ]; then \
-		echo "[ERROR] Usage: make -f Makefile.ai memory-trigger-enrichment SCOPE=<all|new|namespace:xyz> [DRY_RUN=true]"; \
+		echo "[ERROR] Usage: make -f Makefile.ai memory-trigger-enrichment SCOPE=<all|new|namespace:xyz> [DRY_RUN=true] [CREATE_EDGES=true] [EDGE_TYPES=tag_based,content_ref]"; \
 		exit 1; \
 	fi
-	@if [ "$(DRY_RUN)" = "true" ]; then \
-		docker compose exec misc-scripts python3 /code/scripts/publish_memory_enrichment_job.py --scope $(SCOPE) --dry-run; \
-	else \
-		docker compose exec misc-scripts python3 /code/scripts/publish_memory_enrichment_job.py --scope $(SCOPE); \
-	fi
+	@CMD="docker compose exec misc-scripts python3 /code/scripts/publish_memory_enrichment_job.py --scope $(SCOPE)"; \
+	if [ "$(DRY_RUN)" = "true" ]; then \
+		CMD="$$CMD --dry-run"; \
+	fi; \
+	if [ "$(CREATE_EDGES)" = "false" ]; then \
+		CMD="$$CMD --no-create-edges"; \
+	fi; \
+	if [ ! -z "$(EDGE_TYPES)" ]; then \
+		CMD="$$CMD --edge-types $(EDGE_TYPES)"; \
+	fi; \
+	eval $$CMD
 
 ## Memory Enrichment Scheduler (Nightly 10pm-2am)
 memory-enrichment-scheduler:
@@ -162,6 +172,11 @@ memory-enrichment-status:
 	@docker compose logs worker | grep -i "enrichment" | tail -n 10 || echo "No recent enrichment activity"
 	@echo "\n=== Scheduler Status ==="
 	@docker compose logs misc-scripts | grep -i "scheduler\|nightly" | tail -n 5 || echo "No scheduler activity found"
+
+## Test Edge Creation
+memory-test-edge-creation:
+	@echo "[memory-test-edge-creation] Testing edge creation functionality..."
+	@docker compose exec misc-scripts python3 /code/scripts/test_edge_creation.py
 
 ## Memory Similarity Worker
 memory-trigger-similarity:

@@ -1,6 +1,6 @@
 # Project TODO & Roadmap
 
-This document tracks the prioritized roadmap for improving the project during and after the current refactor/testing phase. Check off items as they are completed!
+This document tracks the **core development priorities** for improving the project during and after the current refactor/testing phase. Check off items as they are completed!
 
 ---
 
@@ -27,36 +27,6 @@ This document tracks the prioritized roadmap for improving the project during an
 - [ ] Standardize and enrich error messages (especially onboarding/token flows)
 - [ ] Keep user stories and onboarding docs in sync with new features/workflows
 
-## 5. Security & Best Practices
-- [ ] Review token generation, storage, and revocation for best practices
-- [ ] Regularly audit and update dependencies for vulnerabilities
-
-## 6. Modularization & Scalability
-- [ ] Refactor large modules into subpackages as needed
-- [ ] Ensure all public functions/classes have type hints and docstrings
-
-## Junior Onboarding & Experience Improvements
-- [ ] Improve and simplify onboarding docs (add screenshots, examples, clarify steps)
-- [ ] Add more code comments, especially in tricky or critical sections
-- [ ] Create a "How it Works" doc (high-level overview, key files, diagrams)
-- [ ] Document common errors and how to fix them
-- [ ] Encourage and document a culture of asking questions
-- [ ] Add example PRs to show what a good pull request looks like
-- [ ] Highlight learning opportunities (Docker, FastAPI, SQLAlchemy, etc.)
-
-## AI Researcher/Developer Experience Improvements
-- [ ] Add a "What This Project Does" and "Who Should Use This" section to the README
-- [ ] Add a high-level architecture diagram to the docs or README
-- [ ] Create a feature/capability table with links to relevant docs/code
-- [ ] Add a glossary of key terms (e.g., rule proposal, namespace, memorydb)
-- [ ] Create a centralized "Start Here" doc for new contributors
-- [ ] Add a dedicated AI/ML section in the docs (models used, how to extend, inference, etc.)
-- [ ] Provide Jupyter notebooks or API usage examples for research workflows
-- [ ] Add experiment tracking or document how to use tools like MLflow/W&B
-- [ ] Tag/label docs by audience (Researchers, Devs, New Users, etc.)
-- [ ] Cross-link docs and code comments for easier navigation
-- [ ] Keep changelog and roadmap up to date
-
 ---
 
 **Suggested Immediate Next Steps:**
@@ -72,7 +42,11 @@ This document tracks the prioritized roadmap for improving the project during an
 
 ---
 
-**Note:** Revisit these AI/ML and documentation improvements after test isolation and test reliability are complete.
+**Other TODO Files:**
+- `SECURITY_TODO.md` - Security and best practices
+- `ONBOARDING_TODO.md` - Junior developer experience improvements  
+- `RESEARCH_TODO.md` - AI researcher/developer experience improvements
+- `FUTURE_TODO.md` - Modularization, scalability, and future enhancements
 
 ---
 

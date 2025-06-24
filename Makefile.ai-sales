@@ -1,0 +1,329 @@
+# 🏴‍☠️ AI-IDE API SALES PRESENTATION AUTOMATION
+#
+# This makefile provides targets for automated sales presentation updates,
+# leveraging the existing worker infrastructure and memory system.
+#
+# USAGE:
+#   make -f Makefile.ai sales-<target>
+#
+# EXAMPLES:
+#   make -f Makefile.ai sales-analyze SINCE='1 week ago'
+#   make -f Makefile.ai sales-preview DRY_RUN=true
+#   make -f Makefile.ai sales-update REVIEW=true
+
+# --- SALES PRESENTATION ANALYSIS ---
+
+# Analyze recent changes for sales impact
+# Usage: make -f Makefile.ai sales-analyze-changes SINCE='1 week ago'
+sales-analyze-changes:
+	@echo "[sales-analyze] Analyzing changes for sales impact..."
+	@if [ -z "$(SINCE)" ]; then \
+		echo "Error: SINCE parameter required (e.g., SINCE='1 week ago')"; \
+		exit 1; \
+	fi
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--analyze \
+		--since "$(SINCE)" \
+		--dry-run
+	@echo "[sales-analyze] Analysis complete. Check logs for details."
+
+# Full sales presentation analysis
+# Usage: make -f Makefile.ai sales-analyze-presentation
+sales-analyze-presentation:
+	@echo "[sales-analyze-presentation] Running full sales presentation analysis..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--analyze \
+		--since "1 month ago" \
+		--full-analysis
+	@echo "[sales-analyze-presentation] Full analysis complete."
+
+# --- SALES PRESENTATION UPDATES ---
+
+# Preview potential updates without applying
+# Usage: make -f Makefile.ai sales-preview-updates DRY_RUN=true
+sales-preview-updates:
+	@echo "[sales-preview] Previewing sales presentation updates..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--preview \
+		--since "$(or $(SINCE),1 week ago)" \
+		--dry-run
+	@echo "[sales-preview] Preview complete. Review suggested changes above."
+
+# Apply approved updates to sales presentation
+# Usage: make -f Makefile.ai sales-apply-updates REVIEW=true
+sales-apply-updates:
+	@echo "[sales-apply] Applying sales presentation updates..."
+	@if [ "$(REVIEW)" = "true" ]; then \
+		echo "[sales-apply] Running with human review enabled..."; \
+		docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+			--apply \
+			--since "$(or $(SINCE),1 week ago)" \
+			--review; \
+	else \
+		echo "[sales-apply] Running automated update..."; \
+		docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+			--apply \
+			--since "$(or $(SINCE),1 week ago)"; \
+	fi
+	@echo "[sales-apply] Updates applied successfully."
+
+# Rollback recent sales presentation changes
+# Usage: make -f Makefile.ai sales-rollback-updates
+sales-rollback-updates:
+	@echo "[sales-rollback] Rolling back recent sales presentation changes..."
+	@if [ -f "docs/ai_ide_api_sales_presentation.backup.md" ]; then \
+		cp docs/ai_ide_api_sales_presentation.backup.md docs/ai_ide_api_sales_presentation.md; \
+		echo "[sales-rollback] Sales presentation restored from backup."; \
+	else \
+		echo "[sales-rollback] No backup found. Cannot rollback."; \
+		exit 1; \
+	fi
+
+# --- SALES PRESENTATION VALIDATION ---
+
+# Validate sales presentation structure and content
+# Usage: make -f Makefile.ai sales-validate-presentation
+sales-validate-presentation:
+	@echo "[sales-validate] Validating sales presentation..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--validate
+	@echo "[sales-validate] Validation complete."
+
+# Check for broken links in sales presentation
+# Usage: make -f Makefile.ai sales-check-links
+sales-check-links:
+	@echo "[sales-check-links] Checking sales presentation links..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--validate \
+		--check-links
+	@echo "[sales-check-links] Link check complete."
+
+# Validate markdown structure
+# Usage: make -f Makefile.ai sales-validate-markdown
+sales-validate-markdown:
+	@echo "[sales-validate-markdown] Validating markdown structure..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--validate \
+		--check-markdown
+	@echo "[sales-validate-markdown] Markdown validation complete."
+
+# --- SALES PRESENTATION HEALTH ---
+
+# Check sales presentation health
+# Usage: make -f Makefile.ai sales-health-check
+sales-health-check:
+	@echo "[sales-health] Checking sales presentation health..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--health-check
+	@echo "[sales-health] Health check complete."
+
+# Generate sales presentation report
+# Usage: make -f Makefile.ai sales-generate-report
+sales-generate-report:
+	@echo "[sales-report] Generating sales presentation report..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--generate-report \
+		--output-format "$(or $(FORMAT),json)"
+	@echo "[sales-report] Report generated successfully."
+
+# --- SALES PRESENTATION WORKER MANAGEMENT ---
+
+# Start sales presentation worker
+# Usage: make -f Makefile.ai sales-worker-start
+sales-worker-start:
+	@echo "[sales-worker] Starting sales presentation worker..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--worker \
+		--start
+	@echo "[sales-worker] Worker started successfully."
+
+# Stop sales presentation worker
+# Usage: make -f Makefile.ai sales-worker-stop
+sales-worker-stop:
+	@echo "[sales-worker] Stopping sales presentation worker..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--worker \
+		--stop
+	@echo "[sales-worker] Worker stopped successfully."
+
+# Check sales presentation worker status
+# Usage: make -f Makefile.ai sales-worker-status
+sales-worker-status:
+	@echo "[sales-worker] Checking worker status..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--worker \
+		--status
+	@echo "[sales-worker] Status check complete."
+
+# View sales presentation worker logs
+# Usage: make -f Makefile.ai sales-worker-logs
+sales-worker-logs:
+	@echo "[sales-worker] Viewing worker logs..."
+	docker compose logs -f misc-scripts | grep -i "sales.*presentation\|sales.*updater"
+
+# --- SALES PRESENTATION SCHEDULING ---
+
+# Schedule weekly sales presentation updates
+# Usage: make -f Makefile.ai sales-schedule-weekly
+sales-schedule-weekly:
+	@echo "[sales-schedule] Scheduling weekly sales presentation updates..."
+	@if ! crontab -l 2>/dev/null | grep -q "sales.*presentation"; then \
+		echo "0 9 * * 1 cd $(PWD) && make -f Makefile.ai sales-analyze SINCE='1 week ago'" | crontab -; \
+		echo "[sales-schedule] Weekly sales presentation updates scheduled for Mondays at 9 AM."; \
+	else \
+		echo "[sales-schedule] Sales presentation updates already scheduled."; \
+	fi
+
+# Schedule daily sales presentation monitoring
+# Usage: make -f Makefile.ai sales-schedule-daily
+sales-schedule-daily:
+	@echo "[sales-schedule] Scheduling daily sales presentation monitoring..."
+	@if ! crontab -l 2>/dev/null | grep -q "sales.*health"; then \
+		echo "0 8 * * * cd $(PWD) && make -f Makefile.ai sales-health" | crontab -; \
+		echo "[sales-schedule] Daily sales presentation health checks scheduled for 8 AM."; \
+	else \
+		echo "[sales-schedule] Sales presentation health checks already scheduled."; \
+	fi
+
+# Remove sales presentation scheduling
+# Usage: make -f Makefile.ai sales-unschedule
+sales-unschedule:
+	@echo "[sales-unschedule] Removing sales presentation scheduling..."
+	@crontab -l 2>/dev/null | grep -v "sales.*presentation\|sales.*health" | crontab - || true
+	@echo "[sales-unschedule] Sales presentation scheduling removed."
+
+# --- SALES PRESENTATION INTEGRATION ---
+
+# Trigger sales presentation update via RabbitMQ
+# Usage: make -f Makefile.ai sales-trigger-update SINCE='1 week ago'
+sales-trigger-update:
+	@echo "[sales-trigger] Triggering sales presentation update via RabbitMQ..."
+	@if [ -z "$(SINCE)" ]; then \
+		echo "Error: SINCE parameter required (e.g., SINCE='1 week ago')"; \
+		exit 1; \
+	fi
+	docker compose exec misc-scripts python scripts/publish_sales_update_job.py \
+		--since "$(SINCE)" \
+		--dry-run "$(or $(DRY_RUN),false)"
+	@echo "[sales-trigger] Sales presentation update job queued successfully."
+
+# Monitor sales presentation update queue
+# Usage: make -f Makefile.ai sales-monitor-queue
+sales-monitor-queue:
+	@echo "[sales-monitor] Monitoring sales presentation update queue..."
+	docker compose exec rabbitmq rabbitmqctl list_queues | grep -i sales
+	@echo "[sales-monitor] Queue monitoring complete."
+
+# --- SALES PRESENTATION UTILITIES ---
+
+# Create sales presentation backup
+# Usage: make -f Makefile.ai sales-backup
+sales-backup:
+	@echo "[sales-backup] Creating sales presentation backup..."
+	@if [ -f "docs/ai_ide_api_sales_presentation.md" ]; then \
+		cp docs/ai_ide_api_sales_presentation.md docs/ai_ide_api_sales_presentation.backup.$(shell date +%Y%m%d_%H%M%S).md; \
+		echo "[sales-backup] Backup created: docs/ai_ide_api_sales_presentation.backup.$(shell date +%Y%m%d_%H%M%S).md"; \
+	else \
+		echo "[sales-backup] Sales presentation not found."; \
+		exit 1; \
+	fi
+
+# Restore sales presentation from backup
+# Usage: make -f Makefile.ai sales-restore BACKUP_FILE=docs/ai_ide_api_sales_presentation.backup.20241201_120000.md
+sales-restore:
+	@echo "[sales-restore] Restoring sales presentation from backup..."
+	@if [ -z "$(BACKUP_FILE)" ]; then \
+		echo "Error: BACKUP_FILE parameter required"; \
+		exit 1; \
+	fi
+	@if [ -f "$(BACKUP_FILE)" ]; then \
+		cp "$(BACKUP_FILE)" docs/ai_ide_api_sales_presentation.md; \
+		echo "[sales-restore] Sales presentation restored from $(BACKUP_FILE)"; \
+	else \
+		echo "[sales-restore] Backup file $(BACKUP_FILE) not found."; \
+		exit 1; \
+	fi
+
+# List available sales presentation backups
+# Usage: make -f Makefile.ai sales-list-backups
+sales-list-backups:
+	@echo "[sales-list-backups] Available sales presentation backups:"
+	@ls -la docs/ai_ide_api_sales_presentation.backup.*.md 2>/dev/null || echo "No backups found."
+
+# --- SALES PRESENTATION TESTING ---
+
+# Test sales presentation updater
+# Usage: make -f Makefile.ai sales-test
+sales-test:
+	@echo "[sales-test] Testing sales presentation updater..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--test \
+		--since "1 day ago" \
+		--dry-run
+	@echo "[sales-test] Test complete."
+
+# Test sales presentation validation
+# Usage: make -f Makefile.ai sales-test-validation
+sales-test-validation:
+	@echo "[sales-test-validation] Testing sales presentation validation..."
+	docker compose exec misc-scripts python scripts/sales_presentation_updater.py \
+		--test \
+		--validate
+	@echo "[sales-test-validation] Validation test complete."
+
+# --- SALES PRESENTATION HELP ---
+
+# Show sales presentation help
+# Usage: make -f Makefile.ai sales-help
+sales-help:
+	@echo "🏴‍☠️ AI-IDE API Sales Presentation Automation"
+	@echo ""
+	@echo "Available targets:"
+	@echo ""
+	@echo "ANALYSIS:"
+	@echo "  sales-analyze-changes SINCE='1 week ago'  - Analyze changes for sales impact"
+	@echo "  sales-analyze-presentation               - Full sales presentation analysis"
+	@echo ""
+	@echo "UPDATES:"
+	@echo "  sales-preview-updates DRY_RUN=true       - Preview updates without applying"
+	@echo "  sales-apply-updates REVIEW=true          - Apply updates (with optional review)"
+	@echo "  sales-rollback-updates                   - Rollback recent changes"
+	@echo ""
+	@echo "VALIDATION:"
+	@echo "  sales-validate-presentation              - Validate structure and content"
+	@echo "  sales-check-links                        - Check for broken links"
+	@echo "  sales-validate-markdown                  - Validate markdown structure"
+	@echo ""
+	@echo "HEALTH:"
+	@echo "  sales-health-check                       - Check presentation health"
+	@echo "  sales-generate-report FORMAT=json        - Generate health report"
+	@echo ""
+	@echo "WORKER MANAGEMENT:"
+	@echo "  sales-worker-start                       - Start background worker"
+	@echo "  sales-worker-stop                        - Stop background worker"
+	@echo "  sales-worker-status                      - Check worker status"
+	@echo "  sales-worker-logs                        - View worker logs"
+	@echo ""
+	@echo "SCHEDULING:"
+	@echo "  sales-schedule-weekly                    - Schedule weekly updates"
+	@echo "  sales-schedule-daily                     - Schedule daily monitoring"
+	@echo "  sales-unschedule                         - Remove scheduling"
+	@echo ""
+	@echo "INTEGRATION:"
+	@echo "  sales-trigger-update SINCE='1 week ago'  - Trigger update via RabbitMQ"
+	@echo "  sales-monitor-queue                      - Monitor update queue"
+	@echo ""
+	@echo "UTILITIES:"
+	@echo "  sales-backup                             - Create presentation backup"
+	@echo "  sales-restore BACKUP_FILE=file.md        - Restore from backup"
+	@echo "  sales-list-backups                       - List available backups"
+	@echo ""
+	@echo "TESTING:"
+	@echo "  sales-test                               - Test updater functionality"
+	@echo "  sales-test-validation                    - Test validation"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make -f Makefile.ai sales-analyze SINCE='1 week ago'"
+	@echo "  make -f Makefile.ai sales-preview DRY_RUN=true"
+	@echo "  make -f Makefile.ai sales-update REVIEW=true"
+	@echo "  make -f Makefile.ai sales-health" 

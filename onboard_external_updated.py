@@ -13,13 +13,38 @@ import subprocess
 import time
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+import random
 
 # Configuration
 DEFAULT_API_BASE = "http://localhost:9103"
 DEFAULT_MEMORY_API_BASE = "http://localhost:9103/memory"
 
+# Pirate Buddy System
+BUDDIES = [
+    "Patch McDebug",
+    "Captain Abby",
+    "Doc Testwell",
+    "Dave the Database Deckhand",
+    "Maple Cartwright",
+    "Bosun Riggs",
+    "Random"
+]
+BUDDY_INTROS = {
+    "Patch McDebug": "Arrr, I be Patch McDebug, yer relentless bug-hunter! Let's get ye shipshape.",
+    "Captain Abby": "Welcome aboard! Captain Abby here to chart your course to greatness.",
+    "Doc Testwell": "Ahoy! Doc Testwell at your service—let's keep things healthy and well-tested.",
+    "Dave the Database Deckhand": "Dave here! I'll help you wrangle the data seas.",
+    "Maple Cartwright": "Maple Cartwright, navigator extraordinaire—let's find your way.",
+    "Bosun Riggs": "Bosun Riggs reporting! Automation and efficiency be my game."
+}
+ENCOURAGEMENTS = [
+    "Well done, matey!",
+    "Onward to the next step!",
+    "If ye get stuck, don't hesitate to ask for help."
+]
+
 class ExternalOnboarding:
-    def __init__(self, api_base: str, memory_api_base: str):
+    def __init__(self, api_base: str, memory_api_base: str, journey: str = None):
         self.api_base = api_base
         self.memory_api_base = memory_api_base
         self.token = None
@@ -29,6 +54,7 @@ class ExternalOnboarding:
         self.project_id = None
         self.team_id = None
         self.container_api_base = None
+        self.journey = journey  # New: onboarding journey
         
     def print_banner(self):
         """Print the onboarding banner."""
@@ -106,6 +132,48 @@ class ExternalOnboarding:
         print(f"✅ User email: {self.user_email}")
         print()
         
+    def get_journey(self):
+        """Prompt for onboarding journey if not provided. Pull options from onboarding_paths.json if available."""
+        if not self.journey:
+            print("\U0001F30D Onboarding Journey Selection")
+            print("-" * 40)
+            onboarding_paths_file = "onboarding_paths.json"
+            journey_options = []
+            if os.path.exists(onboarding_paths_file):
+                try:
+                    with open(onboarding_paths_file, "r") as f:
+                        data = json.load(f)
+                        if isinstance(data, dict) and "paths" in data:
+                            for entry in data["paths"]:
+                                display = entry.get("display_name") or entry.get("name")
+                                journey_options.append((entry.get("name"), display))
+                except Exception as e:
+                    print(f"⚠️  Failed to load onboarding_paths.json: {e}")
+            if journey_options:
+                print("Available onboarding journeys:")
+                for idx, (_, display) in enumerate(journey_options, 1):
+                    print(f"  {idx}) {display}")
+                try:
+                    choice = input(f"Select a journey [1-{len(journey_options)}] (default: 1): ").strip()
+                    if not choice:
+                        choice = "1"
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(journey_options):
+                        self.journey = journey_options[idx][0]
+                    else:
+                        print("Invalid selection. Using default.")
+                        self.journey = journey_options[0][0]
+                except Exception:
+                    print("Invalid input. Using default.")
+                    self.journey = journey_options[0][0]
+            else:
+                default_journey = "external_project"
+                journey = input(f"Enter onboarding journey (default: {default_journey}): ").strip()
+                if not journey:
+                    journey = default_journey
+                self.journey = journey
+        print(f"\u2705 Onboarding journey: {self.journey}\n")
+        
     def check_dependencies(self):
         """Check and install required dependencies."""
         print("🔧 Checking Dependencies")
@@ -176,7 +244,7 @@ class ExternalOnboarding:
             
     def initialize_onboarding(self):
         """Initialize onboarding and get API token automatically."""
-        print("🚀 Initializing Onboarding")
+        print("\U0001F680 Initializing Onboarding")
         print("-" * 40)
         
         try:
@@ -185,7 +253,7 @@ class ExternalOnboarding:
                 "project_name": self.project_name,
                 "team_name": self.team_name,
                 "user": self.user_email,
-                "journey": "external_project"
+                "journey": self.journey or "external_project"
             }
             
             result = subprocess.run([
@@ -206,12 +274,12 @@ class ExternalOnboarding:
                 print(f"✅ Team ID: {self.team_id}")
                 
                 # Save project and team information
-                with open('.project', 'w') as f:
-                    f.write(self.project_name)
-                print(f"✅ Project name saved to .project: {self.project_name}")
+                with open('.projectname', 'w') as f:
+                    f.write(self.project_name or "")
+                print(f"✅ Project name saved to .projectname: {self.project_name}")
                 
                 with open('.teamname', 'w') as f:
-                    f.write(self.team_name)
+                    f.write(self.team_name or "")
                 print(f"✅ Team name saved to .teamname: {self.team_name}")
                 
                 # Extract token if available
@@ -221,7 +289,7 @@ class ExternalOnboarding:
                     
                     # Save token
                     with open('.apitoken', 'w') as f:
-                        f.write(self.token)
+                        f.write(self.token or "")
                         
                     print("✅ Token saved to .apitoken")
                     print()
@@ -268,16 +336,16 @@ class ExternalOnboarding:
                         print("✅ User token generated successfully")
                         print(f"   Token: {user_token[:8]}...")
                         with open('.apitoken', 'w') as f:
-                            f.write(user_token)
+                            f.write(user_token or "")
                         print("✅ Token saved to .apitoken")
                         
                         # Save project and team information
-                        with open('.project', 'w') as f:
-                            f.write(self.project_name)
-                        print(f"✅ Project name saved to .project: {self.project_name}")
+                        with open('.projectname', 'w') as f:
+                            f.write(self.project_name or "")
+                        print(f"✅ Project name saved to .projectname: {self.project_name}")
                         
                         with open('.teamname', 'w') as f:
-                            f.write(self.team_name)
+                            f.write(self.team_name or "")
                         print(f"✅ Team name saved to .teamname: {self.team_name}")
                     else:
                         print("⚠️  No new user token in response. Trying to fetch existing token...")
@@ -286,16 +354,16 @@ class ExternalOnboarding:
                         if 'token' in response_data:
                             user_token = response_data['token']
                             with open('.apitoken', 'w') as f:
-                                f.write(user_token)
+                                f.write(user_token or "")
                             print("✅ Existing user token saved to .apitoken")
                             
                             # Save project and team information
-                            with open('.project', 'w') as f:
-                                f.write(self.project_name)
-                            print(f"✅ Project name saved to .project: {self.project_name}")
+                            with open('.projectname', 'w') as f:
+                                f.write(self.project_name or "")
+                            print(f"✅ Project name saved to .projectname: {self.project_name}")
                             
                             with open('.teamname', 'w') as f:
-                                f.write(self.team_name)
+                                f.write(self.team_name or "")
                             print(f"✅ Team name saved to .teamname: {self.team_name}")
                         else:
                             print(f"❌ No user token found in response: {result.stdout}")
@@ -341,7 +409,7 @@ class ExternalOnboarding:
                         print("✅ Admin token generated successfully")
                         print(f"   Token: {admin_token[:8]}...")
                         with open('.api_admin_token', 'w') as f:
-                            f.write(admin_token)
+                            f.write(admin_token or "")
                         print("✅ Admin token saved to .api_admin_token")
                         self.token = admin_token
                         return True
@@ -350,7 +418,7 @@ class ExternalOnboarding:
                         if 'token' in response_data:
                             admin_token = response_data['token']
                             with open('.api_admin_token', 'w') as f:
-                                f.write(admin_token)
+                                f.write(admin_token or "")
                             print("✅ Existing admin token saved to .api_admin_token")
                             self.token = admin_token
                             return True
@@ -409,35 +477,35 @@ class ExternalOnboarding:
             
             # Generate files
             docker_compose_content = generate_docker_compose(
-                self.project_name, 
+                self.project_name or "", 
                 api_base=api_base
             )
-            worker_dockerfile_content = generate_worker_dockerfile(self.project_name)
+            worker_dockerfile_content = generate_worker_dockerfile(self.project_name or "")
             worker_requirements_content = generate_worker_requirements()
-            worker_main_content = generate_external_worker_main(self.project_name)
+            worker_main_content = generate_external_worker_main(self.project_name or "")
             setup_script_content = generate_setup_script(
-                self.project_name,
+                self.project_name or "",
                 api_base=api_base
             )
             
             # Write files
             with open('docker-compose.external.yml', 'w') as f:
-                f.write(docker_compose_content)
+                f.write(docker_compose_content or "")
             
             # Create worker directory
             os.makedirs('worker', exist_ok=True)
             
             with open('worker/Dockerfile', 'w') as f:
-                f.write(worker_dockerfile_content)
+                f.write(worker_dockerfile_content or "")
                 
             with open('worker/requirements.txt', 'w') as f:
-                f.write(worker_requirements_content)
+                f.write(worker_requirements_content or "")
                 
             with open('worker/main.py', 'w') as f:
-                f.write(worker_main_content)
+                f.write(worker_main_content or "")
                 
             with open('setup-workers.sh', 'w') as f:
-                f.write(setup_script_content)
+                f.write(setup_script_content or "")
             
             # Make setup script executable
             os.chmod('setup-workers.sh', 0o755)
@@ -472,6 +540,45 @@ class ExternalOnboarding:
             print("   You can generate them manually later")
             return False
 
+    def generate_vscode_settings(self):
+        """Generate .vscode/settings.json for the project."""
+        print("📝 Generating VS Code Settings")
+        print("-" * 40)
+        
+        try:
+            # Create .vscode directory
+            os.makedirs('.vscode', exist_ok=True)
+            
+            # Generate settings content
+            settings_content = {
+                "ai-ide.projectName": self.project_name,
+                "ai-ide.namespace": f"{self.project_name}/private",
+                "ai-ide.suggestionTypes": ["rules", "patterns", "memory"],
+                "ai-ide.languageFocus": ["python", "javascript"],
+                "ai-ide.framework": "fastapi",
+                "ai-ide.apiUrl": self.api_base,
+                "ai-ide.enableRealTime": True,
+                "ai-ide.autoApply": False,
+                "ai-ide.workspaceDetection": True,
+                "ai-ide.projectConfigFiles": [".projectname", ".apitoken", ".teamname"]
+            }
+            
+            # Write settings file
+            with open('.vscode/settings.json', 'w') as f:
+                json.dump(settings_content, f, indent=2)
+            
+            print("✅ Generated .vscode/settings.json")
+            print("   📄 Project name:", self.project_name)
+            print("   📄 Namespace:", f"{self.project_name}/private")
+            print("   📄 API URL:", self.api_base)
+            print("   📄 Wildcard access:", f"{self.project_name}/*")
+            print()
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to generate VS Code settings: {e}")
+            return False
+
     def generate_makefile(self):
         """Generate the external Makefile."""
         print("📝 Generating External Makefile")
@@ -485,7 +592,7 @@ class ExternalOnboarding:
             # Generate Makefile
             makefile_content = generate_makefile(self.api_base, self.memory_api_base, "Makefile.external")
             with open("Makefile.external", "w") as f:
-                f.write(makefile_content)
+                f.write(makefile_content or "")
             
             # Create simple usage guide
             usage_guide = f"""# AI-IDE-API External Project Setup
@@ -532,7 +639,7 @@ For additional operations, use the API directly or contact the administrator.
 """
             
             with open("USAGE.md", "w") as f:
-                f.write(usage_guide)
+                f.write(usage_guide or "")
             
             print("✅ Generated Makefile.external")
             print("✅ Generated USAGE.md")
@@ -606,10 +713,10 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
         
         # Write files
         with open("example_memory.txt", "w") as f:
-            f.write(example_memory)
+            f.write(example_memory or "")
             
         with open("example_rule.mdc", "w") as f:
-            f.write(example_rule)
+            f.write(example_rule or "")
             
         print("✅ Created example_memory.txt")
         print("✅ Created example_rule.mdc")
@@ -735,7 +842,7 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
         print("  - API_TOKEN: Stored in .apitoken file")
         if os.path.exists('.api_admin_token'):
             print("  - ADMIN_TOKEN: Stored in .api_admin_token file")
-        print(f"  - PROJECT: {self.project_name} (saved to .project)")
+        print(f"  - PROJECT: {self.project_name} (saved to .projectname)")
         print(f"  - TEAM: {self.team_name} (saved to .teamname)")
         print("  - WORKER_NETWORK: {self.project_name}-memory-rabbitmq")
         print()
@@ -757,6 +864,9 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
         
         # Get project info
         self.get_project_info()
+        
+        # Prompt for journey if not provided
+        self.get_journey()
         
         # Check dependencies
         if not self.check_dependencies():
@@ -795,10 +905,34 @@ make -f Makefile.external memory-create FILE=content.txt NAMESPACE={self.project
         # Run example workflow
         self.create_example_workflow()
         
+        # Generate VS Code settings
+        if self.project_name:  # Ensure project_name is not None
+            self.generate_vscode_settings()
+        
         # Show next steps
         self.show_next_steps()
         
         return True
+
+def select_buddy():
+    print("\nChoose yer buddy for this voyage:")
+    for i, buddy in enumerate(BUDDIES, 1):
+        print(f"{i}) {buddy}")
+    idx = input("> ")
+    try:
+        idx = int(idx) - 1
+        selected = BUDDIES[idx]
+        if selected == "Random":
+            selected = random.choice(BUDDIES[:-1])
+        print(f"\n{BUDDY_INTROS[selected]}\n")
+        return selected
+    except Exception:
+        print("Invalid selection. Defaulting to Patch McDebug.\n")
+        print(BUDDY_INTROS["Patch McDebug"])
+        return "Patch McDebug"
+
+def encouragement(selected_buddy):
+    print(f"{selected_buddy}: {random.choice(ENCOURAGEMENTS)}\n")
 
 def main():
     parser = argparse.ArgumentParser(description="Updated external onboarding for AI-IDE-API")
@@ -808,25 +942,27 @@ def main():
     parser.add_argument("--team", help="Team/Organization name")
     parser.add_argument("--user", help="User email address")
     parser.add_argument("--token", help="API token (will generate automatically if not provided)")
+    parser.add_argument("--journey", help="Onboarding journey/path (e.g., external_project, memory_onboarding, etc.)")
     
     args = parser.parse_args()
     
-    # Create onboarding instance
-    onboarding = ExternalOnboarding(args.api_base, args.memory_api_base)
+    # Buddy selection
+    selected_buddy = select_buddy()
+
+    onboarding = ExternalOnboarding(
+        api_base=args.api_base,
+        memory_api_base=args.memory_api_base,
+        journey=args.journey or ""
+    )
+    onboarding.project_name = args.project or ""
+    onboarding.team_name = args.team or ""
+    onboarding.user_email = args.user or ""
     
-    # Set project info if provided
-    if args.project:
-        onboarding.project_name = args.project
-    if args.team:
-        onboarding.team_name = args.team
-    if args.user:
-        onboarding.user_email = args.user
-        
     # Set token if provided (skip automatic generation)
     if args.token:
         onboarding.token = args.token
         with open('.apitoken', 'w') as f:
-            f.write(args.token)
+            f.write(args.token or "")
     
     # Run onboarding
     success = onboarding.run_onboarding()

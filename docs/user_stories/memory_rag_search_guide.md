@@ -192,4 +192,17 @@ make -f Makefile.ai memory-rag-search-similar \
 
 **Remember:** The memory system learns and grows with use. Regular searches help improve the system's understanding and connections between content.
 
-Need help? Check the [Memory System Documentation](docs/MEMORY_SYSTEM.md) or contact your system administrator. 
+Need help? Check the [Memory System Documentation](docs/MEMORY_SYSTEM.md) or contact your system administrator.
+
+## What Fields Are Searched?
+
+As of June 2025, RAG search covers the following fields when searching for relevant memory nodes:
+
+- **content** (main body of the memory node)
+- **meta** (additional metadata, if present)
+- **tags** (list of tags, if present)
+- **categories** (list of categories, if present)
+
+When a memory node is created, the embedding is generated from a combination of all these fields. This means that RAG search will semantically match on any information present in content, meta, tags, or categories.
+
+**Note:** For older nodes, only the content field may be indexed unless they are re-embedded. 

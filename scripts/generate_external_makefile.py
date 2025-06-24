@@ -25,6 +25,7 @@ def generate_makefile(api_base: str, memory_api_base: str, output_file: str = "M
     # Use placeholder for API token that users need to replace
     api_token = "$(shell cat .apitoken 2>/dev/null || echo 'YOUR_API_TOKEN_HERE')"
     admin_token = "$(shell cat .api_admin_token 2>/dev/null || echo '')"
+    project_id_var = '$(shell cat .projectname 2>/dev/null || echo "")'
     
     makefile_content = f'''# External Project Makefile for AI IDE API Integration
 # Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -34,6 +35,7 @@ def generate_makefile(api_base: str, memory_api_base: str, output_file: str = "M
 API_BASE_URL = {api_base}
 API_TOKEN = {api_token}
 ADMIN_TOKEN = {admin_token}
+PROJECT_IDENTIFIER = {project_id_var}  # Project name or ID (from .projectname)
 
 # Colors for output
 GREEN = \\033[0;32m
@@ -56,9 +58,9 @@ help:
 	@if [ -f .api_admin_token ]; then \\
 		echo ""; \\
 		echo "$(GREEN)Admin commands (available with admin token):$(NC)"; \\
-		echo "  $(YELLOW)admin-enable-llm$(NC)   - Enable LLM access for this project"; \\
-		echo "  $(YELLOW)admin-disable-llm$(NC)  - Disable LLM access for this project"; \\
-		echo "  $(YELLOW)admin-generate-token$(NC) - Generate new token for this project"; \\
+		echo "  $(YELLOW)admin-enable-llm$(NC)   - Enable LLM access for this project (by name or ID)"; \\
+		echo "  $(YELLOW)admin-disable-llm$(NC)  - Disable LLM access for this project (by name or ID)"; \\
+		echo "  $(YELLOW)admin-generate-token$(NC) - Generate new token for this project (by name or ID)"; \\
 		echo "  $(YELLOW)admin-project-info$(NC) - Show project information"; \\
 		echo "  $(YELLOW)admin-grant-read-permission$(NC) - Grant read permission to project namespace"; \\
 		echo "  $(YELLOW)admin-grant-write-permission$(NC) - Grant write permission to project namespace"; \\
@@ -107,10 +109,11 @@ admin-enable-llm:
 		exit 1; \\
 	fi
 	@echo "$(GREEN)Enabling LLM access for this project...$(NC)"
+	# The API requires both project_id and name fields in the body
 	@curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
 		-H "Content-Type: application/json" \\
 		"$(API_BASE_URL)/memory/admin/project/llm-access" \\
-		-d '{{"project_id": "$$(curl -s -H \\"Authorization: Bearer $(API_TOKEN)\\" \\"$(API_BASE_URL)/protected\\" | jq -r \\".token_info.project_id\\")", "has_llm_access": true}}' | jq .
+		-d '{{"project_id": "$(PROJECT_IDENTIFIER)", "name": "$(PROJECT_IDENTIFIER)", "has_llm_access": true}}' | jq .
 
 .PHONY: admin-disable-llm
 admin-disable-llm:
@@ -119,10 +122,11 @@ admin-disable-llm:
 		exit 1; \\
 	fi
 	@echo "$(GREEN)Disabling LLM access for this project...$(NC)"
+	# The API requires both project_id and name fields in the body
 	@curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
 		-H "Content-Type: application/json" \\
 		"$(API_BASE_URL)/memory/admin/project/llm-access" \\
-		-d '{{"project_id": "$$(curl -s -H \\"Authorization: Bearer $(API_TOKEN)\\" \\"$(API_BASE_URL)/protected\\" | jq -r \\".token_info.project_id\\")", "has_llm_access": false}}' | jq .
+		-d '{{"project_id": "$(PROJECT_IDENTIFIER)", "name": "$(PROJECT_IDENTIFIER)", "has_llm_access": false}}' | jq .
 
 .PHONY: admin-generate-token
 admin-generate-token:
@@ -136,7 +140,7 @@ admin-generate-token:
 		curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
 			-H "Content-Type: application/json" \\
 			"$(API_BASE_URL)/admin/generate-token" \\
-			-d '{{"description": "$(DESCRIPTION)", "role": "$(ROLE)", "project_id": "$$(curl -s -H \\"Authorization: Bearer $(API_TOKEN)\\" \\"$(API_BASE_URL)/protected\\" | jq -r \\".token_info.project_id\\")"}}' | jq .; \\
+			-d '{{"description": "$(DESCRIPTION)", "role": "$(ROLE)", "project_id": "$(PROJECT_IDENTIFIER)"}}' | jq .; \\
 	else \\
 		echo "$(YELLOW)Example: make admin-generate-token DESCRIPTION='New user token' ROLE=user$(NC)"; \\
 	fi
@@ -163,7 +167,7 @@ admin-grant-read-permission:
 	@curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
 		-H "Content-Type: application/json" \\
 		"$(API_BASE_URL)/memory/admin/namespace-permissions" \\
-		-d '{{"namespace": "$(PROJECT_ID)", "project_id": "$(PROJECT_ID)", "permission_type": "read"}}' | jq .
+		-d '{{"namespace": "$(PROJECT_IDENTIFIER)", "project_id": "$(PROJECT_IDENTIFIER)", "permission_type": "read"}}' | jq .
 
 # Grant write permission to project namespace
 .PHONY: admin-grant-write-permission
@@ -176,7 +180,7 @@ admin-grant-write-permission:
 	@curl -s -X POST -H "Authorization: Bearer $(ADMIN_TOKEN)" \\
 		-H "Content-Type: application/json" \\
 		"$(API_BASE_URL)/memory/admin/namespace-permissions" \\
-		-d '{{"namespace": "$(PROJECT_ID)", "project_id": "$(PROJECT_ID)", "permission_type": "write"}}' | jq .
+		-d '{{"namespace": "$(PROJECT_IDENTIFIER)", "project_id": "$(PROJECT_IDENTIFIER)", "permission_type": "write"}}' | jq .
 
 # User target: create a memory node in the project namespace
 .PHONY: memory-create
@@ -189,14 +193,14 @@ memory-create:
 	@curl -s -X POST -H "Authorization: Bearer $(API_TOKEN)" \\
 		-H "Content-Type: application/json" \\
 		"$(API_BASE_URL)/memory/nodes" \\
-		-d '{{"content": "$(CONTENT)", "namespace": "$(PROJECT_ID)", "meta": "$(META)"}}' | jq .
+		-d '{{"content": "$(CONTENT)", "namespace": "$(PROJECT_IDENTIFIER)", "meta": "$(META)"}}' | jq .
 
 # User target: list memory nodes in the project namespace
 .PHONY: memory-list
 memory-list:
 	@echo "$(GREEN)Listing memory nodes in project namespace...$(NC)"
 	@curl -s -H "Authorization: Bearer $(API_TOKEN)" \\
-		"$(API_BASE_URL)/memory/nodes?namespace=$(PROJECT_ID)" | jq .
+		"$(API_BASE_URL)/memory/nodes?namespace=$(PROJECT_IDENTIFIER)" | jq .
 
 # User target: summarize a git diff using LLM
 .PHONY: summarize-git-diff
@@ -210,9 +214,6 @@ summarize-git-diff:
 		-H "Content-Type: application/json" \\
 		"$(API_BASE_URL)/summarize-git-diff" \\
 		-d '{{"diff": "$(DIFF)", "concise": $(CONCISE)}}' | jq .
-
-# Add PROJECT_ID variable for convenience
-PROJECT_ID = $(shell curl -s -H 'Authorization: Bearer $(API_TOKEN)' '$(API_BASE_URL)/protected' | jq -r '.token_info.project_id')
 '''
     
     return makefile_content

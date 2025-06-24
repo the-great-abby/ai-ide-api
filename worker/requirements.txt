@@ -1,7 +1,22 @@
-requests
-pika
-sqlalchemy
-psycopg2-binary
-python-dateutil
-numpy
-fastapi 
+# External Worker Requirements
+# Generated for AI IDE API worker
+
+# Core dependencies
+requests>=2.31.0
+pika>=1.3.2
+aio-pika>=9.3.0
+asyncio-mqtt>=0.16.0
+
+# Database
+psycopg2-binary>=2.9.7
+sqlalchemy>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+fastapi>=0.100.0
+
+# Logging
+structlog>=23.0.0
+
+# Optional: Add any project-specific dependencies here

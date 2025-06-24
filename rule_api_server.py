@@ -72,6 +72,7 @@ from memory_endpoints import router as memory_router
 from db import RuleVersion
 from projects import router as projects_router
 from api.basic_endpoints import router as basic_router
+from api.websocket_endpoints import router as websocket_router
 from auth import require_api_token
 
 logging.getLogger("examples_normalization").setLevel(logging.DEBUG)
@@ -242,6 +243,20 @@ app.include_router(
 app.include_router(misc_router)
 app.include_router(memory_router)
 app.include_router(projects_router)
+app.include_router(websocket_router)  # WebSocket endpoints for real-time communication
+
+# Add CORS middleware to allow frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://host.docker.internal:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Register basic endpoints last to avoid conflicts
 app.include_router(basic_router)
