@@ -562,7 +562,7 @@ def main():
     )
     parser.add_argument(
         "--output-format",
-        choices=["json", "text", "story", "summary"],
+        choices=["json", "text", "story", "summary", "user_story"],
         default="json",
         help="Output format",
     )
@@ -574,6 +574,10 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Map 'user_story' to 'story' for internal logic
+    if args.output_format == "user_story":
+        args.output_format = "story"
 
     # Get commit list
     logger.info("Fetching commit list...")

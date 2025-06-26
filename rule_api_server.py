@@ -142,6 +142,13 @@ app.mount(
     name="user_stories",
 )
 
+# Mount onboarding docs as static files for direct access
+app.mount(
+    "/docs/onboarding",
+    StaticFiles(directory="docs/onboarding"),
+    name="onboarding_docs",
+)
+
 
 # Quick access endpoints for documentation
 @app.get("/docs/rabbitmq-setup", response_class=PlainTextResponse)

@@ -11,6 +11,7 @@ import asyncio
 from typing import Dict, Any, Optional
 import os
 import sys
+from datetime import datetime
 
 # Add the current directory to the path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -67,6 +68,27 @@ def create_memory_node(
     except Exception as e:
         logger.error(f"Failed to create memory node: {e}")
         return None
+
+
+def generate_user_story(commit):
+    """Generate a user story for a commit, using actual message and speculation if needed."""
+    # If the commit message is descriptive, use it as the reason
+    reason = commit.message.strip()
+    if not reason or reason.lower() in ["update", "fix", "changes", "miscellaneous changes"]:
+        reason = f"(Speculation) The developer made changes to improve the codebase, but the exact reason is unclear."
+    else:
+        reason = f"The developer made this change because: {reason}"
+    # Add speculation if summary is vague
+    if "fix" in reason.lower() and "bug" not in reason.lower():
+        reason += " (Speculation: This may have been to fix a bug or address a code issue.)"
+    # User story format
+    story = (
+        f"User Story for Commit {commit.commit_hash[:8]} by {commit.author} on {commit.date}:\n"
+        f"As a developer, I {reason}\n"
+        f"Files changed: {', '.join(commit.files_changed) if commit.files_changed else 'N/A'}\n"
+        f"(Speculation: If the above reason is not clear, this change may have been part of ongoing refactoring or feature work.)"
+    )
+    return story
 
 
 async def process_git_history_analysis_job(
@@ -149,8 +171,7 @@ async def process_git_history_analysis_job(
         if create_memory:
             logger.info("Creating memory node with analysis results...")
 
-            # Prepare memory node content
-            # Increased content length limits for verbose output
+            # Prepare memory node content (summary node)
             if output_format == "story":
                 content = report[:8000] + "..." if len(report) > 8000 else report
             elif output_format == "summary":
@@ -160,7 +181,7 @@ async def process_git_history_analysis_job(
             else:  # json
                 content = f"Git history analysis completed. Found {len(analyzed_commits)} commits."
 
-            # Prepare metadata
+            # Prepare metadata (summary node)
             meta = {
                 "type": "git_history_analysis",
                 "output_format": output_format,
@@ -174,15 +195,33 @@ async def process_git_history_analysis_job(
                 "full_report": report if output_format != "json" else None,
                 "report_length": len(report),
                 "story_mode": output_format == "story",
+                "summary_type": "summary",
             }
 
-            # Create the memory node
+            # Create the summary memory node
             memory_id = create_memory_node(content, meta, memory_namespace)
             if memory_id:
                 stats["memory_node_created"] = True
                 logger.info(f"Created memory node with ID: {memory_id}")
             else:
                 logger.warning("Failed to create memory node")
+
+            # For each commit, create a user story node
+            for commit in analyzed_commits:
+                user_story = generate_user_story(commit)
+                story_meta = {
+                    "type": "git_history_analysis",
+                    "output_format": "user_story",
+                    "summary_type": "user_story",
+                    "commit_hash": commit.commit_hash,
+                    "author": commit.author,
+                    "date": commit.date,
+                    "files_changed": commit.files_changed,
+                    "categories": getattr(commit, "categories", []),
+                    "tags": getattr(commit, "tags", []),
+                    "speculation": True if "Speculation" in user_story else False,
+                }
+                create_memory_node(user_story, story_meta, memory_namespace)
 
         stats["analysis_duration"] = (
             asyncio.get_event_loop().time() - stats["start_time"]

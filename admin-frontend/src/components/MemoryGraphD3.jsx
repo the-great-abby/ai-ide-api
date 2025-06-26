@@ -13,6 +13,7 @@ const MemoryGraphD3 = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
+  const [selectedNamespace, setSelectedNamespace] = useState(null);
 
   // Fetch data on mount
   useEffect(() => {
@@ -35,13 +36,18 @@ const MemoryGraphD3 = () => {
     fetchData();
   }, []);
 
-  // Defensive: Remove any nodes that are undefined or missing an id
+  // Get all unique namespaces
+  const allNamespaces = Array.from(new Set(nodes.map(n => n.namespace).filter(Boolean)));
+
+  // Filter nodes by search and selectedNamespace
   const filteredNodes = nodes.filter(
-    n => n && typeof n.id === 'string' && (
-      n.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      n.namespace?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      n.meta?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    n => n && typeof n.id === 'string' &&
+      (!selectedNamespace || n.namespace === selectedNamespace) &&
+      (
+        n.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.namespace?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        n.meta?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
   );
   const filteredNodeIds = new Set(filteredNodes.map(n => n.id));
   // Defensive: Only include edges where both endpoints exist and are valid
@@ -61,10 +67,6 @@ const MemoryGraphD3 = () => {
   const selfLoops = filteredEdges.filter(e => e.from_id === e.to_id);
   const normalEdges = filteredEdges.filter(e => e.from_id !== e.to_id);
 
-  // Debug logging
-  console.log('Filtered Nodes:', filteredNodes);
-  console.log('Filtered Edges:', filteredEdges);
-
   // D3 rendering effect (only runs when data changes and there is data to render)
   useEffect(() => {
     if (loading || error || filteredNodes.length === 0 || (filteredNodes.length > 0 && filteredEdges.length === 0)) {
@@ -76,13 +78,6 @@ const MemoryGraphD3 = () => {
 
     // Build node map for quick lookup
     const nodeMap = Object.fromEntries(filteredNodes.map(n => [n.id, n]));
-    console.log('Node Map:', nodeMap);
-    // Log any edge that references a missing node
-    filteredEdges.forEach(e => {
-      if (!nodeMap[e.from_id] || !nodeMap[e.to_id]) {
-        console.warn('Edge references missing node:', e);
-      }
-    });
 
     // Map edges to D3 format with source/target
     const d3Edges = normalEdges.map(e => ({
@@ -182,6 +177,21 @@ const MemoryGraphD3 = () => {
     }
   }, [filteredNodes, filteredEdges, loading, error]);
 
+  // Helper: Get all memories in a namespace (excluding the namespace node itself)
+  const getMemoriesInNamespace = (namespace) => {
+    return nodes.filter(
+      n => n.namespace === namespace && n.id !== selectedNode?.id
+    );
+  };
+
+  // Helper: Determine if a node is a namespace node (has no content, or has a special flag)
+  // For now, treat as namespace node if its id equals its namespace, or if it has no content but has a namespace
+  const isNamespaceNode = (node) => {
+    if (!node) return false;
+    // Heuristic: id equals namespace, or no content but has namespace
+    return node.id === node.namespace || (!node.content && node.namespace);
+  };
+
   // Early returns for rendering only (after all hooks)
   if (loading) {
     return (
@@ -215,7 +225,8 @@ const MemoryGraphD3 = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="p-2 flex items-center gap-2 bg-gray-100 border-b">
+      {/* Namespace picker */}
+      <div className="p-2 flex items-center gap-2 bg-gray-100 border-b flex-wrap">
         <input
           type="text"
           placeholder="Search nodes..."
@@ -223,18 +234,78 @@ const MemoryGraphD3 = () => {
           onChange={e => setSearchTerm(e.target.value)}
           className="px-3 py-1 border rounded w-64"
         />
+        {selectedNamespace ? (
+          <button
+            className="ml-2 px-3 py-1 bg-gray-300 text-gray-800 rounded"
+            onClick={() => { setSelectedNamespace(null); setSelectedNode(null); }}
+          >
+            ← Back to all namespaces
+          </button>
+        ) : (
+          <>
+            <span className="ml-4 font-semibold text-gray-700">Namespaces:</span>
+            {allNamespaces.map(ns => (
+              <button
+                key={ns}
+                className={`ml-1 px-3 py-1 rounded ${selectedNamespace === ns ? 'bg-blue-500 text-white' : 'bg-white text-blue-700 border border-blue-300'}`}
+                onClick={() => { setSelectedNamespace(ns); setSelectedNode(null); }}
+              >
+                {ns}
+              </button>
+            ))}
+          </>
+        )}
         {loading && <span className="ml-2 text-gray-500">Loading...</span>}
         {error && <span className="ml-2 text-red-600">{error}</span>}
       </div>
       <svg ref={svgRef} width={width} height={height} className="bg-white border flex-shrink-0" />
       {selectedNode && (
         <div className="p-4 border-t bg-gray-50">
+          <button
+            className="mb-2 px-2 py-1 bg-gray-200 text-gray-700 rounded"
+            onClick={() => setSelectedNode(null)}
+          >
+            ← Back to {selectedNamespace ? `namespace (${selectedNamespace})` : 'graph'}
+          </button>
           <h3 className="font-bold text-lg mb-2">{selectedNode.meta?.name || selectedNode.namespace || 'Memory Node'}</h3>
           <div className="mb-1 text-sm text-gray-600">ID: {selectedNode.id}</div>
           <div className="mb-1 text-sm text-gray-600">Namespace: {selectedNode.namespace}</div>
           <div className="mb-1 text-sm text-gray-600">Created: {selectedNode.created_at}</div>
           <div className="mb-2 text-gray-800">{selectedNode.content}</div>
-          <button className="mt-2 px-3 py-1 bg-blue-500 text-white rounded" onClick={() => setSelectedNode(null)}>Close</button>
+          {/* Show table of memories in this namespace ONLY if this is a namespace node */}
+          {isNamespaceNode(selectedNode) && (
+            (() => {
+              const memories = getMemoriesInNamespace(selectedNode.namespace);
+              if (memories.length === 0) {
+                return <div className="mt-4 text-gray-500">No memories found in this namespace.</div>;
+              }
+              return (
+                <div className="mt-4">
+                  <div className="font-semibold mb-2">Memories in this namespace:</div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border text-sm">
+                      <thead>
+                        <tr className="bg-gray-200">
+                          <th className="px-2 py-1 border">Name</th>
+                          <th className="px-2 py-1 border">Created</th>
+                          <th className="px-2 py-1 border">Content</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {memories.map(mem => (
+                          <tr key={mem.id} className="hover:bg-blue-50 cursor-pointer" onClick={() => setSelectedNode(mem)}>
+                            <td className="px-2 py-1 border">{mem.meta?.name || mem.id}</td>
+                            <td className="px-2 py-1 border">{mem.created_at}</td>
+                            <td className="px-2 py-1 border max-w-xs truncate" title={mem.content}>{mem.content}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()
+          )}
         </div>
       )}
     </div>

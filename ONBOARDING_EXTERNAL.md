@@ -2,6 +2,37 @@
 
 Welcome, external collaborator or partner! This guide will help you get started quickly and use the project's essential features via the public API.
 
+## 🏴‍☠️ Quickstart: Running Onboarding Scripts on a Fresh Host
+
+1. **Download the script:**
+   ```bash
+   curl -O http://localhost:9103/scripts/onboard_external.py
+   ```
+
+2. **(Recommended) Create a virtual environment:**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install requests
+   ```
+
+4. **Run the script:**
+   ```bash
+   python3 onboard_external.py
+   ```
+
+**If you don't want a virtual environment, just run:**
+```bash
+pip install --user requests
+python3 onboard_external.py
+```
+
+> **Note:** This script is meant to be run on your host machine, not inside Docker. If you see an error about 'ModuleNotFoundError: No module named requests', make sure to install the 'requests' library as shown above.
+
 ## 🚀 Quick Start (Recommended)
 
 ### Option 1: Automated Onboarding Script (Easiest)
