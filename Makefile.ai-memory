@@ -290,6 +290,9 @@ memory-rag-search:
 			-d "{\"question\": \"$(QUERY)\", \"top_k\": $$TOP_K_VALUE}" | jq '.'; \
 	fi
 
+memory-rag-search-answer:
+	@$(MAKE) -f Makefile.ai-memory memory-rag-search QUERY="$(QUERY)" NAMESPACE="$(NAMESPACE)" TOP_K="$(TOP_K)" AUTH_TOKEN="$(AUTH_TOKEN)" | tail -n +2 | jq -r .answer
+
 memory-rag-search-similar:
 	@if [ -z "$(NODE_ID)" ]; then \
 		echo "[ERROR] Usage: make -f Makefile.ai memory-rag-search-similar NODE_ID=\"node_id\" [TOP_K=5] [AUTH_TOKEN=\"override_token\"]"; \
